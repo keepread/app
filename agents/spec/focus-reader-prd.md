@@ -33,7 +33,8 @@ Commercial products like Readwise Reader address this well, but are closed-sourc
 - Offer a distraction-free, keyboard-driven reading experience.
 - Enable rich annotation: highlights, notes, and tags on any content type.
 - Provide full-text search across all saved content.
-- Expose a public API for programmatic access and third-party integrations.
+- Expose a REST API for programmatic access and third-party integrations.
+- Store all content in Markdown for portability and easy export to note-taking apps (e.g., Obsidian, Logseq).
 - Remain self-hosted, open-source, and fully customizable.
 
 ### 1.4 Non-Goals
@@ -85,7 +86,7 @@ Focus Reader treats all saved content as **Documents**. Each document has a `typ
 │                     Ingestion Layer                          │
 │                                                              │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────────┐ │
-│  │  Email      │ │  RSS Fetch  │ │  HTTP API / Extension   │ │
+│  │  Email      │ │  RSS Fetch  │ │  Browser Extension      │ │
 │  │  Worker     │ │  (Cron)     │ │  (save URL/file/post)   │ │
 │  └──────┬──────┘ └──────┬──────┘ └────────────┬────────────┘ │
 │         │               │                     │              │
@@ -102,17 +103,22 @@ Focus Reader treats all saved content as **Documents**. Each document has a `typ
               │  D1 + R2         │
               └────────┬─────────┘
                        ▼
-              ┌──────────────────┐     ┌──────────────────┐
-              │  Web UI          │     │  Public API      │
-              │  (Next.js/Pages) │     │  (Workers)       │
-              └──────────────────┘     └──────────────────┘
-                       │
-                       ▼
-              ┌──────────────────┐
-              │  RSS/Atom Feed   │
-              │  Output          │
-              └──────────────────┘
+              ┌──────────────────────────────────┐
+              │  REST API (Workers)               │
+              │  All data access goes through     │
+              │  this single authenticated API    │
+              └──────────┬───────────────────────┘
+                         │
+              ┌──────────┼───────────────────────┐
+              ▼          ▼                       ▼
+     ┌──────────────┐ ┌──────────────┐  ┌──────────────┐
+     │  Web UI      │ │  Browser     │  │  RSS/Atom    │
+     │  (Next.js/   │ │  Extension   │  │  Feed Output │
+     │   Pages)     │ │              │  │              │
+     └──────────────┘ └──────────────┘  └──────────────┘
 ```
+
+> **Note on the API layer:** There is a single REST API that serves all clients — the web UI, the browser extension, and any third-party integrations. The term "API" in this document always refers to this single API. The browser extension in the ingestion layer calls the same API endpoints (e.g., `POST /api/documents`) that any external client would use. The web UI uses the same API via its Next.js server-side routes. There is no separate "public" vs. "internal" API — it is one API, fully authenticated (see Section 6.12).
 
 ### 4.2 Stack
 
@@ -161,7 +167,14 @@ Use a **catch-all configuration on a dedicated subdomain** (e.g., `*@read.yourdo
 
 #### Document
 
-The universal content entity. All content types share this table with type-specific fields nullable where not applicable.
+The universal content entity. Every piece of saved content — regardless of format or origin — is stored as a row in this table. Type-specific fields are nullable where not applicable.
+
+> **Clarification: `type` vs. `source_type`**
+>
+> - **`type`** describes *what the content is* — its format and how it is rendered. For example: `article`, `pdf`, `email`, `rss`, `bookmark`, `post`.
+> - **`source_type`** describes *how the content arrived* — the ingestion channel that created it. For example: `subscription` (came via email), `feed` (came via RSS polling), or `manual` (user saved it via URL paste, browser extension, file upload, or API call).
+>
+> These are orthogonal. An `article` (type) could arrive from an RSS feed (source_type = `feed`) or be manually saved (source_type = `manual`). An `email` (type) always comes from a `subscription` (source_type). A `pdf` (type) is always `manual` (source_type).
 
 | Field                  | Type            | Description                                                      |
 |------------------------|-----------------|------------------------------------------------------------------|
@@ -193,7 +206,7 @@ The universal content entity. All content types share this table with type-speci
 
 #### Document_Email_Meta
 
-Type-specific metadata for `email` documents. Separated to keep the `Document` table clean.
+Email-specific metadata that only applies to documents with `type = 'email'`. Stored in a separate table to keep the universal `Document` table clean. Contains deduplication keys (`message_id`, `fingerprint`), sender details, rejection/confirmation flags, and raw email headers for debugging.
 
 | Field                | Type           | Description                                 |
 |----------------------|----------------|---------------------------------------------|
@@ -210,7 +223,7 @@ Type-specific metadata for `email` documents. Separated to keep the `Document` t
 
 #### Document_PDF_Meta
 
-Type-specific metadata for `pdf` documents.
+PDF-specific metadata that only applies to documents with `type = 'pdf'`. Tracks page count, file size, and the R2 storage key for the uploaded PDF binary.
 
 | Field             | Type          | Description                      |
 |-------------------|---------------|----------------------------------|
@@ -220,6 +233,8 @@ Type-specific metadata for `pdf` documents.
 | `storage_key`     | TEXT          | R2 object key for the stored PDF |
 
 #### Subscription
+
+An email newsletter source mapped to a pseudo email address. Each subscription represents one newsletter the user has signed up for. Documents with `type = 'email'` reference a subscription via `source_id`.
 
 > Carried forward from the [Email Newsletter PRD](./email-newsletter-prd.md), Section 4.1, with minor field additions to link into the unified document model.
 
@@ -238,7 +253,7 @@ Type-specific metadata for `pdf` documents.
 
 #### Feed
 
-RSS/Atom feed subscriptions.
+An RSS/Atom feed the user has subscribed to. The system polls each active feed on a configurable interval and creates `Document` records (with `type = 'rss'`) for new items. Tracks fetch state, error counts, and auto-tagging rules.
 
 | Field                    | Type            | Description                                 |
 |--------------------------|-----------------|---------------------------------------------|
@@ -260,6 +275,8 @@ RSS/Atom feed subscriptions.
 
 #### Tag
 
+A user-defined label for organizing content. Tags can be applied to documents, highlights, subscriptions, and feeds. Used for filtering views, auto-tagging rules, and grouping content in the sidebar.
+
 | Field         | Type            | Description          |
 |---------------|-----------------|----------------------|
 | `id`          | TEXT (UUID)     | Primary key          |
@@ -269,6 +286,8 @@ RSS/Atom feed subscriptions.
 | `created_at`  | TEXT (ISO 8601) | Creation time        |
 
 #### Highlight
+
+A user-selected text passage within a document, optionally annotated with a note and tagged. Highlights are the core annotation primitive — they enable the user to mark important passages, add thoughts, and later export them to note-taking apps. Each highlight is anchored to its position in the document so it persists across re-renders.
 
 | Field               | Type            | Description                                                                     |
 |---------------------|-----------------|---------------------------------------------------------------------------------|
@@ -284,6 +303,8 @@ RSS/Atom feed subscriptions.
 
 #### Collection
 
+A curated, ordered group of documents — like a reading list or playlist. Collections let the user manually organize documents into meaningful groups beyond what tags provide (e.g., "Research for Project X", "Best of 2026"). Documents can belong to multiple collections.
+
 | Field         | Type            | Description                                   |
 |---------------|-----------------|-----------------------------------------------|
 | `id`          | TEXT (UUID)     | Primary key                                   |
@@ -294,6 +315,8 @@ RSS/Atom feed subscriptions.
 | `updated_at`  | TEXT (ISO 8601) | Last update time                              |
 
 #### Attachment
+
+File or inline MIME part associated with a document (primarily email attachments). In v1, only metadata is stored; binary storage via R2 is a Phase 2 enhancement. For inline images in emails, the `content_id` field maps to the MIME Content-ID for future `cid:` resolution.
 
 | Field          | Type            | Description                                       |
 |----------------|-----------------|---------------------------------------------------|
@@ -308,6 +331,8 @@ RSS/Atom feed subscriptions.
 
 #### Denylist
 
+A blocklist of sender domains whose emails are automatically rejected during ingestion. Managed via the settings UI. When an inbound email's sender domain matches an entry, the resulting document is flagged with `is_rejected = 1`.
+
 | Field        | Type            | Description               |
 |--------------|-----------------|---------------------------|
 | `id`         | TEXT (UUID)     | Primary key               |
@@ -316,6 +341,8 @@ RSS/Atom feed subscriptions.
 | `created_at` | TEXT (ISO 8601) | When the entry was added  |
 
 #### Feed_Token
+
+Opaque bearer tokens used to authenticate RSS/Atom feed output endpoints (Section 6.11). Since feed endpoints are not protected by Cloudflare Access (so external RSS readers can fetch them), each request must include a valid token in the URL. Tokens are stored as SHA-256 hashes; the plaintext is shown once at creation and never persisted.
 
 | Field        | Type            | Description                           |
 |--------------|-----------------|---------------------------------------|
@@ -326,6 +353,8 @@ RSS/Atom feed subscriptions.
 | `revoked_at` | TEXT (ISO 8601) | Revocation timestamp (null if active) |
 
 #### Ingestion_Log
+
+An audit trail of every content ingestion attempt — whether from email, RSS polling, API calls, or the browser extension. Records both successes and failures with error details. Used for the reliability dashboard and debugging ingestion issues.
 
 | Field          | Type            | Description                                          |
 |----------------|-----------------|------------------------------------------------------|
@@ -343,6 +372,8 @@ RSS/Atom feed subscriptions.
 
 #### Document_Tags
 
+Associates tags with documents. A document can have many tags, and a tag can be applied to many documents. This is the primary organizational mechanism for the user's content library.
+
 | Field         | Type      | Description           |
 |---------------|-----------|-----------------------|
 | `document_id` | TEXT (FK) | References `document` |
@@ -351,6 +382,8 @@ RSS/Atom feed subscriptions.
 Primary key: (`document_id`, `tag_id`)
 
 #### Highlight_Tags
+
+Associates tags with individual highlights — separate from document-level tags. This enables a finer-grained organizational layer: for example, a user might tag a document as "Machine Learning" but tag a specific highlighted passage within it as "key-insight" or "actionable". Highlight tags power filtered views like "show me all highlights tagged 'actionable' across all documents" and are included in Markdown exports to note-taking apps.
 
 | Field          | Type      | Description            |
 |----------------|-----------|------------------------|
@@ -361,6 +394,8 @@ Primary key: (`highlight_id`, `tag_id`)
 
 #### Subscription_Tags
 
+Associates tags with email subscriptions. When a subscription is tagged, all future documents ingested from that subscription automatically inherit the tag (see Section 6.5).
+
 | Field             | Type      | Description               |
 |-------------------|-----------|---------------------------|
 | `subscription_id` | TEXT (FK) | References `subscription` |
@@ -370,6 +405,8 @@ Primary key: (`subscription_id`, `tag_id`)
 
 #### Feed_Tags
 
+Associates tags with RSS/Atom feeds. When a feed is tagged, all future documents ingested from that feed automatically inherit the tag (see Section 6.5).
+
 | Field     | Type      | Description       |
 |-----------|-----------|-------------------|
 | `feed_id` | TEXT (FK) | References `feed` |
@@ -378,6 +415,8 @@ Primary key: (`subscription_id`, `tag_id`)
 Primary key: (`feed_id`, `tag_id`)
 
 #### Collection_Documents
+
+Associates documents with collections and tracks their position within the collection. The `sort_order` field enables drag-and-drop reordering. A document can belong to multiple collections.
 
 | Field           | Type            | Description                 |
 |-----------------|-----------------|-----------------------------|
@@ -429,6 +468,7 @@ Primary key: (`collection_id`, `document_id`)
 - Convert to Markdown.
 - Compute word count and estimated reading time.
 - Extract Open Graph / meta tag metadata as fallback for title, description, and cover image.
+- Create a `Document` record with `type = 'article'`, `source_type = 'manual'`, and `location = 'inbox'`.
 
 **Deduplication:**
 
@@ -511,35 +551,44 @@ Primary key: (`collection_id`, `document_id`)
 **Three-pane layout (desktop default):**
 
 - **Left sidebar:** Navigation — sources (subscriptions, feeds), tags, collections, filtered views, and system views (Inbox, Later, Archive, All, Starred, Rejected).
-- **Center pane (document list):** Chronological list of documents for the selected view. Shows: title, source/author, date, preview snippet, read/unread indicator, star indicator, reading progress.
-- **Right pane (reading pane):** Renders the selected document's content. Toggle between HTML and Markdown views for article/email content. PDF viewer for PDFs.
+- **Center pane (document list):** Documents for the selected view, displayed in one of two modes the user can toggle between:
+  - **List view (default):** Compact rows showing: thumbnail image (OG image, site favicon, or type-specific icon as fallback), title, source/author, date, preview snippet, read/unread indicator, star indicator, reading progress.
+  - **Grid view:** Card-based layout where each card shows the OG image / cover image as the main visual element, with title, source/author, and date overlaid or below. Ideal for visually browsing content. Falls back to a type-specific placeholder (e.g., a PDF icon, an email icon) when no image is available.
+- **Right pane (reading pane):** Renders the selected document's content. Toggle between HTML and Markdown views for article/email content. The Markdown view serves dual purpose: a clean reading format and a copy-friendly format for pasting into note-taking apps like Obsidian. PDF viewer for PDFs.
 
 **Responsive behavior:**
 
-- Desktop: three-pane layout.
-- Tablet: two-pane (list + reader), sidebar accessible via toggle.
-- Mobile: stacked navigation (sidebar → list → reader).
+- **Desktop (≥1024px):** Three-pane layout. All panes visible simultaneously.
+- **Tablet (768px–1023px):** Two-pane layout (document list + reading pane). Left sidebar is hidden by default, accessible via a hamburger menu / swipe-from-left gesture. Tapping a document in the list opens it in the reading pane.
+- **Mobile (<768px):** Single-pane, stacked navigation. Only one pane is visible at a time:
+  1. **Sidebar view:** Tap a source, tag, or system view (Inbox, etc.) to navigate to the document list.
+  2. **Document list view:** Shows documents for the selected view. Tap a document to open it. Back button / swipe-right returns to the sidebar.
+  3. **Reader view:** Full-screen reading pane for the selected document. Back button / swipe-right returns to the document list.
+  - On mobile, grid view shows a 2-column card grid; list view shows compact rows with small thumbnails.
+  - Bottom navigation bar provides quick access to: Inbox, Starred, Search, Settings.
 
-**Focus mode:** Expand the reading pane to full width, hiding the sidebar and document list. Toggle with `F` key or UI button.
+**Focus mode:** Expand the reading pane to full width, hiding the sidebar and document list. Toggle with `F` key or UI button. On mobile, the reader view is inherently full-screen, so focus mode is the default reading experience.
 
 #### 6.2.2 Triage System
 
-Documents flow through a triage pipeline:
+All documents — regardless of how they arrived — flow through a single, unified triage pipeline:
 
-| Location  | Description                                                                           |
-|-----------|---------------------------------------------------------------------------------------|
-| `inbox`   | Newly saved documents (default for manual saves via extension/API/URL).               |
-| `later`   | Documents the user intends to read (moved manually from inbox).                       |
-| `archive` | Documents the user has finished reading or wants to keep but not see in active views. |
+| Location  | Description                                                                                                                                |
+|-----------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| `inbox`   | Newly arrived documents. Default location for all content (manual saves, RSS items, email newsletters). This is the universal entry point. |
+| `later`   | Documents the user intends to read. Moved manually from inbox — an explicit "I want to read this" signal.                                  |
+| `archive` | Documents the user has finished reading or wants to keep but not see in active views.                                                      |
 
-**Feed vs. Library distinction:**
+> **Design decision: No separate Feed vs. Library.** Readwise Reader uses a two-zone system (Feed with seen/unseen vs. Library with inbox/later/archive). We intentionally do **not** adopt this pattern. Having two parallel systems with different state models (`seen`/`unseen` vs. `inbox`/`later`/`archive`) is confusing. Instead, Focus Reader uses a single triage pipeline for everything. If a user wants to separate RSS/email content from manually saved content, they can use filtered views (Section 6.7) to create views like "RSS items in inbox" or "emails this week" — without needing a parallel organizational system.
 
-- **Library** contains documents the user intentionally saved (articles, PDFs, bookmarks, posts). These enter the triage pipeline (`inbox` → `later` → `archive`).
-- **Feed** contains documents that arrived automatically (RSS items, email newsletters). These are shown in a separate Feed view with `unseen` / `seen` states.
-- A user can promote a Feed item to the Library (moves it to `inbox` for triage).
+The user can further organize documents by:
+- **Starring** documents they want quick access to (shown in the "Starred" view).
+- **Tagging** documents for topic-based organization.
+- **Adding to collections** for curated reading lists.
 
 #### 6.2.3 Document List Features
 
+- **View mode toggle:** Switch between list view and grid view. The user's preference is persisted per-view (e.g., Inbox can be list view while a "Design Inspiration" tag view can be grid view).
 - Sort by: saved date, published date, reading progress, reading time.
 - Filter by: type, tag, source, read/unread, starred, location.
 - Bulk actions: mark read/unread, star/unstar, tag, move to location, delete.
@@ -599,6 +648,7 @@ Documents flow through a triage pipeline:
 | `[` / `]`      | Toggle left / right sidebar      |
 | `/`            | Focus search bar                 |
 | `Cmd/Ctrl + K` | Command palette                  |
+| `v`            | Toggle list / grid view          |
 | `?`            | Show keyboard shortcut reference |
 
 Keyboard shortcuts are disabled while focus is inside editable inputs (search bar, tag editor, note fields).
@@ -650,7 +700,7 @@ Keyboard shortcuts are disabled while focus is inside editable inputs (search ba
 - Filter parameters: `type`, `tag`, `source`, `domain`, `author`, `location`, `is_read`, `is_starred`, `saved_after`, `saved_before`, `published_after`, `published_before`, `word_count_gt`, `word_count_lt`, `reading_time_gt`, `reading_time_lt`, `has:highlights`, `has:notes`.
 - Combine filters with `AND`, `OR`, and parenthetical grouping.
 - Saved views appear in the left sidebar for quick access.
-- Default views: Inbox, Later, Archive, All, Starred, Feed (Unseen), Feed (Seen), Recently Read.
+- Default views: Inbox, Later, Archive, All, Starred, Recently Read, Newsletters (type = email), RSS (type = rss).
 
 ### 6.8 Collections
 
@@ -719,11 +769,20 @@ Keyboard shortcuts are disabled while focus is inside editable inputs (search ba
 - Authenticated by per-user opaque token (SHA-256 hashed in `Feed_Token` table).
 - Token lifecycle: create, rotate, revoke via UI.
 
-### 6.12 Public API
+### 6.12 REST API
 
 **Priority:** P2 (Medium)
 
-**Description:** RESTful API for programmatic access to all Focus Reader data.
+**Description:** A single RESTful API that serves all clients — the web UI, the browser extension, and any third-party integrations or scripts.
+
+> **Naming clarification:** This is *not* a "public" API in the sense that anyone on the internet can access it. Every endpoint requires authentication. We call it the "REST API" (not "public API" or "internal API") because there is only one API — the same endpoints are used by the web UI, the browser extension, and any external tools the user builds.
+
+**Authentication:**
+
+Every API request must be authenticated. There are no unauthenticated endpoints (except the RSS/Atom feed output, which uses its own token scheme — see Section 6.11). Two authentication methods are supported:
+
+1. **Cloudflare Access session (web UI):** When the user accesses the app through the browser, Cloudflare Access provides a JWT cookie. The API validates this cookie on every request. This is transparent to the user.
+2. **API key (extension + external clients):** For the browser extension and any programmatic access, the user generates API keys in the settings UI. Keys are sent via the `Authorization: Bearer <key>` header. Keys are stored as SHA-256 hashes in the database; the plaintext is shown once at creation and never persisted.
 
 **Functional Requirements:**
 
@@ -736,7 +795,6 @@ Keyboard shortcuts are disabled while focus is inside editable inputs (search ba
 - `GET /api/highlights` — list highlights with filtering by document, tag, date.
 - `POST /api/highlights` — create a highlight.
 - CRUD operations on tags, collections, feeds, subscriptions.
-- Authentication via API key (stored hashed in DB, managed via settings UI).
 - Rate limiting: 100 requests per minute per API key.
 
 ### 6.13 Import and Export
@@ -756,6 +814,9 @@ Keyboard shortcuts are disabled while focus is inside editable inputs (search ba
 - OPML export of all RSS feed subscriptions.
 - Full data export as JSON (all documents, highlights, tags, collections).
 - Highlights export as Markdown (grouped by document).
+- **Single-document Markdown export:** Export any document as a standalone `.md` file with YAML frontmatter (title, author, URL, tags, saved date) and all highlights/notes inline. Designed for direct import into Obsidian, Logseq, or any Markdown-based note-taking app.
+- **Bulk Markdown export:** Export all documents (or a filtered subset) as a folder of `.md` files, ready to drop into an Obsidian vault.
+- **Copy as Markdown:** One-click action in the reading pane to copy the document's Markdown content to the clipboard (with or without highlights/notes).
 
 ### 6.14 Summarization (Optional / Future)
 
@@ -833,7 +894,6 @@ Keyboard shortcuts are disabled while focus is inside editable inputs (search ba
 
 - RSS feed subscription and polling.
 - OPML import/export.
-- Feed vs. Library separation in UI.
 - Full-text search (FTS5).
 - Keyboard navigation (full shortcut set).
 - Browser extension (Chrome).
@@ -841,7 +901,7 @@ Keyboard shortcuts are disabled while focus is inside editable inputs (search ba
 - Filtered views (saved queries).
 - PDF upload and viewing.
 - Confirmation email detection and handling.
-- Public API (core endpoints).
+- REST API (core endpoints).
 - Dark mode.
 
 **Success Criteria:** User has fully migrated all newsletters and RSS feeds to Focus Reader and uses it as their primary reading app.
@@ -917,9 +977,10 @@ Keyboard shortcuts are disabled while focus is inside editable inputs (search ba
 
 ### 8.5 Security
 
-- **UI and API routes:** Protected by Cloudflare Access (zero-trust). No application-level auth code required.
+- **No unauthenticated endpoints.** Every HTTP endpoint requires authentication. There are zero anonymous API routes.
+- **UI and API routes:** Protected by Cloudflare Access (zero-trust) for browser sessions, and by API key (Bearer token) for programmatic access. See Section 6.12 for details.
 - **Email Worker:** Not a public HTTP route; triggered by Cloudflare's email routing infrastructure. Rate-limit and validate inbound messages.
-- **Feed output endpoints:** Separate hostname, authenticated by opaque token.
+- **Feed output endpoints:** The only exception to Cloudflare Access protection — served on a separate hostname so external RSS readers can fetch them. Authenticated by opaque token in the URL (see Section 6.11).
 - **API keys:** Stored hashed (SHA-256). Plaintext shown once at creation, never again.
 - **Content sanitization:** All ingested HTML is sanitized with DOMPurify before storage. No raw HTML is ever rendered.
 - **CORS:** API endpoints include appropriate CORS headers for the browser extension.
@@ -957,7 +1018,7 @@ The [Email Newsletter PRD](./email-newsletter-prd.md) is a detailed specificatio
 - Email-specific reader interface features (Section 5.3)
 - Email security considerations (Section 7)
 
-This full product spec extends the scope from email-only to all content types, introducing the unified `Document` model, additional ingestion pipelines (web articles, RSS, PDF, bookmarks, posts), highlighting/annotation, collections, filtered views, browser extension, public API, and import/export.
+This full product spec extends the scope from email-only to all content types, introducing the unified `Document` model, additional ingestion pipelines (web articles, RSS, PDF, bookmarks, posts), highlighting/annotation, collections, filtered views, browser extension, REST API, and import/export.
 
 ---
 
