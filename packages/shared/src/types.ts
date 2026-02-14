@@ -316,3 +316,70 @@ export interface CreateTagInput {
   color?: string | null;
   description?: string | null;
 }
+
+// --- API query / response types ---
+
+export type SortField = "saved_at" | "published_at" | "title" | "reading_time_minutes";
+export type SortDirection = "asc" | "desc";
+
+export interface ListDocumentsQuery {
+  status?: "read" | "unread";
+  location?: DocumentLocation;
+  tagId?: string;
+  subscriptionId?: string;
+  search?: string;
+  sortBy?: SortField;
+  sortDir?: SortDirection;
+  cursor?: string;
+  limit?: number;
+  isStarred?: boolean;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  nextCursor?: string;
+  total: number;
+}
+
+export interface DocumentWithTags extends Document {
+  tags: Tag[];
+  subscription?: Subscription;
+}
+
+export interface SubscriptionWithStats extends Subscription {
+  documentCount: number;
+  unreadCount: number;
+}
+
+export interface TagWithCount extends Tag {
+  documentCount: number;
+}
+
+export interface ApiError {
+  error: string;
+  code: string;
+  status: number;
+}
+
+// --- Update input types ---
+
+export interface UpdateDocumentInput {
+  title?: string;
+  location?: DocumentLocation;
+  is_read?: number;
+  is_starred?: number;
+  reading_progress?: number;
+  last_read_at?: string | null;
+}
+
+export interface UpdateSubscriptionInput {
+  display_name?: string;
+  is_active?: number;
+  auto_tag_rules?: string | null;
+}
+
+export interface UpdateTagInput {
+  name?: string;
+  color?: string | null;
+  description?: string | null;
+}

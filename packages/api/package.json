@@ -19,11 +19,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@focus-reader/shared": "workspace:*",
     "@focus-reader/db": "workspace:*",
-    "@focus-reader/parser": "workspace:*"
+    "@focus-reader/parser": "workspace:*",
+    "@focus-reader/shared": "workspace:*"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4",
     "tsup": "^8",
     "typescript": "^5",
     "vitest": "~3.2.0"

@@ -1,4 +1,4 @@
-import type { Tag, CreateTagInput } from "@focus-reader/shared";
+import type { Tag, CreateTagInput, TagWithCount, UpdateTagInput } from "@focus-reader/shared";
 import { nowISO } from "@focus-reader/shared";
 
 export async function createTag(
@@ -46,5 +46,129 @@ export async function addTagToDocument(
       "INSERT OR IGNORE INTO document_tags (document_id, tag_id) VALUES (?1, ?2)"
     )
     .bind(documentId, tagId)
+    .run();
+}
+
+export async function removeTagFromDocument(
+  db: D1Database,
+  documentId: string,
+  tagId: string
+): Promise<void> {
+  await db
+    .prepare(
+      "DELETE FROM document_tags WHERE document_id = ?1 AND tag_id = ?2"
+    )
+    .bind(documentId, tagId)
+    .run();
+}
+
+export async function getTagsForDocument(
+  db: D1Database,
+  documentId: string
+): Promise<Tag[]> {
+  const result = await db
+    .prepare(
+      `SELECT t.* FROM tag t
+       INNER JOIN document_tags dt ON dt.tag_id = t.id
+       WHERE dt.document_id = ?1`
+    )
+    .bind(documentId)
+    .all<Tag>();
+  return result.results;
+}
+
+export async function listTags(db: D1Database): Promise<TagWithCount[]> {
+  const rows = await db
+    .prepare(
+      `SELECT t.*, COUNT(dt.document_id) as documentCount
+       FROM tag t
+       LEFT JOIN document_tags dt ON dt.tag_id = t.id
+       GROUP BY t.id
+       ORDER BY t.name ASC`
+    )
+    .all<TagWithCount>();
+  return rows.results;
+}
+
+export async function getTag(
+  db: D1Database,
+  id: string
+): Promise<Tag | null> {
+  const result = await db
+    .prepare("SELECT * FROM tag WHERE id = ?1")
+    .bind(id)
+    .first<Tag>();
+  return result ?? null;
+}
+
+export async function updateTag(
+  db: D1Database,
+  id: string,
+  updates: UpdateTagInput
+): Promise<void> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let paramIdx = 1;
+
+  for (const [key, value] of Object.entries(updates)) {
+    fields.push(`${key} = ?${paramIdx}`);
+    values.push(value);
+    paramIdx++;
+  }
+
+  if (fields.length === 0) return;
+
+  values.push(id);
+
+  await db
+    .prepare(
+      `UPDATE tag SET ${fields.join(", ")} WHERE id = ?${paramIdx}`
+    )
+    .bind(...values)
+    .run();
+}
+
+export async function deleteTag(
+  db: D1Database,
+  id: string
+): Promise<void> {
+  // Remove from all join tables first (D1 doesn't enforce FK cascades)
+  await db
+    .prepare("DELETE FROM document_tags WHERE tag_id = ?1")
+    .bind(id)
+    .run();
+  await db
+    .prepare("DELETE FROM subscription_tags WHERE tag_id = ?1")
+    .bind(id)
+    .run();
+  await db
+    .prepare("DELETE FROM tag WHERE id = ?1")
+    .bind(id)
+    .run();
+}
+
+export async function addTagToSubscription(
+  db: D1Database,
+  subscriptionId: string,
+  tagId: string
+): Promise<void> {
+  await db
+    .prepare(
+      "INSERT OR IGNORE INTO subscription_tags (subscription_id, tag_id) VALUES (?1, ?2)"
+    )
+    .bind(subscriptionId, tagId)
+    .run();
+}
+
+export async function removeTagFromSubscription(
+  db: D1Database,
+  subscriptionId: string,
+  tagId: string
+): Promise<void> {
+  await db
+    .prepare(
+      "DELETE FROM subscription_tags WHERE subscription_id = ?1 AND tag_id = ?2"
+    )
+    .bind(subscriptionId, tagId)
     .run();
 }

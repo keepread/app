@@ -34,8 +34,17 @@ export const CHANNEL_TYPES: ChannelType[] = [
 export const INGESTION_STATUSES: IngestionStatus[] = ["success", "failure"];
 
 // Defaults
-export const DEFAULT_PAGE_SIZE = 50;
+export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_RETRY_ATTEMPTS = 3;
+export const READING_PROGRESS_THRESHOLD = 0.9;
+
+// Sort options for the document list UI
+export const SORT_OPTIONS = [
+  { value: "saved_at", label: "Date saved", defaultDir: "desc" as const },
+  { value: "published_at", label: "Date published", defaultDir: "desc" as const },
+  { value: "title", label: "Title A\u2013Z", defaultDir: "asc" as const },
+  { value: "reading_time_minutes", label: "Reading time", defaultDir: "asc" as const },
+] as const;
 
 // Known email tracking pixel domains
 export const TRACKER_DOMAINS = [
