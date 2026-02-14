@@ -883,8 +883,8 @@ All shortcuts are disabled when focus is inside an input/textarea element.
 | `Escape`         | Exit focus mode / close dialog      | Global        | —            |
 | `a`              | Save doc from URL                   | Global        | `a`          |
 | `/`              | Focus search (placeholder Phase 1)  | Global        | `/`          |
-| `↓`              | Navigate to next document           | Document list | `↓` or `j`   |
-| `↑`              | Navigate to previous document       | Document list | `↑` or `k`   |
+| `↓` or `j`       | Navigate to next document           | Document list | `↓` or `j`   |
+| `↑` or `k`       | Navigate to previous document       | Document list | `↑` or `k`   |
 | `Enter`          | Open selected document              | Document list | —            |
 | `t`              | Add / edit tags for document        | Reading view  | `t`          |
 | `f`              | Add to favorites (star)             | Reading view  | `f`          |
