@@ -8,11 +8,17 @@ const ALLOWED_TAGS = new Set([
   "a", "img",
   "strong", "b", "em", "i", "u", "s", "del",
   "blockquote", "pre", "code",
-  "table", "thead", "tbody", "tr", "th", "td",
+  "thead", "tbody", "tr", "th", "td",
   "div", "span",
   "figure", "figcaption",
   "sup", "sub",
 ]);
+
+// Table-related tags handled separately (layout vs data detection)
+const TABLE_TAGS = new Set(["table", "thead", "tbody", "tr", "th", "td"]);
+
+// Invisible characters used in email preheader padding
+const INVISIBLE_CHARS_RE = /[\u200B\u200C\u200D\u034F\u00AD\u2060\uFEFF]/g;
 
 const ALLOWED_ATTRS = new Set([
   "href", "src", "alt", "title", "width", "height",
@@ -33,11 +39,17 @@ const DANGEROUS_TAGS = new Set([
 export function sanitizeHtml(html: string): string {
   const { document } = parseHTML(`<!DOCTYPE html><html><body>${html}</body></html>`);
 
+  // Unwrap layout tables before general sanitization (so their content is preserved)
+  unwrapLayoutTables(document.body);
+
   // Walk the DOM tree and remove forbidden elements and attributes
   sanitizeNode(document.body);
 
   // Strip tracking pixels
   stripTrackingPixels(document);
+
+  // Strip invisible preheader characters from text nodes
+  stripInvisibleChars(document.body);
 
   return document.body.innerHTML;
 }
@@ -60,7 +72,7 @@ function sanitizeNode(node: any): void {
         continue;
       }
 
-      if (!ALLOWED_TAGS.has(tagName)) {
+      if (!ALLOWED_TAGS.has(tagName) && !TABLE_TAGS.has(tagName)) {
         // Unwrap: promote children to parent, remove the wrapper
         const grandchildren = Array.from(child.childNodes || []) as any[];
         for (const gc of grandchildren) {
@@ -87,6 +99,60 @@ function sanitizeNode(node: any): void {
       // Recursively sanitize children
       sanitizeNode(child);
     }
+  }
+}
+
+function isLayoutTable(table: any): boolean {
+  // In email HTML, the only real data tables have <th> header cells.
+  // Everything else — centering wrappers, button bars, spacer grids — is layout.
+  return !table.querySelector("th");
+}
+
+function unwrapLayoutTables(root: any): void {
+  // Process innermost tables first (querySelectorAll returns document order,
+  // but we reverse so nested tables are handled before their parents)
+  const tables = Array.from(root.querySelectorAll("table")).reverse() as any[];
+
+  for (const table of tables) {
+    if (isLayoutTable(table)) {
+      unwrapElement(table);
+    }
+  }
+}
+
+function unwrapElement(el: any): void {
+  const parent = el.parentNode;
+  if (!parent) return;
+  const children = Array.from(el.childNodes || []) as any[];
+  for (const child of children) {
+    parent.insertBefore(child, el);
+  }
+  el.remove();
+}
+
+function stripInvisibleChars(root: any): void {
+  const walker = root.ownerDocument.createTreeWalker(
+    root,
+    4, // NodeFilter.SHOW_TEXT
+  );
+
+  const toRemove: any[] = [];
+  let node = walker.nextNode();
+
+  while (node) {
+    const cleaned = node.textContent.replace(INVISIBLE_CHARS_RE, "");
+    if (cleaned !== node.textContent) {
+      if (cleaned.trim() === "") {
+        toRemove.push(node);
+      } else {
+        node.textContent = cleaned;
+      }
+    }
+    node = walker.nextNode();
+  }
+
+  for (const n of toRemove) {
+    n.remove();
   }
 }
 

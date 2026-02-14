@@ -61,6 +61,56 @@ describe("sanitizeHtml", () => {
     expect(result).not.toContain("iframe");
     expect(result).toContain("Safe");
   });
+
+  it("strips invisible preheader characters from text", () => {
+    // Zero-width spaces, soft hyphens, combining grapheme joiners
+    const html = "<p>Hello\u200B\u200C\u200D\u034F\u00AD\u2060\uFEFF World</p>";
+    const result = sanitizeHtml(html);
+    expect(result).toContain("Hello World");
+    expect(result).not.toMatch(/[\u200B\u200C\u200D\u034F\u00AD\u2060\uFEFF]/);
+  });
+
+  it("removes text nodes that become empty after stripping invisible chars", () => {
+    const html = "<p>Content</p>\u200B\u200C\u200D<p>More</p>";
+    const result = sanitizeHtml(html);
+    expect(result).toContain("Content");
+    expect(result).toContain("More");
+    expect(result).not.toMatch(/[\u200B\u200C\u200D]/);
+  });
+
+  it("unwraps layout tables (no <th>, width=100%)", () => {
+    const html =
+      '<table width="100%"><tr><td><p>Layout content</p></td></tr></table>';
+    const result = sanitizeHtml(html);
+    expect(result).not.toContain("<table");
+    expect(result).toContain("Layout content");
+  });
+
+  it("unwraps single-column layout tables", () => {
+    const html =
+      "<table><tr><td>Row 1</td></tr><tr><td>Row 2</td></tr></table>";
+    const result = sanitizeHtml(html);
+    expect(result).not.toContain("<table");
+    expect(result).toContain("Row 1");
+    expect(result).toContain("Row 2");
+  });
+
+  it("unwraps nested layout tables", () => {
+    const html =
+      '<table width="100%"><tr><td><table><tr><td>Inner</td></tr></table></td></tr></table>';
+    const result = sanitizeHtml(html);
+    expect(result).not.toContain("<table");
+    expect(result).toContain("Inner");
+  });
+
+  it("preserves data tables (with <th>)", () => {
+    const html =
+      "<table><thead><tr><th>Name</th><th>Age</th></tr></thead><tbody><tr><td>Alice</td><td>30</td></tr></tbody></table>";
+    const result = sanitizeHtml(html);
+    expect(result).toContain("<table");
+    expect(result).toContain("<th>");
+    expect(result).toContain("Alice");
+  });
 });
 
 describe("rewriteCidUrls", () => {

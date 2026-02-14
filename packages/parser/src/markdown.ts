@@ -11,8 +11,10 @@ function getTurndown(): TurndownService {
       bulletListMarker: "-",
     });
 
-    // Preserve tables as HTML (GFM table support)
-    turndownInstance.keep(["table", "thead", "tbody", "tr", "th", "td"]);
+    // Keep data tables as HTML in markdown output.
+    // Layout tables are already unwrapped by the sanitizer, so only
+    // genuine data tables reach here.
+    turndownInstance.keep(["table"]);
   }
   return turndownInstance;
 }
