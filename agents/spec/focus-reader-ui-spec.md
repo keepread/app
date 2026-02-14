@@ -930,25 +930,25 @@ All shortcuts are disabled when focus is inside an input/textarea element.
 
 These Readwise shortcuts are **not planned** for Focus Reader:
 
-| Key              | Action                                        | Reason                            |
-|------------------|-----------------------------------------------|-----------------------------------|
-| `s`              | Add to shortlist                              | No shortlist concept in FR        |
-| `b`              | Bump document to top                          | No bump feature                   |
-| `Shift+L`        | Copy Reader URL                               | No public sharing                 |
-| `Shift+A`        | Add/remove RSS subscriptions                  | No RSS in Phase 1                 |
-| `Shift+S`        | Subscribe/unsubscribe to document's RSS feed  | No RSS in Phase 1                 |
-| `Option+S`       | Enable / view public link                     | No public sharing                 |
-| `u`              | Upload file                                   | No file upload                    |
-| `Cmd+P`          | Print document with annotations               | No print support                  |
-| `y`              | Redo                                          | No annotation editing             |
-| `z`              | Undo                                          | No annotation editing             |
-| `` ` ``          | Cycle forward through document sidebar tabs   | Simplified sidebar                |
-| `` Shift+` ``    | Cycle backward through document sidebar tabs  | Simplified sidebar                |
-| `p`              | Play / pause text-to-speech                   | No TTS                            |
-| `Shift+P`        | Stop and hide TTS player                      | No TTS                            |
-| `Shift+↑`/`↓`   | Increase / decrease TTS volume                | No TTS                            |
-| `←`/`→`          | Skip backward/forward in TTS audio            | No TTS                            |
-| `,`/`.`          | Slow down / speed up TTS playback             | No TTS                            |
+| Key           | Action                                       | Reason                     |
+|---------------|----------------------------------------------|----------------------------|
+| `s`           | Add to shortlist                             | No shortlist concept in FR |
+| `b`           | Bump document to top                         | No bump feature            |
+| `Shift+L`     | Copy Reader URL                              | No public sharing          |
+| `Shift+A`     | Add/remove RSS subscriptions                 | No RSS in Phase 1          |
+| `Shift+S`     | Subscribe/unsubscribe to document's RSS feed | No RSS in Phase 1          |
+| `Option+S`    | Enable / view public link                    | No public sharing          |
+| `u`           | Upload file                                  | No file upload             |
+| `Cmd+P`       | Print document with annotations              | No print support           |
+| `y`           | Redo                                         | No annotation editing      |
+| `z`           | Undo                                         | No annotation editing      |
+| `` ` ``       | Cycle forward through document sidebar tabs  | Simplified sidebar         |
+| `` Shift+` `` | Cycle backward through document sidebar tabs | Simplified sidebar         |
+| `p`           | Play / pause text-to-speech                  | No TTS                     |
+| `Shift+P`     | Stop and hide TTS player                     | No TTS                     |
+| `Shift+↑`/`↓` | Increase / decrease TTS volume               | No TTS                     |
+| `←`/`→`       | Skip backward/forward in TTS audio           | No TTS                     |
+| `,`/`.`       | Slow down / speed up TTS playback            | No TTS                     |
 
 ### 10.4 Keyboard Shortcuts Help Dialog
 
