@@ -57,7 +57,17 @@ export function NavSidebar() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
 
-  if (sidebarCollapsed) return null;
+  if (sidebarCollapsed) {
+    return (
+      <aside className="flex h-full flex-shrink-0 flex-col border-r bg-sidebar">
+        <div className="px-2 py-3">
+          <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
+            <PanelLeftOpen className="size-4" />
+          </Button>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="flex h-full w-60 flex-shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
