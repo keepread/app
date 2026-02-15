@@ -230,28 +230,27 @@ export function NavSidebar() {
 
         {/* Collections */}
         <div className="mt-4">
-          <button
-            onClick={() => setCollectionsOpen(!collectionsOpen)}
-            className="flex w-full items-center justify-between px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          <div
+            className="flex w-full items-center justify-between px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
           >
-            <span>Collections</span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCollectionDialogOpen(true);
-                }}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Plus className="size-3" />
-              </button>
+            <button
+              onClick={() => setCollectionsOpen(!collectionsOpen)}
+              className="flex flex-1 items-center justify-between hover:text-foreground"
+            >
+              <span>Collections</span>
               {collectionsOpen ? (
                 <ChevronDown className="size-3.5" />
               ) : (
                 <ChevronRight className="size-3.5" />
               )}
-            </div>
-          </button>
+            </button>
+            <button
+              onClick={() => setCollectionDialogOpen(true)}
+              className="ml-1 text-muted-foreground hover:text-foreground"
+            >
+              <Plus className="size-3" />
+            </button>
+          </div>
           {collectionsOpen && (
             <div className="space-y-0.5">
               {collections.map((col) => (
