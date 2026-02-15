@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Filter,
+  Highlighter,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { label: "Archive", icon: Archive, path: "/archive" },
   { label: "All", icon: Library, path: "/all" },
   { label: "Starred", icon: Star, path: "/starred" },
+  { label: "Highlights", icon: Highlighter, path: "/highlights" },
 ] as const;
 
 export function NavSidebar() {

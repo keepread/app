@@ -2,10 +2,12 @@
 
 import { useApp } from "@/contexts/app-context";
 import { useDocument } from "@/hooks/use-documents";
+import { useHighlightsForDocument } from "@/hooks/use-highlights";
 import { useSearchParams } from "next/navigation";
 import { timeAgo, formatDate, capitalize } from "@/lib/format";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { extractDomain } from "@focus-reader/shared";
+import { NotebookHighlightCard } from "@/components/reader/notebook-highlight-card";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
@@ -24,11 +26,20 @@ function MetadataRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function scrollToHighlight(highlightId: string) {
+  const mark = document.querySelector(`mark[data-highlight-id="${highlightId}"]`);
+  if (!mark) return;
+  mark.scrollIntoView({ behavior: "smooth", block: "center" });
+  mark.classList.add("highlight-pulse");
+  setTimeout(() => mark.classList.remove("highlight-pulse"), 1600);
+}
+
 export function RightSidebar() {
   const { rightPanelVisible } = useApp();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("doc");
   const { document: doc } = useDocument(selectedId);
+  const { highlights } = useHighlightsForDocument(selectedId);
 
   if (!rightPanelVisible) return null;
 
@@ -37,8 +48,13 @@ export function RightSidebar() {
       <Tabs defaultValue="info" className="flex-1 flex flex-col">
         <TabsList className="mx-4 mt-3 grid w-auto grid-cols-2">
           <TabsTrigger value="info">Info</TabsTrigger>
-          <TabsTrigger value="notebook" disabled>
+          <TabsTrigger value="notebook">
             Notebook
+            {highlights.length > 0 && (
+              <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">
+                {highlights.length}
+              </span>
+            )}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="info" className="flex-1 overflow-y-auto">
@@ -132,6 +148,27 @@ export function RightSidebar() {
             <div className="flex flex-col items-center justify-center h-full text-center px-4">
               <p className="text-sm text-muted-foreground">
                 Select a document to see its details
+              </p>
+            </div>
+          )}
+        </TabsContent>
+        <TabsContent value="notebook" className="flex-1 overflow-y-auto">
+          {highlights.length > 0 ? (
+            <div className="p-3 space-y-2">
+              {highlights.map((h) => (
+                <NotebookHighlightCard
+                  key={h.id}
+                  highlight={h}
+                  onClick={() => scrollToHighlight(h.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center px-4">
+              <p className="text-sm text-muted-foreground">
+                {selectedId
+                  ? "No highlights yet. Select text to highlight."
+                  : "Select a document to see its highlights."}
               </p>
             </div>
           )}

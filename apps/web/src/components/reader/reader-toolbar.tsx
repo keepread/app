@@ -132,6 +132,15 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
 
   return (
     <>
+      {/* Reading progress bar */}
+      {doc && doc.reading_progress > 0 && (
+        <div className="h-0.5 bg-muted">
+          <div
+            className="h-full bg-primary transition-all duration-300"
+            style={{ width: `${Math.min(100, doc.reading_progress)}%` }}
+          />
+        </div>
+      )}
       <div className="flex items-center h-12 px-3 border-b bg-background gap-1">
         {/* Left group */}
         <Button variant="ghost" size="icon" className="size-8" onClick={goBack}>

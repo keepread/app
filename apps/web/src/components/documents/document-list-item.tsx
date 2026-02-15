@@ -39,7 +39,7 @@ export function DocumentListItem({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       className={cn(
-        "flex gap-3 px-4 py-3 border-b cursor-pointer transition-colors",
+        "relative flex gap-3 px-4 py-3 border-b cursor-pointer transition-colors",
         isSelected ? "bg-accent" : "hover:bg-accent/50"
       )}
     >
