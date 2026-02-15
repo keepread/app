@@ -12,6 +12,10 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "db:migrate": "pnpm --filter @focus-reader/db run migrate",
+    "deploy": "./scripts/deploy.sh",
+    "deploy:web": "./scripts/deploy.sh web",
+    "deploy:email": "./scripts/deploy.sh email",
+    "deploy:rss": "./scripts/deploy.sh rss",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
