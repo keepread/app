@@ -201,14 +201,20 @@ export function App() {
     }
   }, [collections, showCollections]);
 
+  const btn =
+    "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors disabled:opacity-40";
+  const btnDefault = `${btn} border-gray-200 bg-white hover:bg-gray-50 active:bg-gray-100`;
+  const btnPrimary =
+    "flex-1 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-40";
+
   // --- Not configured ---
   if (status === "not-configured") {
     return (
-      <div className="w-[400px] p-4">
-        <h2 className="text-base font-semibold mb-3">Focus Reader</h2>
-        <p className="text-sm text-gray-500 mb-3">Extension not configured.</p>
+      <div className="w-[400px] p-5">
+        <h2 className="text-[15px] font-semibold mb-3">Focus Reader</h2>
+        <p className="text-sm text-gray-500 mb-4">Extension not configured.</p>
         <button
-          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md hover:bg-gray-50"
+          className="w-full px-3 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800"
           onClick={() => browser.runtime.openOptionsPage()}
         >
           Open Settings
@@ -220,14 +226,14 @@ export function App() {
   // --- Loading ---
   if (status === "loading") {
     return (
-      <div className="w-[400px] p-4">
-        <h2 className="text-base font-semibold mb-3">Focus Reader</h2>
-        <div className="space-y-2 animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-3/4" />
-          <div className="h-3 bg-gray-100 rounded w-1/2" />
-          <div className="flex gap-2 mt-3">
-            <div className="h-8 bg-gray-200 rounded flex-1" />
-            <div className="h-8 bg-gray-200 rounded flex-1" />
+      <div className="w-[400px] p-5">
+        <h2 className="text-[15px] font-semibold mb-4">Focus Reader</h2>
+        <div className="space-y-2.5 animate-pulse">
+          <div className="h-4 bg-gray-100 rounded-md w-3/4" />
+          <div className="h-3 bg-gray-100 rounded-md w-1/2" />
+          <div className="flex gap-2 mt-4">
+            <div className="h-10 bg-gray-100 rounded-lg flex-1" />
+            <div className="h-10 bg-gray-100 rounded-lg flex-1" />
           </div>
         </div>
       </div>
@@ -237,11 +243,11 @@ export function App() {
   // --- Error (standalone) ---
   if (status === "error" && !doc) {
     return (
-      <div className="w-[400px] p-4">
-        <h2 className="text-base font-semibold mb-3">Focus Reader</h2>
-        <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2 mb-3">{error}</p>
+      <div className="w-[400px] p-5">
+        <h2 className="text-[15px] font-semibold mb-3">Focus Reader</h2>
+        <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2.5 mb-3">{error}</p>
         <button
-          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md hover:bg-gray-50"
+          className="w-full px-3 py-2.5 text-sm font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50"
           onClick={() => {
             setError("");
             setStatus("not-saved");
@@ -256,37 +262,42 @@ export function App() {
   // --- Saved state ---
   if (status === "saved" && doc) {
     return (
-      <div className="w-[400px] p-4">
-        <h2 className="text-base font-semibold mb-2">Focus Reader</h2>
+      <div className="w-[400px] p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-[15px] font-semibold">Focus Reader</h2>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+            Saved
+          </span>
+        </div>
 
         {/* Page card */}
-        <div className="mb-3 p-2 bg-gray-50 rounded-md">
-          <p className="text-sm font-medium truncate" title={pageUrl}>
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+          <p className="text-sm font-medium leading-snug line-clamp-2" title={pageUrl}>
             {doc.title || pageTitle || pageUrl}
           </p>
-          <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+          <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-gray-500">
             <span className="capitalize">{doc.type}</span>
-            <span>&middot;</span>
+            <span className="text-gray-300">/</span>
             <span className="capitalize">{doc.location}</span>
             {doc.is_read ? (
               <>
-                <span>&middot;</span>
+                <span className="text-gray-300">/</span>
                 <span>Read</span>
               </>
             ) : null}
             {doc.is_starred ? (
               <>
-                <span>&middot;</span>
-                <span>Starred</span>
+                <span className="text-gray-300">/</span>
+                <span className="text-amber-600">Starred</span>
               </>
             ) : null}
           </div>
           {doc.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
+            <div className="flex flex-wrap gap-1 mt-2">
               {doc.tags.map((tag) => (
                 <span
                   key={tag.id}
-                  className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 bg-white rounded border border-gray-200"
+                  className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 bg-white rounded-md border border-gray-200"
                 >
                   <span
                     className="w-2 h-2 rounded-full shrink-0"
@@ -300,14 +311,14 @@ export function App() {
         </div>
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2 mb-3">{error}</p>
+          <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-3">{error}</p>
         )}
 
         {/* Triage actions */}
-        <div className="grid grid-cols-2 gap-2 mb-2">
+        <div className="grid grid-cols-2 gap-1.5 mb-3">
           <button
             disabled={actionInProgress}
-            className="px-3 py-1.5 text-xs border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50"
+            className={btnDefault}
             onClick={() =>
               handleAction(() =>
                 updateDocument(doc.id, { is_starred: doc.is_starred ? 0 : 1 })
@@ -318,7 +329,7 @@ export function App() {
           </button>
           <button
             disabled={actionInProgress}
-            className="px-3 py-1.5 text-xs border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50"
+            className={btnDefault}
             onClick={() =>
               handleAction(() =>
                 updateDocument(doc.id, { is_read: doc.is_read ? 0 : 1 })
@@ -329,7 +340,7 @@ export function App() {
           </button>
           <button
             disabled={actionInProgress}
-            className="px-3 py-1.5 text-xs border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50"
+            className={btnDefault}
             onClick={() =>
               handleAction(() =>
                 updateDocument(doc.id, { location: "archive" })
@@ -340,7 +351,7 @@ export function App() {
           </button>
           <button
             disabled={actionInProgress}
-            className="px-3 py-1.5 text-xs border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50"
+            className={btnDefault}
             onClick={loadCollections}
           >
             Add to collection
@@ -349,15 +360,15 @@ export function App() {
 
         {/* Collection picker */}
         {showCollections && (
-          <div className="mb-2 max-h-32 overflow-y-auto border border-gray-200 rounded-md">
+          <div className="mb-3 max-h-32 overflow-y-auto border border-gray-200 rounded-lg">
             {collections.length === 0 ? (
-              <p className="text-xs text-gray-500 p-2">No collections</p>
+              <p className="text-xs text-gray-400 p-3">No collections</p>
             ) : (
               collections.map((col) => (
                 <button
                   key={col.id}
                   disabled={actionInProgress}
-                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-50 border-b border-gray-100 last:border-0"
+                  className="w-full text-left px-3 py-2 text-xs font-medium hover:bg-gray-50 disabled:opacity-40 border-b border-gray-100 last:border-0"
                   onClick={() => handleAddToCollection(col.id)}
                 >
                   {col.name}
@@ -368,18 +379,18 @@ export function App() {
         )}
 
         {/* Delete + Open */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 pt-2 border-t border-gray-100">
           {confirmDelete ? (
             <>
               <button
                 disabled={actionInProgress}
-                className="flex-1 px-3 py-1.5 text-xs text-red-600 border border-red-200 rounded-md hover:bg-red-50 disabled:opacity-50"
+                className="flex-1 px-3 py-2 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-40"
                 onClick={handleDelete}
               >
                 Confirm delete
               </button>
               <button
-                className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-md hover:bg-gray-50"
+                className="flex-1 px-3 py-2 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50"
                 onClick={() => setConfirmDelete(false)}
               >
                 Cancel
@@ -389,13 +400,13 @@ export function App() {
             <>
               <button
                 disabled={actionInProgress}
-                className="flex-1 px-3 py-1.5 text-xs text-red-600 border border-gray-200 rounded-md hover:bg-red-50 disabled:opacity-50"
+                className="flex-1 px-3 py-2 text-xs font-medium text-red-600 border border-gray-200 rounded-lg hover:bg-red-50 disabled:opacity-40"
                 onClick={() => setConfirmDelete(true)}
               >
                 Delete
               </button>
               <button
-                className="flex-1 px-3 py-1.5 text-xs text-blue-600 border border-gray-200 rounded-md hover:bg-blue-50"
+                className="flex-1 px-3 py-2 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
                 onClick={async () => {
                   const config = await getConfig();
                   if (config) {
@@ -417,28 +428,28 @@ export function App() {
 
   // --- Not saved / saving ---
   return (
-    <div className="w-[400px] p-4">
-      <h2 className="text-base font-semibold mb-2">Focus Reader</h2>
+    <div className="w-[400px] p-5">
+      <h2 className="text-[15px] font-semibold mb-1">Focus Reader</h2>
 
-      <p className="text-sm text-gray-500 truncate mb-3" title={pageUrl}>
+      <p className="text-sm text-gray-500 truncate mb-4" title={pageUrl}>
         {pageTitle || pageUrl}
       </p>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2 mb-3">{error}</p>
+        <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2.5 mb-3">{error}</p>
       )}
 
-      <div className="flex gap-2 mb-2">
+      <div className="flex gap-2 mb-3">
         <button
           disabled={status === "saving"}
-          className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50"
+          className={`${btnPrimary} bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800`}
           onClick={() => handleSave("article")}
         >
           {status === "saving" ? "Saving..." : "Save as Article"}
         </button>
         <button
           disabled={status === "saving"}
-          className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50"
+          className={`${btnPrimary} bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 active:bg-gray-100`}
           onClick={() => handleSave("bookmark")}
         >
           Save as Bookmark
@@ -446,7 +457,7 @@ export function App() {
       </div>
 
       <button
-        className="w-full text-center text-xs text-gray-500 py-1.5 hover:text-gray-700"
+        className="w-full text-center text-xs text-gray-400 py-1 hover:text-gray-600 transition-colors"
         onClick={() => setShowTags(!showTags)}
       >
         {showTags ? "Hide Tags" : "Add Tags"}
