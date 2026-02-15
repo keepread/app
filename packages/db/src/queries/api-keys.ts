@@ -33,7 +33,7 @@ export async function listApiKeys(db: D1Database): Promise<ApiKey[]> {
 export async function revokeApiKey(db: D1Database, id: string): Promise<void> {
   await db
     .prepare(
-      "UPDATE api_key SET revoked_at = datetime('now') WHERE id = ?1 AND revoked_at IS NULL"
+      "UPDATE api_key SET revoked_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1 AND revoked_at IS NULL"
     )
     .bind(id)
     .run();

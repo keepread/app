@@ -12,6 +12,12 @@ export interface AuthResult {
   error?: string;
 }
 
+/** Decode a base64url string (JWT segments use base64url, not standard base64). */
+function base64urlDecode(input: string): string {
+  const padded = input.replace(/-/g, "+").replace(/_/g, "/");
+  return atob(padded);
+}
+
 /**
  * Validate a Cloudflare Access JWT.
  *
@@ -41,7 +47,7 @@ export async function validateCfAccessJwt(
     const [headerB64, payloadB64] = jwt.split(".");
     if (!headerB64 || !payloadB64) return { valid: false };
 
-    const header = JSON.parse(atob(headerB64)) as { kid?: string; alg: string };
+    const header = JSON.parse(base64urlDecode(headerB64)) as { kid?: string; alg: string };
     const matchingKey = keys.find((k) => (k as unknown as Record<string, unknown>).kid === header.kid);
     if (!matchingKey) return { valid: false };
 
@@ -58,8 +64,7 @@ export async function validateCfAccessJwt(
     if (!signatureB64) return { valid: false };
 
     // Convert base64url to ArrayBuffer
-    const sigStr = signatureB64.replace(/-/g, "+").replace(/_/g, "/");
-    const sigBinary = atob(sigStr);
+    const sigBinary = base64urlDecode(signatureB64);
     const signature = new Uint8Array(sigBinary.length);
     for (let i = 0; i < sigBinary.length; i++) {
       signature[i] = sigBinary.charCodeAt(i);
@@ -69,7 +74,7 @@ export async function validateCfAccessJwt(
     if (!valid) return { valid: false };
 
     // Decode and validate payload
-    const payload = JSON.parse(atob(payloadB64)) as {
+    const payload = JSON.parse(base64urlDecode(payloadB64)) as {
       aud?: string[];
       email?: string;
       exp?: number;
@@ -119,7 +124,7 @@ export async function validateApiKey(
   if (result) {
     // Update last_used_at
     await db
-      .prepare("UPDATE api_key SET last_used_at = datetime('now') WHERE id = ?")
+      .prepare("UPDATE api_key SET last_used_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?")
       .bind(result.id)
       .run();
     return true;
