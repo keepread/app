@@ -981,10 +981,7 @@ Every API request must be authenticated. There are no unauthenticated endpoints 
 - Highlight tags and notes.
 - Notebook view (all highlights for a document).
 - Collections (reading lists).
-- Social media post saving (Twitter/X, Mastodon).
 - Command palette (`Cmd+K`).
-- Browser extensions for Firefox and Safari.
-- Import from Instapaper, Pocket, Omnivore.
 - Full data export (JSON, Markdown highlights).
 - Reading progress tracking and sync.
 - Customizable reading preferences (font, size, width, line height).
@@ -996,15 +993,16 @@ Every API request must be authenticated. There are no unauthenticated endpoints 
 **Goal:** AI-assisted organization and summarization.
 
 **Deliverables:**
-
+- Social media post saving (Twitter/X, Mastodon).
 - Atom feed output (per source, per tag, combined).
 - LLM-based auto-tagging on ingestion.
 - Per-document summaries.
 - Daily/weekly digest generation.
 - AI copilot for in-context questions (summarize, explain, translate).
 - Reliability dashboard and observability.
+- Import from Instapaper, Pocket, Omnivore.
 
-**Success Criteria:** User spends less time triaging and more time reading high-value content.
+- **Success Criteria:** User spends less time triaging and more time reading high-value content.
 
 ---
 
