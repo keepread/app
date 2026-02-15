@@ -2,7 +2,7 @@
 
 **Version:** 1.0
 **Date:** February 14, 2026
-**Status:** In Progress — Steps 10–14 complete
+**Status:** In Progress — Steps 10–15 complete
 **Prerequisites:** Phase 1 complete (see `phase-1-plan.md` and `phase-1-implementation-gaps.md`)
 
 ---
@@ -726,11 +726,13 @@ export interface DocumentWithTags extends Document {
 
 ---
 
-### Step 15: RSS Feed Management UI and Web API Routes
+### Step 15: RSS Feed Management UI and Web API Routes ✅ COMPLETE
 
 **Goal:** Add feed management pages and API routes for the web app.
 
-**Packages:** `apps/web`
+**Status:** Complete (commit `8c82e92`)
+
+**Packages:** `apps/web`, `apps/email-worker`
 
 #### 15a: API Routes for Feeds
 
@@ -774,14 +776,19 @@ export function useFeed(id: string): SWRResponse<Feed>;
 **Update `apps/web/src/hooks/use-documents.ts`:**
 - Support `type` and `feedId` query params in the SWR key.
 
+**Additional changes:**
+- Fixed infinite re-render loop in `useDocuments`/`useSearch` (memoized derived arrays with `useMemo`)
+- Fixed missing `DialogTitle` accessibility warning in `CommandDialog`
+- Fixed email-worker dev port conflict with rss-worker (added `--port 8788 --inspector-port 9230`)
+
 **Success criteria:**
-- [ ] Feed management page shows all feeds with stats and error status
-- [ ] "Add Feed" auto-discovers feed URL from website URL
-- [ ] OPML import creates feeds from uploaded file
-- [ ] OPML export downloads valid OPML XML
-- [ ] Sidebar shows feeds section with feed-specific document views
-- [ ] Document type filter works in the list toolbar
-- [ ] `pnpm build && pnpm typecheck && pnpm test` passes
+- [x] Feed management page shows all feeds with stats and error status
+- [x] "Add Feed" auto-discovers feed URL from website URL
+- [x] OPML import creates feeds from uploaded file
+- [x] OPML export downloads valid OPML XML
+- [x] Sidebar shows feeds section with feed-specific document views
+- [x] Document type filter works in the list toolbar
+- [x] `pnpm build && pnpm typecheck && pnpm test` passes
 
 ---
 
