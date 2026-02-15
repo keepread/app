@@ -243,3 +243,18 @@ CREATE TABLE IF NOT EXISTS collection_documents (
   PRIMARY KEY (collection_id, document_id)
 );
 `;
+
+// Auto-generated from migrations/0002_fts5_search.sql
+export const FTS5_MIGRATION_SQL = `
+CREATE VIRTUAL TABLE IF NOT EXISTS document_fts USING fts5(
+  doc_id UNINDEXED,
+  title,
+  author,
+  plain_text_content,
+  tokenize='porter unicode61'
+);
+
+INSERT INTO document_fts(doc_id, title, author, plain_text_content)
+SELECT id, title, COALESCE(author, ''), COALESCE(plain_text_content, '')
+FROM document WHERE deleted_at IS NULL;
+`;

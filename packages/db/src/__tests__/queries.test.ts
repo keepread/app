@@ -24,12 +24,14 @@ import {
 import { logIngestionEvent } from "../queries/ingestion-log.js";
 import { isDomainDenied } from "../queries/denylist.js";
 import { createAttachment } from "../queries/attachments.js";
-import { INITIAL_SCHEMA_SQL } from "../migration-sql.js";
+import { INITIAL_SCHEMA_SQL, FTS5_MIGRATION_SQL } from "../migration-sql.js";
 
 async function applyMigration(db: D1Database) {
   // Split SQL into individual statements and execute via prepare().run()
   // db.exec() has a workerd bug with response metadata, so we avoid it.
-  const statements = INITIAL_SCHEMA_SQL.split(";")
+  const allSql = INITIAL_SCHEMA_SQL + "\n" + FTS5_MIGRATION_SQL;
+  const statements = allSql
+    .split(";")
     .map((s) => s.trim())
     .filter(
       (s) =>

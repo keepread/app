@@ -7,3 +7,4 @@ export * from "./queries/feeds.js";
 export * from "./queries/ingestion-log.js";
 export * from "./queries/denylist.js";
 export * from "./queries/attachments.js";
+export * from "./queries/search.js";

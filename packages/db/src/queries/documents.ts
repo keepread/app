@@ -7,6 +7,7 @@ import type {
   Tag,
 } from "@focus-reader/shared";
 import { nowISO, DEFAULT_PAGE_SIZE } from "@focus-reader/shared";
+import { indexDocument, deindexDocument, sanitizeFtsQuery } from "./search.js";
 
 export async function createDocument(
   db: D1Database,
@@ -53,7 +54,16 @@ export async function createDocument(
     )
     .run();
 
-  return (await getDocument(db, id))!;
+  const doc = (await getDocument(db, id))!;
+
+  await indexDocument(db, {
+    id: doc.id,
+    title: doc.title,
+    author: doc.author,
+    plain_text_content: doc.plain_text_content,
+  });
+
+  return doc;
 }
 
 export async function getDocument(
@@ -156,8 +166,10 @@ export async function listDocuments(
     paramIdx++;
   }
   if (query.search) {
-    conditions.push(`d.title LIKE ?${paramIdx}`);
-    bindings.push(`%${query.search}%`);
+    conditions.push(
+      `d.id IN (SELECT doc_id FROM document_fts WHERE document_fts MATCH ?${paramIdx})`
+    );
+    bindings.push(sanitizeFtsQuery(query.search));
     paramIdx++;
   }
 
@@ -244,6 +256,7 @@ export async function softDeleteDocument(
     .prepare("UPDATE document SET deleted_at = ?1, updated_at = ?1 WHERE id = ?2")
     .bind(now, id)
     .run();
+  await deindexDocument(db, id);
 }
 
 export async function updateReadingProgress(

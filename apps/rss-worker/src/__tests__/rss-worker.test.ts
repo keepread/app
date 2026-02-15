@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
-import { INITIAL_SCHEMA_SQL } from "@focus-reader/db/migration-sql";
+import { INITIAL_SCHEMA_SQL, FTS5_MIGRATION_SQL } from "@focus-reader/db/migration-sql";
 import { createFeed, createTag, addTagToFeed } from "@focus-reader/db";
 import worker from "../index.js";
 import type { Env } from "../index.js";
@@ -40,6 +40,7 @@ const EMPTY_RSS_FIXTURE = `<?xml version="1.0"?>
 // --- Test helpers ---
 
 const TABLES = [
+  "document_fts",
   "document_tags",
   "subscription_tags",
   "feed_tags",
@@ -68,7 +69,9 @@ async function resetDatabase(db: D1Database) {
     await db.prepare(`DROP TABLE IF EXISTS ${table}`).run();
   }
 
-  const statements = INITIAL_SCHEMA_SQL.split(";")
+  const allSql = INITIAL_SCHEMA_SQL + "\n" + FTS5_MIGRATION_SQL;
+  const statements = allSql
+    .split(";")
     .map((s) => s.trim())
     .filter(
       (s) =>

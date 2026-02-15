@@ -22,10 +22,12 @@ import {
   getTagsForFeed,
 } from "../queries/tags.js";
 import { createDocument, listDocuments } from "../queries/documents.js";
-import { INITIAL_SCHEMA_SQL } from "../migration-sql.js";
+import { INITIAL_SCHEMA_SQL, FTS5_MIGRATION_SQL } from "../migration-sql.js";
 
 async function applyMigration(db: D1Database) {
-  const statements = INITIAL_SCHEMA_SQL.split(";")
+  const allSql = INITIAL_SCHEMA_SQL + "\n" + FTS5_MIGRATION_SQL;
+  const statements = allSql
+    .split(";")
     .map((s) => s.trim())
     .filter(
       (s) =>
