@@ -1,0 +1,22 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "focus-reader-web"
+compatibility_date = "2026-02-13"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+EMAIL_DOMAIN = "level-up.dev"
+
+[[d1_databases]]
+binding = "FOCUS_DB"
+database_name = "focus-reader-db"
+database_id = "6df49da0-c4e0-4f1e-b2bf-7658b61caf75"
+migrations_dir = "../../packages/db/migrations"
+
+[[r2_buckets]]
+binding = "FOCUS_STORAGE"
+bucket_name = "focus-reader-storage"
+
+# Share D1/R2 state with email-worker during local development
+[miniflare]
+d1_persist = "../../.wrangler/state/v3/d1"
+r2_persist = "../../.wrangler/state/v3/r2"
