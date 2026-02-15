@@ -1,5 +1,6 @@
 import type {
   Document,
+  DocumentType,
   CreateDocumentInput,
   ListDocumentsQuery,
   DocumentWithTags,
@@ -135,6 +136,16 @@ export async function listDocuments(
   if (query.subscriptionId) {
     conditions.push(`d.source_id = ?${paramIdx}`);
     bindings.push(query.subscriptionId);
+    paramIdx++;
+  }
+  if (query.feedId) {
+    conditions.push(`d.source_id = ?${paramIdx}`);
+    bindings.push(query.feedId);
+    paramIdx++;
+  }
+  if (query.type) {
+    conditions.push(`d.type = ?${paramIdx}`);
+    bindings.push(query.type);
     paramIdx++;
   }
   if (query.tagId) {

@@ -14,5 +14,6 @@ export default defineConfig({
     "linkedom",
     "turndown",
     "@mozilla/readability",
+    "fast-xml-parser",
   ],
 });

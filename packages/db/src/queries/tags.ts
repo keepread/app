@@ -142,6 +142,10 @@ export async function deleteTag(
     .bind(id)
     .run();
   await db
+    .prepare("DELETE FROM feed_tags WHERE tag_id = ?1")
+    .bind(id)
+    .run();
+  await db
     .prepare("DELETE FROM tag WHERE id = ?1")
     .bind(id)
     .run();
@@ -171,4 +175,45 @@ export async function removeTagFromSubscription(
     )
     .bind(subscriptionId, tagId)
     .run();
+}
+
+export async function addTagToFeed(
+  db: D1Database,
+  feedId: string,
+  tagId: string
+): Promise<void> {
+  await db
+    .prepare(
+      "INSERT OR IGNORE INTO feed_tags (feed_id, tag_id) VALUES (?1, ?2)"
+    )
+    .bind(feedId, tagId)
+    .run();
+}
+
+export async function removeTagFromFeed(
+  db: D1Database,
+  feedId: string,
+  tagId: string
+): Promise<void> {
+  await db
+    .prepare(
+      "DELETE FROM feed_tags WHERE feed_id = ?1 AND tag_id = ?2"
+    )
+    .bind(feedId, tagId)
+    .run();
+}
+
+export async function getTagsForFeed(
+  db: D1Database,
+  feedId: string
+): Promise<Tag[]> {
+  const result = await db
+    .prepare(
+      `SELECT t.* FROM tag t
+       INNER JOIN feed_tags ft ON ft.tag_id = t.id
+       WHERE ft.feed_id = ?1`
+    )
+    .bind(feedId)
+    .all<Tag>();
+  return result.results;
 }

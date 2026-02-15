@@ -3,6 +3,7 @@ export * from "./queries/documents.js";
 export * from "./queries/email-meta.js";
 export * from "./queries/subscriptions.js";
 export * from "./queries/tags.js";
+export * from "./queries/feeds.js";
 export * from "./queries/ingestion-log.js";
 export * from "./queries/denylist.js";
 export * from "./queries/attachments.js";

@@ -23,6 +23,7 @@
     "@mozilla/readability": "^0.6.0",
     "dompurify": "^3",
     "linkedom": "^0.18",
+    "fast-xml-parser": "^5",
     "postal-mime": "^2",
     "turndown": "^7"
   },

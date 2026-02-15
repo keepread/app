@@ -311,6 +311,33 @@ export interface CreateDenylistInput {
   reason?: string | null;
 }
 
+export interface CreateFeedInput {
+  id?: string;
+  feed_url: string;
+  site_url?: string | null;
+  title: string;
+  description?: string | null;
+  icon_url?: string | null;
+  fetch_interval_minutes?: number;
+  fetch_full_content?: number;
+  auto_tag_rules?: string | null;
+}
+
+export interface UpdateFeedInput {
+  title?: string;
+  description?: string | null;
+  icon_url?: string | null;
+  fetch_interval_minutes?: number;
+  is_active?: number;
+  fetch_full_content?: number;
+  auto_tag_rules?: string | null;
+}
+
+export interface FeedWithStats extends Feed {
+  documentCount: number;
+  unreadCount: number;
+}
+
 export interface CreateTagInput {
   name: string;
   color?: string | null;
@@ -327,6 +354,8 @@ export interface ListDocumentsQuery {
   location?: DocumentLocation;
   tagId?: string;
   subscriptionId?: string;
+  feedId?: string;
+  type?: DocumentType;
   search?: string;
   sortBy?: SortField;
   sortDir?: SortDirection;
