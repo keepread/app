@@ -32,8 +32,9 @@ export function DocumentList({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const selectedId = searchParams.get("doc");
-  const { setSelectedDocumentId, setDocumentIds, setCurrentDocumentIndex } = useApp();
+  const urlSelectedId = searchParams.get("doc");
+  const { selectedDocumentId, setSelectedDocumentId, setDocumentIds, setCurrentDocumentIndex } = useApp();
+  const selectedId = urlSelectedId || selectedDocumentId;
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<DocumentType | null>(null);

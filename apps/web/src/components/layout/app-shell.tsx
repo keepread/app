@@ -68,6 +68,16 @@ export function AppShell({ children }: AppShellProps) {
       const id = documentIds[index];
       setCurrentDocumentIndex(index);
       setSelectedDocumentId(id);
+    },
+    [documentIds, setCurrentDocumentIndex, setSelectedDocumentId]
+  );
+
+  const openDocByIndex = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= documentIds.length) return;
+      const id = documentIds[index];
+      setCurrentDocumentIndex(index);
+      setSelectedDocumentId(id);
       const params = new URLSearchParams(searchParams.toString());
       params.set("doc", id);
       router.push(`${pathname}?${params.toString()}`, { scroll: false });
@@ -129,13 +139,10 @@ export function AppShell({ children }: AppShellProps) {
         const prevIdx = Math.max(currentDocumentIndex - 1, 0);
         selectDocByIndex(prevIdx);
       },
-      // Enter — open selected document
+      // Enter — open selected document in reading view
       Enter: () => {
         if (!isReadingView && currentDocumentIndex >= 0 && currentDocumentIndex < documentIds.length) {
-          const id = documentIds[currentDocumentIndex];
-          const params = new URLSearchParams(searchParams.toString());
-          params.set("doc", id);
-          router.push(`${pathname}?${params.toString()}`, { scroll: false });
+          openDocByIndex(currentDocumentIndex);
         }
       },
       // o — open original URL in new tab
@@ -193,7 +200,7 @@ export function AppShell({ children }: AppShellProps) {
         if (searchInput) searchInput.focus();
       },
       // ? — show keyboard shortcuts
-      "Shift+/": () => setShortcutsOpen(true),
+      "?": () => setShortcutsOpen(true),
       // Cmd+K / Ctrl+K — command palette
       "Meta+k": () => setCommandPaletteOpen(true),
       "Ctrl+k": () => setCommandPaletteOpen(true),
@@ -212,6 +219,7 @@ export function AppShell({ children }: AppShellProps) {
       documentIds,
       currentDocumentIndex,
       selectDocByIndex,
+      openDocByIndex,
       selectedDocId,
     ]
   );
@@ -256,6 +264,7 @@ export function AppShell({ children }: AppShellProps) {
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}
         onAddBookmark={() => setAddBookmarkOpen(true)}
+        onShowShortcuts={() => setShortcutsOpen(true)}
       />
     </div>
   );

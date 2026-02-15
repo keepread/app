@@ -103,7 +103,7 @@ export function DocumentListItem({
         )}
         {doc.emailMeta?.needs_confirmation === 1 && (
           <span className="rounded bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-medium">
-            Confirm
+            Confirmation needed
           </span>
         )}
       </div>

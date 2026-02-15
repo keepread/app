@@ -23,18 +23,22 @@ import {
   Sun,
   Moon,
   Maximize2,
+  Search,
+  Keyboard,
 } from "lucide-react";
 
 interface CommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAddBookmark: () => void;
+  onShowShortcuts?: () => void;
 }
 
 export function CommandPalette({
   open,
   onOpenChange,
   onAddBookmark,
+  onShowShortcuts,
 }: CommandPaletteProps) {
   const router = useRouter();
   const { setTheme, theme } = useTheme();
@@ -73,6 +77,20 @@ export function CommandPalette({
           </CommandItem>
         </CommandGroup>
         <CommandGroup heading="Actions">
+          <CommandItem
+            onSelect={() =>
+              runCommand(() => {
+                const searchInput = document.querySelector<HTMLInputElement>(
+                  'input[type="search"], input[placeholder*="earch"]'
+                );
+                if (searchInput) searchInput.focus();
+              })
+            }
+          >
+            <Search className="mr-2" />
+            Search Documents
+            <CommandShortcut>/</CommandShortcut>
+          </CommandItem>
           <CommandItem onSelect={() => runCommand(onAddBookmark)}>
             <Plus className="mr-2" />
             Add URL
@@ -101,6 +119,13 @@ export function CommandPalette({
             <Settings className="mr-2" />
             Open Settings
           </CommandItem>
+          {onShowShortcuts && (
+            <CommandItem onSelect={() => runCommand(onShowShortcuts)}>
+              <Keyboard className="mr-2" />
+              Keyboard Shortcuts
+              <CommandShortcut>?</CommandShortcut>
+            </CommandItem>
+          )}
         </CommandGroup>
       </CommandList>
     </CommandDialog>

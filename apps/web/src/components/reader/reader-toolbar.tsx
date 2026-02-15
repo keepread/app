@@ -125,7 +125,8 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
 
   const openConfirmationLink = () => {
     if (!doc?.html_content) return;
-    const match = doc.html_content.match(/href="(https?:\/\/[^"]+)"/);
+    // Match href with double or single quotes
+    const match = doc.html_content.match(/href=["'](https?:\/\/[^"']+)["']/i);
     if (match) window.open(match[1], "_blank");
   };
 

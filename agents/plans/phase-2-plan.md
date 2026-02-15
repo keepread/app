@@ -716,8 +716,8 @@ export interface DocumentWithTags extends Document {
 - In `getDocumentWithTags()`: join `document_email_meta` when type is `email`.
 
 **Success criteria:**
-- [x] `j`/`k` moves selection up/down in the document list
-- [x] `o`/`Enter` opens the selected document
+- [x] `j`/`k` moves selection up/down in the document list (highlight only, no reading view)
+- [x] `Enter` opens the selected document in reading view; `o` opens original URL in new tab
 - [x] `Cmd+K` opens the command palette with navigation commands
 - [x] Dark mode togglable from settings and persists across sessions (already complete from Phase 1)
 - [x] All UI components render correctly in both light and dark mode
