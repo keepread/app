@@ -32,6 +32,7 @@ const {
   saveConfig,
   savePage,
   getTags,
+  createTag,
   testConnection,
   lookupByUrl,
   updateDocument,
@@ -141,6 +142,43 @@ describe("getTags", () => {
       },
     });
     expect(tags).toEqual([{ id: "t1", name: "News", color: "#ff0000" }]);
+  });
+});
+
+describe("createTag", () => {
+  it("sends POST with tag payload", async () => {
+    configureApi();
+    const created = { id: "t-new", name: "urgent", color: null };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => created,
+    });
+
+    const result = await createTag({ name: "urgent" });
+
+    expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/tags", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer key123",
+      },
+      body: JSON.stringify({
+        name: "urgent",
+        color: null,
+      }),
+    });
+    expect(result).toEqual(created);
+  });
+
+  it("throws on API error", async () => {
+    configureApi();
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: "Tag name is required" } }),
+    });
+
+    await expect(createTag({ name: "" })).rejects.toThrow("Tag name is required");
   });
 });
 

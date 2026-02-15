@@ -97,6 +97,20 @@ export async function getTags(): Promise<Tag[]> {
   return res.json();
 }
 
+export async function createTag(input: {
+  name: string;
+  color?: string | null;
+}): Promise<Tag> {
+  const res = await request("/api/tags", {
+    method: "POST",
+    body: JSON.stringify({
+      name: input.name,
+      color: input.color ?? null,
+    }),
+  });
+  return res.json();
+}
+
 export async function testConnection(): Promise<boolean> {
   try {
     await getTags();

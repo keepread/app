@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { getTags, type Tag } from "@/lib/api-client";
+import { getTags, createTag, type Tag } from "@/lib/api-client";
 
 interface TagPickerProps {
   selectedIds: string[];
@@ -15,6 +15,8 @@ export function TagPicker({ selectedIds, onToggle, disabled = false }: TagPicker
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [recentTagIds, setRecentTagIds] = useState<string[]>([]);
+  const [creatingTag, setCreatingTag] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -65,6 +67,7 @@ export function TagPicker({ selectedIds, onToggle, disabled = false }: TagPicker
 
   const handleToggle = useCallback(
     (tagId: string) => {
+      setCreateError("");
       const alreadySelected = selectedIds.includes(tagId);
       onToggle(tagId);
       if (!alreadySelected) {
@@ -77,6 +80,40 @@ export function TagPicker({ selectedIds, onToggle, disabled = false }: TagPicker
     },
     [onToggle, recentTagIds, selectedIds, updateRecentTagIds]
   );
+
+  const existingExactTag = useMemo(
+    () => tags.find((tag) => tag.name.toLowerCase() === normalizedQuery),
+    [normalizedQuery, tags]
+  );
+
+  const canCreateTag = normalizedQuery.length > 0 && !existingExactTag;
+
+  const handleCreateTag = useCallback(async () => {
+    const name = query.trim();
+    if (!name) return;
+
+    const existing = tags.find((tag) => tag.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      handleToggle(existing.id);
+      setQuery("");
+      return;
+    }
+
+    setCreatingTag(true);
+    setCreateError("");
+    try {
+      const created = await createTag({ name });
+      setTags((prev) =>
+        [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
+      );
+      handleToggle(created.id);
+      setQuery("");
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Failed to create tag.");
+    } finally {
+      setCreatingTag(false);
+    }
+  }, [handleToggle, query, tags]);
 
   if (loading) {
     return <div className="text-xs text-[var(--text-tertiary)] py-2">Loading tags...</div>;
@@ -91,10 +128,33 @@ export function TagPicker({ selectedIds, onToggle, disabled = false }: TagPicker
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search tags..."
-        disabled={disabled}
+        placeholder="Search or create tag..."
+        disabled={disabled || creatingTag}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && canCreateTag) {
+            event.preventDefault();
+            handleCreateTag().catch(() => {});
+          }
+        }}
         className="w-full px-2.5 py-1.5 text-xs rounded-md border border-[var(--border)] bg-[var(--bg-primary)] disabled:opacity-60"
       />
+
+      {canCreateTag ? (
+        <button
+          type="button"
+          disabled={disabled || creatingTag}
+          onClick={() => handleCreateTag().catch(() => {})}
+          className="w-full text-left px-2.5 py-1.5 text-xs rounded-md border border-[var(--border)] bg-[var(--bg-card)] hover:bg-[var(--bg-hover)] disabled:opacity-60"
+        >
+          {creatingTag ? `Creating "${query.trim()}"...` : `Create tag "${query.trim()}"`}
+        </button>
+      ) : null}
+
+      {createError ? (
+        <p className="text-[11px] text-red-300 bg-red-500/10 border border-red-500/20 rounded px-2 py-1">
+          {createError}
+        </p>
+      ) : null}
 
       <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
         {recentTags.length > 0 ? (
