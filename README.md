@@ -37,6 +37,7 @@ apps/
   rss-worker/    — Cloudflare Worker (scheduled RSS feed polling)
   extension/     — Chrome browser extension (WXT framework)
 scripts/
+  deploy.sh         — Build, migrate, and deploy to Cloudflare
   ingest-local.ts   — Local email ingestion for testing (Miniflare)
   sync-secrets.sh   — Propagate env vars to .dev.vars files
 ```
@@ -97,6 +98,15 @@ pnpm tsx scripts/ingest-local.ts path/to/email.eml
 
 # Override the recipient address
 pnpm tsx scripts/ingest-local.ts path/to/email.eml --recipient user@level-up.dev
+```
+
+**`scripts/deploy.sh`** — Builds, type-checks, runs remote D1 migrations, and deploys to Cloudflare. Accepts a target argument:
+
+```bash
+./scripts/deploy.sh          # deploy everything (web + email + rss)
+./scripts/deploy.sh web      # deploy only the web app
+./scripts/deploy.sh email    # deploy only the email worker
+./scripts/deploy.sh rss      # deploy only the RSS worker
 ```
 
 **`scripts/sync-secrets.sh`** — Propagates `EMAIL_DOMAIN`, `COLLAPSE_PLUS_ALIAS`, and `OWNER_EMAIL` to `.dev.vars` files for local development across `apps/email-worker` and `apps/web`.
@@ -163,7 +173,12 @@ pnpm --filter focus-reader-rss-worker exec -- wrangler deploy
 #### Quick Deploy (All Components)
 
 ```bash
-# Build everything, apply migrations, deploy all three
+./scripts/deploy.sh
+```
+
+Or manually:
+
+```bash
 pnpm build
 
 pnpm --filter @focus-reader/db exec -- wrangler d1 migrations apply FOCUS_DB --remote
