@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, Key, Mail, Shield, Rss, ScrollText } from "lucide-react";
+import { ArrowLeft, Key, Mail, Shield, Rss, ScrollText, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +14,7 @@ const SETTINGS_NAV = [
   { label: "Email", path: "/settings/email", icon: Mail },
   { label: "Ingestion Log", path: "/settings/ingestion-log", icon: ScrollText },
   { label: "API Keys", path: "/settings/api-keys", icon: Key },
+  { label: "Export", path: "/settings/export", icon: Download },
 ] as const;
 
 export default function SettingsLayout({

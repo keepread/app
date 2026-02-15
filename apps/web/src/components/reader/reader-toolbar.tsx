@@ -31,6 +31,7 @@ import {
   Minimize2,
   MailWarning,
   FolderPlus,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/contexts/app-context";
@@ -241,6 +242,21 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
             </DropdownMenuItem>
             <DropdownMenuItem onClick={copyUrl}>
               <Copy className="size-4 mr-2" /> Copy URL
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={async () => {
+                try {
+                  const res = await fetch(`/api/documents/${documentId}/export`);
+                  if (!res.ok) throw new Error();
+                  const md = await res.text();
+                  await navigator.clipboard.writeText(md);
+                  toast("Copied as Markdown");
+                } catch {
+                  toast.error("Failed to copy");
+                }
+              }}
+            >
+              <FileText className="size-4 mr-2" /> Copy as Markdown
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
