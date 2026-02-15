@@ -13,3 +13,4 @@ export * from "./queries/pdf-meta.js";
 export * from "./queries/saved-views.js";
 export * from "./queries/highlights.js";
 export * from "./queries/collections.js";
+export * from "./queries/user-preferences.js";

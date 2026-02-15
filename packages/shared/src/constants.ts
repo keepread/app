@@ -57,6 +57,18 @@ export const HIGHLIGHT_COLORS: import("./types.js").HighlightColor[] = [
 
 export const HIGHLIGHT_CONTEXT_LENGTH = 30;
 
+// Reading preferences
+export const FONT_FAMILIES = [
+  { value: "system", label: "System Default", css: "system-ui, sans-serif" },
+  { value: "serif", label: "Serif", css: "Georgia, 'Times New Roman', serif" },
+  { value: "sans", label: "Sans-serif", css: "'Inter', system-ui, sans-serif" },
+  { value: "mono", label: "Monospace", css: "'JetBrains Mono', 'Fira Code', monospace" },
+] as const;
+
+export const FONT_SIZE_RANGE = { min: 14, max: 24, default: 18, step: 1 };
+export const LINE_HEIGHT_RANGE = { min: 1.2, max: 2.0, default: 1.6, step: 0.1 };
+export const CONTENT_WIDTH_RANGE = { min: 500, max: 900, default: 680, step: 20 };
+
 // Known email tracking pixel domains
 export const TRACKER_DOMAINS = [
   "list-manage.com",

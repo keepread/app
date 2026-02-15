@@ -202,6 +202,16 @@ export interface UserPreferences {
   updated_at: string;
 }
 
+export interface UpdateUserPreferencesInput {
+  theme?: string;
+  font_family?: string | null;
+  font_size?: number | null;
+  line_height?: number | null;
+  content_width?: number | null;
+  shortcut_map_json?: string | null;
+  view_mode_prefs_json?: string | null;
+}
+
 export interface IngestionReportDaily {
   report_date: string;
   total_events: number;

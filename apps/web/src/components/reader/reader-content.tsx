@@ -13,6 +13,7 @@ import { PdfViewer } from "./pdf-viewer";
 import { HighlightPopover } from "./highlight-popover";
 import { HighlightRenderer } from "./highlight-renderer";
 import { HighlightDetailPopover } from "./highlight-detail-popover";
+import { usePreferences } from "@/hooks/use-preferences";
 
 interface ReaderContentProps {
   documentId: string;
@@ -24,6 +25,7 @@ export function ReaderContent({ documentId }: ReaderContentProps) {
     useDocumentContent(documentId);
   const { highlights, mutate: mutateHighlights } = useHighlightsForDocument(documentId);
   const { contentMode } = useApp();
+  const { fontFamily, fontSize, lineHeight, contentWidth } = usePreferences();
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -160,7 +162,15 @@ export function ReaderContent({ documentId }: ReaderContentProps) {
 
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto relative">
-      <article className="max-w-[680px] mx-auto px-6 py-8">
+      <article
+        className="mx-auto px-6 py-8"
+        style={{
+          maxWidth: `${contentWidth}px`,
+          fontFamily,
+          fontSize: `${fontSize}px`,
+          lineHeight: `${lineHeight}`,
+        }}
+      >
         {/* Source */}
         {domain && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider mb-3">

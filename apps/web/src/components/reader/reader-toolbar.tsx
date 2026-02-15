@@ -35,6 +35,7 @@ import {
 import { toast } from "sonner";
 import { useApp } from "@/contexts/app-context";
 import { AddToCollectionDialog } from "@/components/dialogs/add-to-collection-dialog";
+import { ReaderPreferencesPopover } from "./reader-preferences-popover";
 
 interface ReaderToolbarProps {
   documentId: string;
@@ -173,6 +174,8 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
         <Button variant="ghost" size="icon" className="size-8" onClick={toggleFocusMode}>
           {focusMode ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
         </Button>
+
+        <ReaderPreferencesPopover />
 
         {/* Spacer */}
         <div className="flex-1" />
