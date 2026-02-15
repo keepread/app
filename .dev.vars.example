@@ -1,0 +1,17 @@
+# Copy this file to apps/web/.dev.vars and apps/email-worker/.dev.vars
+# then fill in your values. See README.md for details.
+#
+# You can also use: ./scripts/sync-secrets.sh to auto-generate these files.
+
+# Catch-all email subdomain for newsletter subscriptions
+EMAIL_DOMAIN=read.yourdomain.com
+
+# Collapse plus aliases (e.g. tech+ai → tech) for subscription matching
+COLLAPSE_PLUS_ALIAS=false
+
+# Owner email — used to verify Cloudflare Access identity
+OWNER_EMAIL=you@example.com
+
+# Cloudflare Access (omit both to disable auth in local dev)
+# CF_ACCESS_TEAM_DOMAIN=your-team
+# CF_ACCESS_AUD=your-audience-tag
