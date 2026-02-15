@@ -19,6 +19,7 @@ interface DocumentListItemProps {
   isSelected: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
+  snippet?: string;
 }
 
 export function DocumentListItem({
@@ -26,6 +27,7 @@ export function DocumentListItem({
   isSelected,
   onClick,
   onDoubleClick,
+  snippet,
 }: DocumentListItemProps) {
   const isRead = doc.is_read === 1;
   const isStarred = doc.is_starred === 1;
@@ -64,11 +66,16 @@ export function DocumentListItem({
         <h3 className={cn("text-sm truncate", !isRead && "font-semibold")}>
           {doc.title}
         </h3>
-        {doc.excerpt && (
+        {snippet ? (
+          <p
+            className="text-xs text-muted-foreground line-clamp-2 mt-0.5"
+            dangerouslySetInnerHTML={{ __html: snippet }}
+          />
+        ) : doc.excerpt ? (
           <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
             {doc.excerpt}
           </p>
-        )}
+        ) : null}
         <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
           {doc.site_name && <span>{doc.site_name}</span>}
           {doc.author && (

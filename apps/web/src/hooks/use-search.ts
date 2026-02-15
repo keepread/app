@@ -5,6 +5,7 @@ import type {
   PaginatedResponse,
   DocumentWithTags,
   DocumentLocation,
+  DocumentType,
 } from "@focus-reader/shared";
 import { apiFetch } from "@/lib/api-client";
 
@@ -15,11 +16,13 @@ const fetcher = (url: string) =>
 
 export function useSearch(
   query: string,
-  options?: { location?: DocumentLocation }
+  options?: { location?: DocumentLocation; type?: DocumentType; tagId?: string }
 ) {
   const params = new URLSearchParams();
   if (query) params.set("q", query);
   if (options?.location) params.set("location", options.location);
+  if (options?.type) params.set("type", options.type);
+  if (options?.tagId) params.set("tagId", options.tagId);
 
   const shouldFetch = query.trim().length >= 2;
 

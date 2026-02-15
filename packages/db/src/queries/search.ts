@@ -1,4 +1,4 @@
-import type { DocumentLocation } from "@focus-reader/shared";
+import type { DocumentLocation, DocumentType } from "@focus-reader/shared";
 
 export interface SearchResult {
   documentId: string;
@@ -22,7 +22,7 @@ export function sanitizeFtsQuery(query: string): string {
 export async function searchDocuments(
   db: D1Database,
   query: string,
-  options?: { limit?: number; offset?: number; location?: DocumentLocation }
+  options?: { limit?: number; offset?: number; location?: DocumentLocation; type?: DocumentType; tagId?: string }
 ): Promise<{ results: SearchResult[]; total: number }> {
   const sanitized = sanitizeFtsQuery(query);
   if (!sanitized) {
@@ -39,6 +39,18 @@ export async function searchDocuments(
   if (options?.location) {
     conditions.push(`d.location = ?${paramIdx}`);
     bindings.push(options.location);
+    paramIdx++;
+  }
+  if (options?.type) {
+    conditions.push(`d.type = ?${paramIdx}`);
+    bindings.push(options.type);
+    paramIdx++;
+  }
+  if (options?.tagId) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id AND dt.tag_id = ?${paramIdx})`
+    );
+    bindings.push(options.tagId);
     paramIdx++;
   }
 

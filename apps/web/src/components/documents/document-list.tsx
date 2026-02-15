@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import type { ListDocumentsQuery, DocumentLocation } from "@focus-reader/shared";
 import { useDocuments } from "@/hooks/use-documents";
+import { useSearch } from "@/hooks/use-search";
 import { useApp } from "@/contexts/app-context";
 import { DocumentListItem } from "./document-list-item";
 import { DocumentListToolbar } from "./document-list-toolbar";
@@ -32,6 +33,7 @@ export function DocumentList({
   const selectedId = searchParams.get("doc");
   const { setSelectedDocumentId } = useApp();
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const query: ListDocumentsQuery = {
     location,
@@ -45,8 +47,17 @@ export function DocumentList({
   const { documents, total, isLoading, isLoadingMore, hasMore, loadMore } =
     useDocuments(query);
 
+  const {
+    results: searchResults,
+    total: searchTotal,
+    isLoading: searchIsLoading,
+  } = useSearch(searchQuery, { location });
+
+  const isSearchActive = searchQuery.trim().length >= 2;
+
   // Infinite scroll observer
   useEffect(() => {
+    if (isSearchActive) return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
     const observer = new IntersectionObserver(
@@ -57,7 +68,7 @@ export function DocumentList({
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, loadMore]);
+  }, [hasMore, loadMore, isSearchActive]);
 
   const selectDocument = useCallback(
     (id: string) => {
@@ -76,10 +87,24 @@ export function DocumentList({
     [selectDocument]
   );
 
-  if (isLoading) {
+  const handleSearch = useCallback((q: string) => {
+    setSearchQuery(q);
+  }, []);
+
+  // Determine which data to display
+  const displayDocuments = isSearchActive ? searchResults : documents;
+  const displayTotal = isSearchActive ? searchTotal : total;
+  const displayIsLoading = isSearchActive ? searchIsLoading : isLoading;
+
+  if (displayIsLoading && displayDocuments.length === 0) {
     return (
       <div className="flex-1 overflow-y-auto">
-        <DocumentListToolbar title={title} total={0} />
+        <DocumentListToolbar
+          title={title}
+          total={0}
+          onSearch={handleSearch}
+          isSearchActive={isSearchActive}
+        />
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="flex gap-3 px-4 py-3 border-b">
             <Skeleton className="size-14 rounded" />
@@ -94,38 +119,59 @@ export function DocumentList({
     );
   }
 
-  if (documents.length === 0) {
+  if (displayDocuments.length === 0) {
     return (
       <div className="flex-1 flex flex-col">
-        <DocumentListToolbar title={title} total={0} />
-        <EmptyState location={location} isStarred={isStarred} />
+        <DocumentListToolbar
+          title={title}
+          total={0}
+          onSearch={handleSearch}
+          isSearchActive={isSearchActive}
+        />
+        {isSearchActive ? (
+          <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+            No results for &ldquo;{searchQuery}&rdquo;
+          </div>
+        ) : (
+          <EmptyState location={location} isStarred={isStarred} />
+        )}
       </div>
     );
   }
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
-      <DocumentListToolbar title={title} total={total} />
+      <DocumentListToolbar
+        title={title}
+        total={displayTotal}
+        onSearch={handleSearch}
+        isSearchActive={isSearchActive}
+      />
       <div className="flex-1 overflow-y-auto">
-        {documents.map((doc) => (
+        {displayDocuments.map((doc) => (
           <DocumentListItem
             key={doc.id}
             document={doc}
             isSelected={doc.id === selectedId}
             onClick={() => selectDocument(doc.id)}
             onDoubleClick={() => openDocument(doc.id)}
+            snippet={isSearchActive ? (doc as any).snippet : undefined}
           />
         ))}
-        {/* Infinite scroll sentinel */}
-        <div ref={sentinelRef} className="h-4" />
-        {isLoadingMore && (
-          <div className="flex justify-center py-4">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          </div>
+        {/* Infinite scroll sentinel (only for non-search) */}
+        {!isSearchActive && (
+          <>
+            <div ref={sentinelRef} className="h-4" />
+            {isLoadingMore && (
+              <div className="flex justify-center py-4">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </>
         )}
       </div>
       <div className="border-t px-4 py-1.5 text-xs text-muted-foreground text-right">
-        Count: {total}
+        Count: {displayTotal}
       </div>
     </div>
   );

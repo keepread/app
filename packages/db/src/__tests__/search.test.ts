@@ -267,4 +267,171 @@ describe("search queries", () => {
       expect(result.results).toHaveLength(0);
     });
   });
+
+  describe("phrase search relevance", () => {
+    it("matches multi-word phrase 'typescript tutorial'", async () => {
+      const doc1 = await createDocument(env.FOCUS_DB, {
+        type: "article",
+        title: "TypeScript Tutorial for Beginners",
+        plain_text_content:
+          "This comprehensive typescript tutorial covers everything you need to know",
+        origin_type: "manual",
+      });
+      await createDocument(env.FOCUS_DB, {
+        type: "article",
+        title: "Python Crash Course",
+        plain_text_content: "Learn Python from scratch",
+        origin_type: "manual",
+      });
+      await createDocument(env.FOCUS_DB, {
+        type: "article",
+        title: "Advanced TypeScript Patterns",
+        plain_text_content: "Generics and conditional types in TypeScript",
+        origin_type: "manual",
+      });
+
+      const { results, total } = await searchDocuments(
+        env.FOCUS_DB,
+        "typescript tutorial"
+      );
+      // Should match doc1 (has both words in title and body)
+      expect(total).toBeGreaterThanOrEqual(1);
+      expect(results[0].documentId).toBe(doc1.id);
+    });
+  });
+
+  describe("backfill from existing data", () => {
+    it("backfills FTS index when migration runs on existing documents", async () => {
+      // Step 1: Apply only the initial schema (no FTS)
+      const initialStatements = INITIAL_SCHEMA_SQL.split(";")
+        .map((s) => s.trim())
+        .filter(
+          (s) =>
+            s.length > 0 &&
+            !s.startsWith("--") &&
+            !s.match(/^--/) &&
+            s.includes(" ")
+        );
+      for (const stmt of initialStatements) {
+        await env.FOCUS_DB.prepare(stmt).run();
+      }
+
+      // Step 2: Insert documents directly (bypassing createDocument which calls indexDocument)
+      await env.FOCUS_DB
+        .prepare(
+          `INSERT INTO document (id, type, title, author, plain_text_content, location, origin_type)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
+        )
+        .bind(
+          "pre-existing-1",
+          "article",
+          "Pre-existing Article about Quantum Computing",
+          "Alice",
+          "Quantum computing uses qubits to perform calculations",
+          "inbox",
+          "manual"
+        )
+        .run();
+      await env.FOCUS_DB
+        .prepare(
+          `INSERT INTO document (id, type, title, author, plain_text_content, location, origin_type)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
+        )
+        .bind(
+          "pre-existing-2",
+          "article",
+          "Pre-existing Guide to Machine Learning",
+          "Bob",
+          "Machine learning models learn patterns from data",
+          "inbox",
+          "manual"
+        )
+        .run();
+
+      // Step 3: Now apply the FTS migration (which includes the backfill INSERT)
+      const ftsStatements = FTS5_MIGRATION_SQL.split(";")
+        .map((s) => s.trim())
+        .filter(
+          (s) =>
+            s.length > 0 &&
+            !s.startsWith("--") &&
+            !s.match(/^--/) &&
+            s.includes(" ")
+        );
+      for (const stmt of ftsStatements) {
+        await env.FOCUS_DB.prepare(stmt).run();
+      }
+
+      // Step 4: Verify backfilled documents are searchable
+      const result1 = await searchDocuments(env.FOCUS_DB, "Quantum");
+      expect(result1.total).toBe(1);
+      expect(result1.results[0].documentId).toBe("pre-existing-1");
+
+      const result2 = await searchDocuments(env.FOCUS_DB, "Machine Learning");
+      expect(result2.total).toBe(1);
+      expect(result2.results[0].documentId).toBe("pre-existing-2");
+
+      // Verify search by author also works for backfilled docs
+      const result3 = await searchDocuments(env.FOCUS_DB, "Alice");
+      expect(result3.total).toBe(1);
+      expect(result3.results[0].documentId).toBe("pre-existing-1");
+    });
+  });
+
+  describe("type and tagId filters", () => {
+    it("filters search results by document type", async () => {
+      await createDocument(env.FOCUS_DB, {
+        type: "article",
+        title: "Article about Testing",
+        origin_type: "manual",
+      });
+      await createDocument(env.FOCUS_DB, {
+        type: "rss",
+        title: "RSS post about Testing",
+        origin_type: "feed",
+      });
+
+      const { results, total } = await searchDocuments(
+        env.FOCUS_DB,
+        "Testing",
+        { type: "rss" }
+      );
+      expect(total).toBe(1);
+      expect(results).toHaveLength(1);
+    });
+
+    it("filters search results by tagId", async () => {
+      const doc = await createDocument(env.FOCUS_DB, {
+        type: "article",
+        title: "Tagged Document about Databases",
+        origin_type: "manual",
+      });
+      await createDocument(env.FOCUS_DB, {
+        type: "article",
+        title: "Untagged Document about Databases",
+        origin_type: "manual",
+      });
+
+      // Create a tag and tag the first document
+      const tagId = crypto.randomUUID();
+      await env.FOCUS_DB
+        .prepare("INSERT INTO tag (id, name) VALUES (?1, ?2)")
+        .bind(tagId, "tech")
+        .run();
+      await env.FOCUS_DB
+        .prepare(
+          "INSERT INTO document_tags (document_id, tag_id) VALUES (?1, ?2)"
+        )
+        .bind(doc.id, tagId)
+        .run();
+
+      const { results, total } = await searchDocuments(
+        env.FOCUS_DB,
+        "Databases",
+        { tagId }
+      );
+      expect(total).toBe(1);
+      expect(results[0].documentId).toBe(doc.id);
+    });
+  });
 });

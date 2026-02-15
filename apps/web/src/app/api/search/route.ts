@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { searchDocuments } from "@focus-reader/api";
-import type { DocumentLocation } from "@focus-reader/shared";
+import type { DocumentLocation, DocumentType } from "@focus-reader/shared";
 import { getDb } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 
@@ -17,6 +17,8 @@ export async function GET(request: NextRequest) {
     const result = await searchDocuments(db, {
       q,
       location: (params.get("location") as DocumentLocation) || undefined,
+      type: (params.get("type") as DocumentType) || undefined,
+      tagId: params.get("tagId") || undefined,
       limit: params.get("limit") ? parseInt(params.get("limit")!) : undefined,
       offset: params.get("offset") ? parseInt(params.get("offset")!) : undefined,
     });

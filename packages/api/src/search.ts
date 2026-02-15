@@ -1,5 +1,6 @@
 import type {
   DocumentLocation,
+  DocumentType,
   DocumentWithTags,
   PaginatedResponse,
 } from "@focus-reader/shared";
@@ -11,6 +12,8 @@ import {
 export interface SearchDocumentsQuery {
   q: string;
   location?: DocumentLocation;
+  type?: DocumentType;
+  tagId?: string;
   limit?: number;
   offset?: number;
 }
@@ -23,6 +26,8 @@ export async function searchDocuments(
     limit: query.limit,
     offset: query.offset,
     location: query.location,
+    type: query.type,
+    tagId: query.tagId,
   });
 
   const items: (DocumentWithTags & { snippet: string })[] = [];
