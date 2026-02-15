@@ -1,8 +1,8 @@
 # Phase 1 Implementation Plan: Minimal Viable Reader
 
-**Version:** 2.0
-**Date:** February 13, 2026
-**Status:** Draft
+**Version:** 2.1
+**Date:** February 14, 2026
+**Status:** Complete (with deferred items — see `phase-1-implementation-gaps.md`)
 **Prerequisites:** Phase 0 complete (monorepo scaffolding, D1 schema, email ingestion pipeline deployed and validated)
 
 ---
@@ -347,26 +347,24 @@ Step 6 sub-parts (6a, 6b, 6c) are partially parallelizable:
 ## 4. Local Development Workflow
 
 ```bash
-# Terminal 1: Start everything
-pnpm dev
+# Terminal 1: Web app (Next.js on port 3000)
+pnpm --filter focus-reader-web dev
 
-# This starts (via Turborepo):
-#   - apps/web:           wrangler pages dev (Next.js on port 8788)
-#   - apps/email-worker:  wrangler dev (Email Worker)
-#   Both share the same D1/R2 state via --persist-to ../../.wrangler/state
+# Terminal 2: Email worker (optional)
+pnpm --filter focus-reader-email-worker dev
 
-# Terminal 2: Run tests
+# Both share D1/R2 state via ../../.wrangler/state/v3/
+# Web: initOpenNextCloudflareForDev() in next.config.ts + wrangler.toml [miniflare] section
+# Email worker: --persist-to ../../.wrangler/state in dev script
+
+# Run tests
 pnpm test                           # All tests
 pnpm --filter @focus-reader/api test  # Just api tests
-pnpm --filter apps/web test           # Just web tests
-
-# Apply migrations to local D1 (already done in Phase 0, but safe to re-run)
-pnpm db:migrate
 ```
 
 **Testing the full loop locally:**
 1. Send a test email to the email worker (via fixture or real email)
-2. Open `http://localhost:8788` in the browser
+2. Open `http://localhost:3000` in the browser
 3. Verify the email appears in the Inbox view
 4. Save an article by URL paste
 5. Test triage, tagging, starring, read/unread
@@ -407,23 +405,31 @@ Phase 0 infrastructure is already deployed. Phase 1 adds the web app:
 
 Phase 1 is complete when:
 
-- [ ] User can browse newsletters (from Phase 0) in a three-pane reader UI
-- [ ] User can save articles by pasting a URL (Readability extraction with clean rendering)
-- [ ] User can save bookmarks by pasting a URL (lightweight metadata)
-- [ ] User can triage documents through inbox → later → archive
-- [ ] User can create tags and assign them to documents and subscriptions
-- [ ] User can star/unstar and mark read/unread
-- [ ] Auto-mark as read works after 1.5s of focused visibility
-- [ ] User can manage subscriptions (rename, copy email, assign tags, toggle active)
-- [ ] User can create new subscriptions and get a pseudo email to copy
-- [ ] HTML/Markdown toggle works in the reading pane
-- [ ] Focus mode works (reading pane expands to full width)
-- [ ] UI is responsive on desktop, tablet, and mobile
-- [ ] Authentication works via Cloudflare Access
-- [ ] Keyboard shortcuts work (j/k, s, m, e, f, Escape)
-- [ ] Settings pages work (email domain display, denylist management, ingestion log)
-- [ ] All tests pass (`pnpm test`)
-- [ ] Clean deployment to Cloudflare from `main` branch
+- [x] User can browse newsletters (from Phase 0) in a three-pane reader UI
+- [x] User can save articles by pasting a URL (Readability extraction with clean rendering)
+- [x] User can save bookmarks by pasting a URL (lightweight metadata)
+- [x] User can triage documents through inbox → later → archive
+- [x] User can create tags and assign them to documents and subscriptions
+- [x] User can star/unstar and mark read/unread
+- [x] Auto-mark as read works after 1.5s of focused visibility
+- [x] User can manage subscriptions (rename, copy email, assign tags, toggle active)
+- [x] User can create new subscriptions and get a pseudo email to copy
+- [x] HTML/Markdown toggle works in the reading pane
+- [x] Focus mode works (reading pane expands to full width)
+- [x] UI is responsive on desktop, tablet, and mobile
+- [ ] Authentication works via Cloudflare Access — **deferred to Phase 2** (single-user app, no auth needed yet)
+- [x] Keyboard shortcuts work (s, m, e, f, Escape, `[`, `]`, Shift+H) — **j/k deferred** (needs document list state refactor)
+- [x] Settings pages work (email domain display, denylist management, ingestion log)
+- [x] All tests pass (`pnpm test`)
+- [ ] Clean deployment to Cloudflare from `main` branch — **not yet deployed**
+
+### Deferred Items
+
+The following Phase 1 items are tracked in `phase-1-implementation-gaps.md` and deferred to Phase 2:
+
+1. **Auth enforcement** — Auth utilities exist but are not enforced in routes. Single-user app doesn't need auth yet.
+2. **j/k keyboard shortcuts** — Requires sharing document list state between components via context/store refactor.
+3. **Web/API test coverage** — API route tests need `getCloudflareContext()` mocking strategy.
 
 ---
 

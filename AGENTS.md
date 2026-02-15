@@ -6,7 +6,7 @@ This document contains everything an AI agent needs to work effectively on the F
 
 Focus Reader is a self-hosted read-it-later app deployed on Cloudflare (Workers, D1, R2, Pages). It ingests content from email newsletters, web articles, RSS feeds, and bookmarks into a unified reading interface.
 
-**Current state:** Phase 0 (email ingestion) and Phase 1 (API + web UI) complete. Phase 2 (RSS, search, highlights) is next.
+**Current state:** Phase 0 (email ingestion) and Phase 1 (API + web UI) complete. Phase 2 (RSS, search, highlights) is next. See `agents/plans/phase-1-implementation-gaps.md` for remaining Phase 1 gaps deferred to Phase 2.
 
 ### Specification Documents
 
@@ -18,6 +18,7 @@ Detailed specs live in `agents/spec/` and implementation plans in `agents/plans/
 - `agents/spec/improvements.md` — Design improvements and open questions
 - `agents/plans/phase-0-plan.md` — Phase 0 implementation plan (completed)
 - `agents/plans/phase-1-plan.md` — Phase 1 implementation plan (completed)
+- `agents/plans/phase-1-implementation-gaps.md` — Phase 1 gap tracker (open gaps deferred to Phase 2)
 
 **Always read the relevant spec before implementing a feature.** The specs define entity schemas, validation rules, and edge cases.
 
@@ -74,6 +75,38 @@ pnpm --filter focus-reader-email-worker test
 **Always run `pnpm build` before `pnpm test`** — the test task depends on `^build` in turbo.json.
 
 **Always verify with `pnpm build && pnpm typecheck && pnpm test` before committing.**
+
+## Local Development
+
+### Starting Dev Servers
+
+```bash
+# Terminal 1: Web app (Next.js on port 3000)
+pnpm --filter focus-reader-web dev
+
+# Terminal 2: Email worker (optional, for testing email ingestion)
+pnpm --filter focus-reader-email-worker dev
+```
+
+Both apps share the same D1/R2 state via a shared persist path at the monorepo root: `.wrangler/state/v3/`.
+
+### Shared Local D1/R2 State
+
+The web app and email worker share Cloudflare D1 and R2 bindings during local development:
+
+- **Web app:** `apps/web/next.config.ts` calls `initOpenNextCloudflareForDev()` with `persist: { path: "../../.wrangler/state/v3" }`. The `apps/web/wrangler.toml` configures D1/R2 bindings and `[miniflare]` persist paths pointing to the same shared location.
+- **Email worker:** `apps/email-worker/package.json` dev script uses `--persist-to ../../.wrangler/state`.
+
+This means documents ingested by the email worker appear immediately in the web app's UI.
+
+### Applying Migrations
+
+```bash
+# Apply migrations to the shared local D1
+pnpm --filter @focus-reader/db wrangler d1 migrations apply focus-reader-db --local
+```
+
+Or use the `wrangler.toml` in `apps/web/` or `apps/email-worker/` which both reference `migrations_dir = "../../packages/db/migrations"`.
 
 ## Code Conventions
 
@@ -236,17 +269,22 @@ app/
 │   ├── page.tsx                # General (theme toggle)
 │   ├── subscriptions/page.tsx
 │   ├── denylist/page.tsx
-│   └── email/page.tsx
+│   ├── email/page.tsx          # Email domain display
+│   └── ingestion-log/page.tsx  # Recent ingestion events table
 └── api/                        # Next.js Route Handlers
     ├── documents/              # GET (list), POST (create bookmark)
     ├── documents/[id]/         # GET, PATCH, DELETE
     ├── documents/[id]/content/ # GET (HTML/markdown from R2)
-    ├── subscriptions/          # GET
-    ├── subscriptions/[id]/     # PATCH, DELETE
+    ├── documents/[id]/tags/    # POST, DELETE (tag/untag document)
+    ├── subscriptions/          # GET, POST (create subscription)
+    ├── subscriptions/[id]/     # PATCH, DELETE (?hard=true for cascade)
+    ├── subscriptions/[id]/tags/ # POST, DELETE (tag/untag subscription)
     ├── tags/                   # GET, POST
     ├── tags/[id]/              # PATCH, DELETE
     ├── denylist/               # GET, POST
-    └── denylist/[id]/          # DELETE
+    ├── denylist/[id]/          # DELETE
+    ├── settings/               # GET (returns emailDomain)
+    └── ingestion-log/          # GET (recent ingestion events)
 ```
 
 ### Key Patterns
@@ -268,6 +306,22 @@ const { env } = await getCloudflareContext();
 const db: D1Database = env.FOCUS_DB;
 const r2: R2Bucket = env.FOCUS_STORAGE;
 ```
+
+**Important:** For local dev, `getCloudflareContext()` requires:
+1. `initOpenNextCloudflareForDev()` called in `apps/web/next.config.ts` (top-level, before the config export)
+2. A `apps/web/wrangler.toml` with D1/R2 bindings configured
+
+Without both, all API routes will return 500 errors because bindings are undefined.
+
+### API Error Format
+
+All API routes use a standardized error envelope:
+
+```json
+{ "error": { "code": "NOT_FOUND", "message": "Document not found" } }
+```
+
+Use `jsonError()` from `src/lib/api-helpers.ts` to create error responses. The client-side `apiFetch()` in `src/lib/api-client.ts` handles both old and new error formats.
 
 ## Common Pitfalls
 
