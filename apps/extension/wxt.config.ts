@@ -9,7 +9,7 @@ export default defineConfig({
   manifest: {
     name: "Focus Reader",
     description: "Save pages to Focus Reader as articles or bookmarks",
-    permissions: ["activeTab", "storage", "contextMenus"],
+    permissions: ["activeTab", "storage", "contextMenus", "notifications"],
     commands: {
       "save-page": {
         suggested_key: { default: "Alt+Shift+S" },

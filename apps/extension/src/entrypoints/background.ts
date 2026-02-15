@@ -25,6 +25,32 @@ function setCache(url: string, doc: DocumentDetail | null): void {
   pageCache.set(url, { doc, timestamp: Date.now() });
 }
 
+function isHttpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "Request failed";
+}
+
+async function notify(title: string, message: string): Promise<void> {
+  try {
+    await browser.notifications.create({
+      type: "basic",
+      iconUrl: browser.runtime.getURL("/icon-48.png"),
+      title,
+      message,
+    });
+  } catch {
+    // Ignore notification API errors
+  }
+}
+
 // --- Badge ---
 
 async function updateBadge(tabId: number, doc: DocumentDetail | null): Promise<void> {
@@ -96,23 +122,39 @@ export default defineBackground(() => {
   browser.contextMenus.onClicked.addListener(async (info, tab) => {
     try {
       if (info.menuItemId === "save-page" && tab?.id && tab.url) {
+        if (!isHttpUrl(tab.url)) {
+          throw new Error("Only HTTP/HTTPS pages can be saved.");
+        }
         const html = await captureTabHtml(tab.id);
-        await savePage(tab.url, html, { type: html ? "article" : "bookmark" });
+        if (!html) {
+          throw new Error("Couldn't capture article content. Use 'Save as bookmark'.");
+        }
+        await savePage(tab.url, html, { type: "article" });
         pageCache.delete(tab.url);
         await checkAndUpdateBadge(tab.id, tab.url);
+        await notify("Focus Reader", "Saved page as article.");
       } else if (info.menuItemId === "save-bookmark" && tab?.url) {
+        if (!isHttpUrl(tab.url)) {
+          throw new Error("Only HTTP/HTTPS pages can be saved.");
+        }
         await savePage(tab.url, null, { type: "bookmark" });
         if (tab.id) {
           pageCache.delete(tab.url);
           await checkAndUpdateBadge(tab.id, tab.url);
         }
+        await notify("Focus Reader", "Saved page as bookmark.");
       } else if (info.menuItemId === "save-link" && info.linkUrl) {
+        if (!isHttpUrl(info.linkUrl)) {
+          throw new Error("Only HTTP/HTTPS links can be saved.");
+        }
         await savePage(info.linkUrl, null, { type: "article" });
+        await notify("Focus Reader", "Saved link to Focus Reader.");
       } else if (info.menuItemId === "open-sidepanel" && tab?.windowId) {
         await (browser as any).sidePanel.open({ windowId: tab.windowId });
       }
     } catch (err) {
       console.error("Context menu action failed:", err);
+      await notify("Focus Reader", `Save failed: ${errorMessage(err)}`);
     }
   });
 
@@ -141,17 +183,29 @@ export default defineBackground(() => {
 
     try {
       if (command === "save-page") {
+        if (!isHttpUrl(tab.url)) {
+          throw new Error("Only HTTP/HTTPS pages can be saved.");
+        }
         const html = await captureTabHtml(tab.id);
-        await savePage(tab.url, html, { type: html ? "article" : "bookmark" });
+        if (!html) {
+          throw new Error("Couldn't capture article content. Use bookmark shortcut.");
+        }
+        await savePage(tab.url, html, { type: "article" });
         pageCache.delete(tab.url);
         await checkAndUpdateBadge(tab.id, tab.url);
+        await notify("Focus Reader", "Saved page as article.");
       } else if (command === "save-bookmark") {
+        if (!isHttpUrl(tab.url)) {
+          throw new Error("Only HTTP/HTTPS pages can be saved.");
+        }
         await savePage(tab.url, null, { type: "bookmark" });
         pageCache.delete(tab.url);
         await checkAndUpdateBadge(tab.id, tab.url);
+        await notify("Focus Reader", "Saved page as bookmark.");
       }
     } catch (err) {
       console.error("Keyboard shortcut action failed:", err);
+      await notify("Focus Reader", `Save failed: ${errorMessage(err)}`);
     }
   });
 
@@ -161,13 +215,9 @@ export default defineBackground(() => {
     const cached = getCached(url);
     if (cached) return cached.doc;
 
-    try {
-      const doc = await lookupByUrl(url);
-      setCache(url, doc);
-      return doc;
-    } catch {
-      return null;
-    }
+    const doc = await lookupByUrl(url);
+    setCache(url, doc);
+    return doc;
   });
 
   onMessage("invalidatePageStatus", async (message) => {

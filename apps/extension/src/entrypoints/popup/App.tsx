@@ -20,6 +20,15 @@ type Status =
   | "saving"
   | "error";
 
+function isHttpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export function App() {
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState("");
@@ -32,9 +41,13 @@ export function App() {
   const [showCollections, setShowCollections] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [actionInProgress, setActionInProgress] = useState(false);
+  const [captureFailed, setCaptureFailed] = useState(false);
 
-  useEffect(() => {
-    (async () => {
+  const loadPageState = useCallback(async () => {
+    setStatus("loading");
+    setError("");
+    setCaptureFailed(false);
+    try {
       const config = await getConfig();
       if (!config) {
         setStatus("not-configured");
@@ -50,6 +63,12 @@ export function App() {
         return;
       }
 
+      if (!isHttpUrl(tab.url)) {
+        setError("Only HTTP/HTTPS pages can be saved.");
+        setStatus("not-saved");
+        return;
+      }
+
       try {
         const result = await sendMessage("getPageStatus", { url: tab.url });
         if (result) {
@@ -58,11 +77,26 @@ export function App() {
         } else {
           setStatus("not-saved");
         }
-      } catch {
-        setStatus("not-saved");
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to check if this page is already saved."
+        );
+        setStatus("error");
       }
-    })();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load page state.");
+      setStatus("error");
+    }
   }, []);
+
+  useEffect(() => {
+    loadPageState().catch(() => {
+      setError("Failed to load page state.");
+      setStatus("error");
+    });
+  }, [loadPageState]);
 
   const handleToggleTag = useCallback((tagId: string) => {
     setSelectedTagIds((prev) =>
@@ -72,8 +106,15 @@ export function App() {
 
   const handleSave = useCallback(
     async (type: "article" | "bookmark") => {
+      if (!isHttpUrl(pageUrl)) {
+        setError("Only HTTP/HTTPS pages can be saved.");
+        setStatus("not-saved");
+        return;
+      }
+
       setStatus("saving");
       setError("");
+      setCaptureFailed(false);
 
       let html: string | null = null;
       if (type === "article") {
@@ -85,11 +126,20 @@ export function App() {
         } catch {
           // Content script unavailable
         }
+
+        if (!html) {
+          setError(
+            "Couldn't capture full article content for this page. Save as bookmark instead."
+          );
+          setCaptureFailed(true);
+          setStatus("not-saved");
+          return;
+        }
       }
 
       try {
         const saved = await savePage(pageUrl, html, {
-          type: html ? type : "bookmark",
+          type,
           tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
         });
         // Invalidate cache so badge updates
@@ -134,7 +184,7 @@ export function App() {
         setStatus("error");
       }
     },
-    [pageUrl, selectedTagIds]
+    [pageTitle, pageUrl, selectedTagIds]
   );
 
   const handleAction = useCallback(
@@ -248,10 +298,7 @@ export function App() {
         <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2.5 mb-3">{error}</p>
         <button
           className="w-full px-3 py-2.5 text-sm font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50"
-          onClick={() => {
-            setError("");
-            setStatus("not-saved");
-          }}
+          onClick={() => loadPageState()}
         >
           Retry
         </button>
@@ -427,6 +474,8 @@ export function App() {
   }
 
   // --- Not saved / saving ---
+  const canSavePage = isHttpUrl(pageUrl);
+
   return (
     <div className="w-[400px] p-5">
       <h2 className="text-[15px] font-semibold mb-1">Focus Reader</h2>
@@ -439,16 +488,25 @@ export function App() {
         <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2.5 mb-3">{error}</p>
       )}
 
+      {captureFailed && canSavePage && status !== "saving" && (
+        <button
+          className="w-full mb-3 px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50"
+          onClick={() => handleSave("bookmark")}
+        >
+          Save as Bookmark Instead
+        </button>
+      )}
+
       <div className="flex gap-2 mb-3">
         <button
-          disabled={status === "saving"}
+          disabled={status === "saving" || !canSavePage}
           className={`${btnPrimary} bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800`}
           onClick={() => handleSave("article")}
         >
           {status === "saving" ? "Saving..." : "Save as Article"}
         </button>
         <button
-          disabled={status === "saving"}
+          disabled={status === "saving" || !canSavePage}
           className={`${btnPrimary} bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 active:bg-gray-100`}
           onClick={() => handleSave("bookmark")}
         >
