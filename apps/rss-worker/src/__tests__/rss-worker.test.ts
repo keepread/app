@@ -342,6 +342,63 @@ describe("rss worker", () => {
     expect(updatedFeed!.error_count).toBe(0);
   });
 
+  it("deduplicates via URL normalization (tracking params, trailing slash)", async () => {
+    const feed = await createFeed(env.FOCUS_DB, {
+      feed_url: "https://testblog.example.com/feed.xml",
+      title: "Test Blog",
+    });
+
+    // First run: items with clean URLs
+    fetchMock
+      .get("https://testblog.example.com")
+      .intercept({ path: "/feed.xml" })
+      .reply(200, RSS_FIXTURE, {
+        headers: { "Content-Type": "application/rss+xml" },
+      });
+
+    const testEnv = getEnv();
+    await worker.scheduled(fakeController, testEnv, fakeCtx);
+
+    // Verify 2 documents created
+    const countBefore = await env.FOCUS_DB.prepare(
+      "SELECT COUNT(*) as cnt FROM document WHERE type = 'rss'"
+    ).first<{ cnt: number }>();
+    expect(countBefore!.cnt).toBe(2);
+
+    // Reset last_fetched_at so feed is polled again
+    await env.FOCUS_DB.prepare(
+      "UPDATE feed SET last_fetched_at = NULL WHERE id = ?1"
+    )
+      .bind(feed.id)
+      .run();
+
+    // Second run: same URLs but with tracking params and trailing slashes
+    const RSS_WITH_TRACKING = RSS_FIXTURE
+      .replace(
+        "https://testblog.example.com/post-1",
+        "https://testblog.example.com/post-1/?utm_source=rss&utm_medium=feed"
+      )
+      .replace(
+        "https://testblog.example.com/post-2",
+        "https://testblog.example.com/post-2?fbclid=abc123"
+      );
+
+    fetchMock
+      .get("https://testblog.example.com")
+      .intercept({ path: "/feed.xml" })
+      .reply(200, RSS_WITH_TRACKING, {
+        headers: { "Content-Type": "application/rss+xml" },
+      });
+
+    await worker.scheduled(fakeController, testEnv, fakeCtx);
+
+    // Should still be 2 documents — tracking params and trailing slash stripped
+    const countAfter = await env.FOCUS_DB.prepare(
+      "SELECT COUNT(*) as cnt FROM document WHERE type = 'rss'"
+    ).first<{ cnt: number }>();
+    expect(countAfter!.cnt).toBe(2);
+  });
+
   it("skips inactive and recently-fetched feeds", async () => {
     // Inactive feed
     const inactiveFeed = await createFeed(env.FOCUS_DB, {

@@ -26,6 +26,12 @@ export async function getFeeds(db: D1Database): Promise<FeedWithStats[]> {
 }
 
 export async function addFeed(db: D1Database, url: string): Promise<Feed> {
+  // Check for duplicate before any network fetch (idempotent for known URLs)
+  const existingDirect = await getFeedByUrl(db, url);
+  if (existingDirect) {
+    throw new DuplicateFeedError(existingDirect.id);
+  }
+
   let feedUrl = url;
   let parsedFeed;
 
@@ -47,13 +53,23 @@ export async function addFeed(db: D1Database, url: string): Promise<Feed> {
       throw new Error("No feed found at this URL");
     }
     feedUrl = discovered;
+
+    // Check duplicate for discovered URL before second fetch
+    const existingDiscovered = await getFeedByUrl(db, feedUrl);
+    if (existingDiscovered) {
+      throw new DuplicateFeedError(existingDiscovered.id);
+    }
+
     parsedFeed = await fetchFeed(feedUrl);
   }
 
-  // Check for duplicate
-  const existing = await getFeedByUrl(db, feedUrl);
-  if (existing) {
-    throw new DuplicateFeedError(existing.id);
+  // Final duplicate check (feedUrl may differ from input url for direct feeds
+  // if the input URL was not already in DB but resolved to a known feed_url)
+  if (feedUrl !== url) {
+    const existingFinal = await getFeedByUrl(db, feedUrl);
+    if (existingFinal) {
+      throw new DuplicateFeedError(existingFinal.id);
+    }
   }
 
   return createFeed(db, {

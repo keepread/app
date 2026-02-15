@@ -115,6 +115,13 @@ async function processItem(
       plainText = markdownContent.replace(/[#*_`\[\]()>~-]/g, "").trim();
       wordCount = countWords(plainText);
       readingTime = estimateReadingTime(wordCount);
+    } else if (!htmlContent && item.contentText) {
+      // Text-only items (common in JSON Feed)
+      plainText = item.contentText;
+      markdownContent = plainText;
+      htmlContent = `<p>${sanitizeHtml(plainText.replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br>"))}</p>`;
+      wordCount = countWords(plainText);
+      readingTime = estimateReadingTime(wordCount);
     }
 
     if (!excerpt && plainText) {
