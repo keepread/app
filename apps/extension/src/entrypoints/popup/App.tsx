@@ -69,6 +69,7 @@ export function App() {
   const [doc, setDoc] = useState<DocumentDetail | null>(null);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [showTags, setShowTags] = useState(false);
+  const [showPageSavedTagEditor, setShowPageSavedTagEditor] = useState(false);
   const [showSavedTagEditor, setShowSavedTagEditor] = useState(false);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [showCollections, setShowCollections] = useState(false);
@@ -114,6 +115,7 @@ export function App() {
     setError("");
     setCaptureFailed(false);
     setConfirmDelete(false);
+    setShowPageSavedTagEditor(false);
     setShowSavedTagEditor(false);
     try {
       const config = await getConfig();
@@ -298,6 +300,7 @@ export function App() {
       setDoc(null);
       setStatus("not-saved");
       setConfirmDelete(false);
+      setShowPageSavedTagEditor(false);
       setShowSavedTagEditor(false);
       setActiveTab("page");
     } catch (err) {
@@ -361,6 +364,21 @@ export function App() {
       setSavingSettings(false);
     }
   }, [defaultSaveType, loadPageState, settingsApiUrl, theme]);
+
+  const openDocumentInReader = useCallback(async (document: DocumentDetail) => {
+    const config = await getConfig();
+    if (!config) return;
+    const locationPath =
+      document.location === "later"
+        ? "later"
+        : document.location === "archive"
+          ? "archive"
+          : "inbox";
+    window.open(
+      `${config.apiUrl.replace(/\/$/, "")}/${locationPath}?doc=${document.id}`,
+      "_blank"
+    );
+  }, []);
 
   const canSavePage = isHttpUrl(pageUrl);
   const pageDomain = domainFromUrl(pageUrl);
@@ -461,6 +479,97 @@ export function App() {
                 >
                   Open Full Settings
                 </button>
+              </div>
+            ) : isSaved && doc ? (
+              <div className="space-y-3">
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-card)] p-3">
+                  <p className="text-sm font-medium text-emerald-400">
+                    Already saved in {doc.location}.
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    <button
+                      disabled={actionInProgress}
+                      className="px-2 py-2 text-xs rounded-lg border border-[var(--border)] hover:bg-[var(--bg-hover)] disabled:opacity-50"
+                      onClick={() => openDocumentInReader(doc)}
+                    >
+                      Open
+                    </button>
+                    <button
+                      disabled={actionInProgress}
+                      className="px-2 py-2 text-xs rounded-lg border border-[var(--border)] hover:bg-[var(--bg-hover)] disabled:opacity-50"
+                      onClick={() =>
+                        handleAction(() =>
+                          updateDocument(doc.id, { is_starred: doc.is_starred ? 0 : 1 })
+                        )
+                      }
+                    >
+                      {doc.is_starred ? "Unstar" : "Star"}
+                    </button>
+                    <button
+                      disabled={actionInProgress}
+                      className="px-2 py-2 text-xs rounded-lg border border-[var(--border)] hover:bg-[var(--bg-hover)] disabled:opacity-50"
+                      onClick={() =>
+                        handleAction(() =>
+                          updateDocument(doc.id, {
+                            location: doc.location === "archive" ? "inbox" : "archive",
+                          })
+                        )
+                      }
+                    >
+                      {doc.location === "archive" ? "Unarchive" : "Archive"}
+                    </button>
+                  </div>
+                  <button
+                    className="mt-2 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                    onClick={() => setActiveTab("saved")}
+                  >
+                    Open full controls in Saved tab
+                  </button>
+                </div>
+
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-card)] p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-[var(--text-secondary)]">
+                      Quick tags
+                    </span>
+                    <button
+                      disabled={actionInProgress}
+                      className="text-xs px-2 py-1 rounded-md border border-[var(--border)] hover:bg-[var(--bg-hover)] disabled:opacity-50"
+                      onClick={() => setShowPageSavedTagEditor((prev) => !prev)}
+                    >
+                      {showPageSavedTagEditor ? "Done" : "Edit tags"}
+                    </button>
+                  </div>
+
+                  {doc.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {doc.tags.map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border border-[var(--border)]"
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: tag.color ?? "#888" }}
+                          />
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[var(--text-tertiary)]">No tags yet.</p>
+                  )}
+
+                  {showPageSavedTagEditor ? (
+                    <div className="mt-2">
+                      <TagPicker
+                        selectedIds={doc.tags.map((tag) => tag.id)}
+                        onToggle={handleToggleSavedTag}
+                        disabled={actionInProgress}
+                      />
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ) : !canSavePage ? (
               <p className="text-sm text-[var(--text-secondary)]">
@@ -645,20 +754,7 @@ export function App() {
                   </button>
                   <button
                     className="flex-1 px-3 py-2 text-xs rounded-lg bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]"
-                    onClick={async () => {
-                      const config = await getConfig();
-                      if (!config) return;
-                      const locationPath =
-                        doc.location === "later"
-                          ? "later"
-                          : doc.location === "archive"
-                            ? "archive"
-                            : "inbox";
-                      window.open(
-                        `${config.apiUrl.replace(/\/$/, "")}/${locationPath}?doc=${doc.id}`,
-                        "_blank"
-                      );
-                    }}
+                    onClick={() => openDocumentInReader(doc)}
                   >
                     Open in Reader
                   </button>
