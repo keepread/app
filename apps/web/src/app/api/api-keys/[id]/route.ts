@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { removeFromDenylist } from "@focus-reader/api";
+import { revokeApiKey } from "@focus-reader/api";
 import { getDb } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
@@ -12,10 +12,10 @@ export async function DELETE(
     try {
       const db = await getDb();
       const { id } = await params;
-      await removeFromDenylist(db, id);
+      await revokeApiKey(db, id);
       return json({ success: true });
     } catch {
-      return jsonError("Failed to remove from denylist", "DELETE_ERROR", 500);
+      return jsonError("Failed to revoke API key", "DELETE_ERROR", 500);
     }
   });
 }
