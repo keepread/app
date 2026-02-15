@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDocument } from "@/hooks/use-documents";
 import { apiFetch } from "@/lib/api-client";
@@ -30,9 +30,11 @@ import {
   Maximize2,
   Minimize2,
   MailWarning,
+  FolderPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/contexts/app-context";
+import { AddToCollectionDialog } from "@/components/dialogs/add-to-collection-dialog";
 
 interface ReaderToolbarProps {
   documentId: string;
@@ -53,6 +55,7 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
     setSelectedDocumentId,
   } = useApp();
 
+  const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
   const hasPrev = currentDocumentIndex > 0;
   const hasNext = currentDocumentIndex < documentIds.length - 1;
 
@@ -226,6 +229,9 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
             <DropdownMenuItem onClick={() => moveToLocation("archive")}>
               <Archive className="size-4 mr-2" /> Move to Archive
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setCollectionDialogOpen(true)}>
+              <FolderPlus className="size-4 mr-2" /> Add to Collection
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={openOriginal}>
               <ExternalLink className="size-4 mr-2" /> Open original
@@ -254,6 +260,12 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
           </Button>
         </div>
       )}
+
+      <AddToCollectionDialog
+        open={collectionDialogOpen}
+        onOpenChange={setCollectionDialogOpen}
+        documentId={documentId}
+      />
     </>
   );
 }

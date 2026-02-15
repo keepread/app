@@ -8,6 +8,9 @@ import { timeAgo, formatDate, capitalize } from "@/lib/format";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { extractDomain } from "@focus-reader/shared";
 import { NotebookHighlightCard } from "@/components/reader/notebook-highlight-card";
+import { useCollectionsForDocument } from "@/hooks/use-collections";
+import Link from "next/link";
+import { FolderOpen } from "lucide-react";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
@@ -40,6 +43,7 @@ export function RightSidebar() {
   const selectedId = searchParams.get("doc");
   const { document: doc } = useDocument(selectedId);
   const { highlights } = useHighlightsForDocument(selectedId);
+  const { collections: docCollections } = useCollectionsForDocument(selectedId);
 
   if (!rightPanelVisible) return null;
 
@@ -107,6 +111,25 @@ export function RightSidebar() {
                         />
                         {tag.name}
                       </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Collections */}
+              {docCollections.length > 0 && (
+                <div>
+                  <SectionHeading>COLLECTIONS</SectionHeading>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {docCollections.map((col) => (
+                      <Link
+                        key={col.id}
+                        href={`/collections/${col.id}`}
+                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary hover:bg-primary/20 transition-colors"
+                      >
+                        <FolderOpen className="size-3" />
+                        {col.name}
+                      </Link>
                     ))}
                   </div>
                 </div>

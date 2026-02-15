@@ -15,6 +15,7 @@ import {
   removeDocumentFromCollection,
   getCollectionDocuments,
   reorderCollectionDocuments,
+  getCollectionsForDocument,
 } from "@focus-reader/db";
 
 export async function getCollections(
@@ -69,6 +70,13 @@ export async function removeFromCollection(
   documentId: string
 ): Promise<void> {
   await removeDocumentFromCollection(db, collectionId, documentId);
+}
+
+export async function getDocumentCollections(
+  db: D1Database,
+  documentId: string
+): Promise<Collection[]> {
+  return getCollectionsForDocument(db, documentId);
 }
 
 export async function reorderCollection(

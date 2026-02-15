@@ -18,6 +18,7 @@ import {
   PanelLeftOpen,
   Filter,
   Highlighter,
+  FolderOpen,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -25,9 +26,11 @@ import { useSubscriptions } from "@/hooks/use-subscriptions";
 import { useFeeds } from "@/hooks/use-feeds";
 import { useTags } from "@/hooks/use-tags";
 import { useSavedViews } from "@/hooks/use-saved-views";
+import { useCollections } from "@/hooks/use-collections";
 import { useApp } from "@/contexts/app-context";
 import { Button } from "@/components/ui/button";
 import { AddBookmarkDialog } from "@/components/dialogs/add-bookmark-dialog";
+import { CollectionDialog } from "@/components/dialogs/collection-dialog";
 
 const NAV_ITEMS = [
   { label: "Inbox", icon: Inbox, path: "/inbox", badge: true },
@@ -45,11 +48,14 @@ export function NavSidebar() {
   const { feeds } = useFeeds();
   const { tags } = useTags();
   const { views } = useSavedViews();
+  const { collections, mutate: mutateCollections } = useCollections();
   const [subsOpen, setSubsOpen] = useState(true);
   const [feedsOpen, setFeedsOpen] = useState(true);
   const [tagsOpen, setTagsOpen] = useState(true);
+  const [collectionsOpen, setCollectionsOpen] = useState(true);
   const [viewsOpen, setViewsOpen] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
 
   if (sidebarCollapsed) return null;
 
@@ -222,6 +228,53 @@ export function NavSidebar() {
           )}
         </div>
 
+        {/* Collections */}
+        <div className="mt-4">
+          <button
+            onClick={() => setCollectionsOpen(!collectionsOpen)}
+            className="flex w-full items-center justify-between px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          >
+            <span>Collections</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCollectionDialogOpen(true);
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Plus className="size-3" />
+              </button>
+              {collectionsOpen ? (
+                <ChevronDown className="size-3.5" />
+              ) : (
+                <ChevronRight className="size-3.5" />
+              )}
+            </div>
+          </button>
+          {collectionsOpen && (
+            <div className="space-y-0.5">
+              {collections.map((col) => (
+                <Link
+                  key={col.id}
+                  href={`/collections/${col.id}`}
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-sidebar-accent",
+                    pathname === `/collections/${col.id}` &&
+                      "bg-sidebar-accent font-medium"
+                  )}
+                >
+                  <FolderOpen className="size-4 flex-shrink-0 text-muted-foreground" />
+                  <span className="flex-1 truncate">{col.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {col.documentCount}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Saved Views */}
         <div className="mt-4">
           <button
@@ -273,6 +326,11 @@ export function NavSidebar() {
         </Link>
       </div>
       <AddBookmarkDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
+      <CollectionDialog
+        open={collectionDialogOpen}
+        onOpenChange={setCollectionDialogOpen}
+        onSaved={() => mutateCollections()}
+      />
     </aside>
   );
 }

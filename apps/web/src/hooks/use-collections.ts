@@ -1,13 +1,27 @@
 "use client";
 
 import useSWR from "swr";
-import type { CollectionWithCount, CollectionWithDocuments } from "@focus-reader/shared";
+import type { Collection, CollectionWithCount, CollectionWithDocuments } from "@focus-reader/shared";
 import { apiFetch } from "@/lib/api-client";
 
 export function useCollections() {
   const { data, error, isLoading, mutate } = useSWR(
     "/api/collections",
     (url: string) => apiFetch<CollectionWithCount[]>(url)
+  );
+
+  return {
+    collections: data ?? [],
+    isLoading,
+    error,
+    mutate,
+  };
+}
+
+export function useCollectionsForDocument(documentId: string | null) {
+  const { data, error, isLoading, mutate } = useSWR(
+    documentId ? `/api/documents/${documentId}/collections` : null,
+    (url: string) => apiFetch<Collection[]>(url)
   );
 
   return {
