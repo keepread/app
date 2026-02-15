@@ -38,6 +38,7 @@ const {
   deleteDocument,
   getCollections,
   addToCollection,
+  getDocuments,
 } = await import("../lib/api-client");
 
 beforeEach(() => {
@@ -300,6 +301,83 @@ describe("getCollections", () => {
       },
     });
     expect(result).toEqual(collections);
+  });
+});
+
+describe("getDocuments", () => {
+  it("sends GET with query params", async () => {
+    configureApi();
+    const response = { items: [], total: 0 };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => response,
+    });
+
+    const result = await getDocuments({
+      location: "inbox",
+      limit: 20,
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/api/documents?location=inbox&limit=20",
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer key123",
+        },
+      }
+    );
+    expect(result).toEqual(response);
+  });
+
+  it("sends isStarred and cursor params", async () => {
+    configureApi();
+    const response = {
+      items: [{ id: "doc-1", title: "Test", tags: [] }],
+      total: 1,
+      nextCursor: "abc",
+    };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => response,
+    });
+
+    const result = await getDocuments({
+      isStarred: true,
+      limit: 10,
+      cursor: "xyz",
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/api/documents?isStarred=true&limit=10&cursor=xyz",
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer key123",
+        },
+      }
+    );
+    expect(result).toEqual(response);
+  });
+
+  it("sends GET without query params when none provided", async () => {
+    configureApi();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ items: [], total: 0 }),
+    });
+
+    await getDocuments();
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/api/documents",
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer key123",
+        },
+      }
+    );
   });
 });
 

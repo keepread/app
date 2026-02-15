@@ -1,4 +1,4 @@
-import { savePage, lookupByUrl, type DocumentDetail } from "@/lib/api-client";
+import { savePage, lookupByUrl, getDocuments, type DocumentDetail } from "@/lib/api-client";
 import { sendMessage, onMessage } from "@/lib/messaging";
 
 // --- Badge cache ---
@@ -85,6 +85,11 @@ export default defineBackground(() => {
       title: "Save link to Focus Reader",
       contexts: ["link"],
     });
+    browser.contextMenus.create({
+      id: "open-sidepanel",
+      title: "Open Focus Reader sidebar",
+      contexts: ["page"],
+    });
   });
 
   // Context menu handlers
@@ -103,6 +108,8 @@ export default defineBackground(() => {
         }
       } else if (info.menuItemId === "save-link" && info.linkUrl) {
         await savePage(info.linkUrl, null, { type: "article" });
+      } else if (info.menuItemId === "open-sidepanel" && tab?.windowId) {
+        await (browser as any).sidePanel.open({ windowId: tab.windowId });
       }
     } catch (err) {
       console.error("Context menu action failed:", err);
@@ -172,5 +179,9 @@ export default defineBackground(() => {
     if (tab?.id && tab.url === url) {
       await checkAndUpdateBadge(tab.id, url);
     }
+  });
+
+  onMessage("getDocuments", async (message) => {
+    return await getDocuments(message.data);
   });
 });

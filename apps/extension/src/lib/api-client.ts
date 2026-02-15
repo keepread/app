@@ -150,3 +150,20 @@ export async function addToCollection(
     body: JSON.stringify({ documentId }),
   });
 }
+
+export async function getDocuments(query?: {
+  location?: string;
+  isStarred?: boolean;
+  limit?: number;
+  cursor?: string;
+}): Promise<{ items: DocumentDetail[]; total: number; nextCursor?: string }> {
+  const params = new URLSearchParams();
+  if (query?.location) params.set("location", query.location);
+  if (query?.isStarred) params.set("isStarred", "true");
+  if (query?.limit) params.set("limit", String(query.limit));
+  if (query?.cursor) params.set("cursor", query.cursor);
+
+  const qs = params.toString();
+  const res = await request(`/api/documents${qs ? `?${qs}` : ""}`);
+  return res.json();
+}
