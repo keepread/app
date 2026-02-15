@@ -8,6 +8,7 @@ import type {
 } from "@focus-reader/shared";
 import { nowISO, DEFAULT_PAGE_SIZE } from "@focus-reader/shared";
 import { indexDocument, deindexDocument, sanitizeFtsQuery } from "./search.js";
+import { getEmailMetaByDocumentId } from "./email-meta.js";
 
 export async function createDocument(
   db: D1Database,
@@ -240,10 +241,15 @@ export async function getDocumentWithTags(
         .first()
     : undefined;
 
+  const emailMeta = doc.type === "email"
+    ? await getEmailMetaByDocumentId(db, id)
+    : undefined;
+
   return {
     ...doc,
     tags: tagRows.results,
     subscription: subscription ?? undefined,
+    emailMeta: emailMeta ?? undefined,
   } as DocumentWithTags;
 }
 

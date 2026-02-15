@@ -5,6 +5,10 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 interface AppState {
   selectedDocumentId: string | null;
   setSelectedDocumentId: (id: string | null) => void;
+  documentIds: string[];
+  setDocumentIds: (ids: string[]) => void;
+  currentDocumentIndex: number;
+  setCurrentDocumentIndex: (index: number) => void;
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
   rightPanelVisible: boolean;
@@ -21,6 +25,8 @@ const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const [documentIds, setDocumentIds] = useState<string[]>([]);
+  const [currentDocumentIndex, setCurrentDocumentIndex] = useState(-1);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
   const [tocVisible, setTocVisible] = useState(true);
@@ -41,6 +47,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         selectedDocumentId,
         setSelectedDocumentId,
+        documentIds,
+        setDocumentIds,
+        currentDocumentIndex,
+        setCurrentDocumentIndex,
         sidebarCollapsed,
         toggleSidebar,
         rightPanelVisible,

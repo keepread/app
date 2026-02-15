@@ -101,6 +101,11 @@ export function DocumentListItem({
         {isStarred && (
           <Star className="size-3 text-amber-400 fill-amber-400" />
         )}
+        {doc.emailMeta?.needs_confirmation === 1 && (
+          <span className="rounded bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-medium">
+            Confirm
+          </span>
+        )}
       </div>
 
       {/* Reading progress bar */}

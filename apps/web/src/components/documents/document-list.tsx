@@ -31,7 +31,7 @@ export function DocumentList({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("doc");
-  const { setSelectedDocumentId } = useApp();
+  const { setSelectedDocumentId, setDocumentIds, setCurrentDocumentIndex } = useApp();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -70,14 +70,24 @@ export function DocumentList({
     return () => observer.disconnect();
   }, [hasMore, loadMore, isSearchActive]);
 
+  // Determine which data to display
+  const displayDocuments = isSearchActive ? searchResults : documents;
+
+  // Sync document IDs to app context for keyboard navigation
+  useEffect(() => {
+    setDocumentIds(displayDocuments.map((d) => d.id));
+  }, [displayDocuments, setDocumentIds]);
+
   const selectDocument = useCallback(
     (id: string) => {
       setSelectedDocumentId(id);
+      const idx = displayDocuments.findIndex((d) => d.id === id);
+      setCurrentDocumentIndex(idx);
       const params = new URLSearchParams(searchParams.toString());
       params.set("doc", id);
       router.push(`${pathname}?${params.toString()}`, { scroll: false });
     },
-    [router, pathname, searchParams, setSelectedDocumentId]
+    [router, pathname, searchParams, setSelectedDocumentId, displayDocuments, setCurrentDocumentIndex]
   );
 
   const openDocument = useCallback(
@@ -90,9 +100,6 @@ export function DocumentList({
   const handleSearch = useCallback((q: string) => {
     setSearchQuery(q);
   }, []);
-
-  // Determine which data to display
-  const displayDocuments = isSearchActive ? searchResults : documents;
   const displayTotal = isSearchActive ? searchTotal : total;
   const displayIsLoading = isSearchActive ? searchIsLoading : isLoading;
 

@@ -373,6 +373,7 @@ export interface PaginatedResponse<T> {
 export interface DocumentWithTags extends Document {
   tags: Tag[];
   subscription?: Subscription;
+  emailMeta?: DocumentEmailMeta;
 }
 
 export interface SubscriptionWithStats extends Subscription {

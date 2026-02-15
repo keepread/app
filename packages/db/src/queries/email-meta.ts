@@ -36,6 +36,17 @@ export async function createEmailMeta(
     .first<DocumentEmailMeta>())!;
 }
 
+export async function getEmailMetaByDocumentId(
+  db: D1Database,
+  documentId: string
+): Promise<DocumentEmailMeta | null> {
+  const result = await db
+    .prepare("SELECT * FROM document_email_meta WHERE document_id = ?1")
+    .bind(documentId)
+    .first<DocumentEmailMeta>();
+  return result ?? null;
+}
+
 export async function getEmailMetaByMessageId(
   db: D1Database,
   messageId: string
