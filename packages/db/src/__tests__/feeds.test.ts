@@ -4,7 +4,9 @@ import {
   createFeed,
   getFeed,
   getFeedByUrl,
+  getFeedByUrlIncludeDeleted,
   listFeeds,
+  restoreFeed,
   updateFeed,
   softDeleteFeed,
   hardDeleteFeed,
@@ -100,6 +102,55 @@ describe("feed queries", () => {
     it("returns null for unknown URL", async () => {
       const found = await getFeedByUrl(env.FOCUS_DB, "https://nonexistent.com/feed");
       expect(found).toBeNull();
+    });
+
+    it("returns null for soft-deleted feeds", async () => {
+      const feed = await createFeed(env.FOCUS_DB, {
+        feed_url: "https://blog.example.com/deleted-rss",
+        title: "Deleted Blog Feed",
+      });
+      await softDeleteFeed(env.FOCUS_DB, feed.id);
+
+      const found = await getFeedByUrl(
+        env.FOCUS_DB,
+        "https://blog.example.com/deleted-rss"
+      );
+      expect(found).toBeNull();
+    });
+  });
+
+  describe("getFeedByUrlIncludeDeleted + restoreFeed", () => {
+    it("finds deleted feeds and restores them to active state", async () => {
+      const feed = await createFeed(env.FOCUS_DB, {
+        feed_url: "https://example.com/restorable.xml",
+        title: "Restorable Feed",
+      });
+      await incrementFeedError(env.FOCUS_DB, feed.id, "temporary failure");
+      await updateFeed(env.FOCUS_DB, feed.id, { is_active: 0 });
+      await softDeleteFeed(env.FOCUS_DB, feed.id);
+
+      const deleted = await getFeedByUrlIncludeDeleted(
+        env.FOCUS_DB,
+        "https://example.com/restorable.xml"
+      );
+      expect(deleted).not.toBeNull();
+      expect(deleted!.deleted_at).not.toBeNull();
+      expect(deleted!.is_active).toBe(0);
+      expect(deleted!.error_count).toBe(1);
+      expect(deleted!.last_error).toBe("temporary failure");
+
+      const restored = await restoreFeed(env.FOCUS_DB, feed.id);
+      expect(restored.deleted_at).toBeNull();
+      expect(restored.is_active).toBe(1);
+      expect(restored.error_count).toBe(0);
+      expect(restored.last_error).toBeNull();
+
+      const activeLookup = await getFeedByUrl(
+        env.FOCUS_DB,
+        "https://example.com/restorable.xml"
+      );
+      expect(activeLookup).not.toBeNull();
+      expect(activeLookup!.id).toBe(feed.id);
     });
   });
 
@@ -442,6 +493,16 @@ describe("feed queries", () => {
         title: "Article Doc",
         origin_type: "manual",
       });
+      await createDocument(env.FOCUS_DB, {
+        type: "bookmark",
+        title: "Bookmark Doc",
+        origin_type: "manual",
+      });
+      await createDocument(env.FOCUS_DB, {
+        type: "pdf",
+        title: "PDF Doc",
+        origin_type: "manual",
+      });
 
       const result = await listDocuments(env.FOCUS_DB, { type: "rss" });
       expect(result.items).toHaveLength(1);
@@ -450,6 +511,14 @@ describe("feed queries", () => {
       const emailResult = await listDocuments(env.FOCUS_DB, { type: "email" });
       expect(emailResult.items).toHaveLength(1);
       expect(emailResult.items[0].title).toBe("Email Doc");
+
+      const bookmarkResult = await listDocuments(env.FOCUS_DB, { type: "bookmark" });
+      expect(bookmarkResult.items).toHaveLength(1);
+      expect(bookmarkResult.items[0].title).toBe("Bookmark Doc");
+
+      const pdfResult = await listDocuments(env.FOCUS_DB, { type: "pdf" });
+      expect(pdfResult.items).toHaveLength(1);
+      expect(pdfResult.items[0].title).toBe("PDF Doc");
     });
   });
 });

@@ -378,6 +378,21 @@ describe("search queries", () => {
     });
   });
 
+  describe("missing FTS table behavior", () => {
+    it("throws a clear SQLite error when document_fts is missing", async () => {
+      await createDocument(env.FOCUS_DB, {
+        type: "article",
+        title: "Search target document",
+        origin_type: "manual",
+      });
+      await env.FOCUS_DB.prepare("DROP TABLE document_fts").run();
+
+      await expect(
+        searchDocuments(env.FOCUS_DB, "target")
+      ).rejects.toThrow(/no such table: document_fts/i);
+    });
+  });
+
   describe("type and tagId filters", () => {
     it("filters search results by document type", async () => {
       await createDocument(env.FOCUS_DB, {
@@ -398,6 +413,59 @@ describe("search queries", () => {
       );
       expect(total).toBe(1);
       expect(results).toHaveLength(1);
+    });
+
+    it("supports all core type filters including pdf", async () => {
+      await createDocument(env.FOCUS_DB, {
+        type: "article",
+        title: "Type Coverage Query article",
+        origin_type: "manual",
+      });
+      await createDocument(env.FOCUS_DB, {
+        type: "email",
+        title: "Type Coverage Query email",
+        origin_type: "subscription",
+      });
+      await createDocument(env.FOCUS_DB, {
+        type: "rss",
+        title: "Type Coverage Query rss",
+        origin_type: "feed",
+      });
+      await createDocument(env.FOCUS_DB, {
+        type: "bookmark",
+        title: "Type Coverage Query bookmark",
+        origin_type: "manual",
+      });
+      await createDocument(env.FOCUS_DB, {
+        type: "pdf",
+        title: "Type Coverage Query pdf",
+        origin_type: "manual",
+      });
+
+      const article = await searchDocuments(env.FOCUS_DB, "Type Coverage Query", {
+        type: "article",
+      });
+      expect(article.total).toBe(1);
+
+      const email = await searchDocuments(env.FOCUS_DB, "Type Coverage Query", {
+        type: "email",
+      });
+      expect(email.total).toBe(1);
+
+      const rss = await searchDocuments(env.FOCUS_DB, "Type Coverage Query", {
+        type: "rss",
+      });
+      expect(rss.total).toBe(1);
+
+      const bookmark = await searchDocuments(env.FOCUS_DB, "Type Coverage Query", {
+        type: "bookmark",
+      });
+      expect(bookmark.total).toBe(1);
+
+      const pdf = await searchDocuments(env.FOCUS_DB, "Type Coverage Query", {
+        type: "pdf",
+      });
+      expect(pdf.total).toBe(1);
     });
 
     it("filters search results by tagId", async () => {

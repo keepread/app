@@ -195,6 +195,45 @@ describe("addFeed", () => {
       expect((err as InstanceType<typeof DuplicateFeedError>).existingId).toBe("existing-feed");
     }
   });
+
+  it("restores a soft-deleted direct-url feed instead of creating a duplicate", async () => {
+    const deletedFeed = {
+      id: "deleted-feed",
+      feed_url: "https://myblog.com/feed.xml",
+      title: "Deleted Blog",
+      description: null,
+      site_url: "https://myblog.com",
+      icon_url: null,
+      last_fetched_at: null,
+      fetch_interval_minutes: 60,
+      is_active: 0,
+      fetch_full_content: 0,
+      auto_tag_rules: null,
+      error_count: 3,
+      last_error: "temporary error",
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+      deleted_at: "2026-01-02T00:00:00.000Z",
+    };
+    const restoredFeed = {
+      ...deletedFeed,
+      is_active: 1,
+      error_count: 0,
+      last_error: null,
+      deleted_at: null,
+    };
+
+    vi.mocked(getFeedByUrl).mockResolvedValue(null);
+    vi.mocked(getFeedByUrlIncludeDeleted).mockResolvedValue(deletedFeed);
+    vi.mocked(restoreFeed).mockResolvedValue(restoredFeed);
+
+    const result = await addFeed(mockDb, "https://myblog.com/feed.xml");
+
+    expect(restoreFeed).toHaveBeenCalledWith(mockDb, "deleted-feed");
+    expect(fetchFeed).not.toHaveBeenCalled();
+    expect(createFeed).not.toHaveBeenCalled();
+    expect(result).toEqual(restoredFeed);
+  });
 });
 
 describe("importOpml", () => {
@@ -270,6 +309,51 @@ describe("importOpml", () => {
       title: "Blog C",
       site_url: null,
     });
+  });
+
+  it("restores soft-deleted feeds during import and counts them as imported", async () => {
+    const opmlFeeds = [
+      {
+        title: "Restorable Blog",
+        feedUrl: "https://restorable.com/feed.xml",
+        siteUrl: "https://restorable.com",
+      },
+    ];
+    const deletedFeed = {
+      id: "deleted-import-feed",
+      feed_url: "https://restorable.com/feed.xml",
+      title: "Restorable Blog",
+      description: null,
+      site_url: "https://restorable.com",
+      icon_url: null,
+      last_fetched_at: null,
+      fetch_interval_minutes: 60,
+      is_active: 0,
+      fetch_full_content: 0,
+      auto_tag_rules: null,
+      error_count: 2,
+      last_error: "old error",
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+      deleted_at: "2026-01-03T00:00:00.000Z",
+    };
+
+    vi.mocked(parseOpml).mockReturnValue(opmlFeeds);
+    vi.mocked(getFeedByUrl).mockResolvedValue(null);
+    vi.mocked(getFeedByUrlIncludeDeleted).mockResolvedValue(deletedFeed);
+    vi.mocked(restoreFeed).mockResolvedValue({
+      ...deletedFeed,
+      deleted_at: null,
+      is_active: 1,
+      error_count: 0,
+      last_error: null,
+    });
+
+    const result = await importOpml(mockDb, "<opml>...</opml>");
+
+    expect(result).toEqual({ imported: 1, skipped: 0 });
+    expect(restoreFeed).toHaveBeenCalledWith(mockDb, "deleted-import-feed");
+    expect(createFeed).not.toHaveBeenCalled();
   });
 });
 
