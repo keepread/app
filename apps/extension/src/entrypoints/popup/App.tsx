@@ -88,18 +88,46 @@ export function App() {
       }
 
       try {
-        await savePage(pageUrl, html, {
+        const saved = await savePage(pageUrl, html, {
           type: html ? type : "bookmark",
           tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
         });
-        await sendMessage("invalidatePageStatus", { url: pageUrl });
-        // Re-fetch to show saved state
-        const result = await sendMessage("getPageStatus", { url: pageUrl });
-        if (result) {
-          setDoc(result);
+        // Invalidate cache so badge updates
+        sendMessage("invalidatePageStatus", { url: pageUrl }).catch(() => {});
+        // Try to fetch full detail; fall back to save response
+        try {
+          const result = await sendMessage("getPageStatus", { url: pageUrl });
+          if (result) {
+            setDoc(result);
+            setStatus("saved");
+            return;
+          }
+        } catch {
+          // Lookup failed — use save response as fallback
+        }
+        // Fallback: use the response from savePage
+        const fallback = saved as DocumentDetail;
+        if (fallback?.id) {
+          setDoc({ ...fallback, tags: fallback.tags ?? [] });
           setStatus("saved");
         } else {
-          setStatus("not-saved");
+          setStatus("saved");
+          setDoc({
+            id: "",
+            type: type,
+            url: pageUrl,
+            title: pageTitle || pageUrl,
+            author: null,
+            excerpt: null,
+            site_name: null,
+            cover_image_url: null,
+            location: "inbox",
+            is_read: 0,
+            is_starred: 0,
+            reading_progress: 0,
+            saved_at: new Date().toISOString(),
+            tags: [],
+          });
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Save failed");
