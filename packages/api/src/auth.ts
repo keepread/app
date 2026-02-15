@@ -36,7 +36,11 @@ export async function validateCfAccessJwt(
 ): Promise<{ valid: boolean; email?: string }> {
   try {
     // Fetch CF Access public keys
-    const certsUrl = `https://${teamDomain}.cloudflareaccess.com/cdn-cgi/access/certs`;
+    // Handle both "gal-team" and "gal-team.cloudflareaccess.com" formats
+    const normalizedDomain = teamDomain.includes(".cloudflareaccess.com")
+      ? teamDomain
+      : `${teamDomain}.cloudflareaccess.com`;
+    const certsUrl = `https://${normalizedDomain}/cdn-cgi/access/certs`;
     const certsRes = await fetch(certsUrl);
     if (!certsRes.ok) {
       return { valid: false };
@@ -165,6 +169,7 @@ export async function authenticateRequest(
       }
       return { authenticated: true, method: "cf-access" };
     }
+    // JWT present but invalid — fall through to other auth methods
   }
 
   // 2. Try API key from Authorization header
