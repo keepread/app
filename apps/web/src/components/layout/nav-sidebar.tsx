@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -54,7 +55,17 @@ export function NavSidebar() {
     <aside className="flex h-full w-60 flex-shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
       {/* Brand bar */}
       <div className="flex items-center justify-between px-3 py-3">
-        <span className="text-sm font-semibold">Focus Reader</span>
+        <div className="flex items-center gap-2">
+          <Image
+            src="/focus-reader-logo.svg"
+            alt="Focus Reader logo"
+            width={18}
+            height={18}
+            className="size-[18px]"
+            priority
+          />
+          <span className="text-sm font-semibold">Focus Reader</span>
+        </div>
         <div className="flex items-center gap-0.5">
           <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
             <PanelLeftClose className="size-4" />
