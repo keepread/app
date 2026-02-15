@@ -184,6 +184,16 @@ export async function createPdfDocument(
   return doc;
 }
 
+export async function getDocumentByUrlDetail(
+  db: D1Database,
+  url: string
+): Promise<DocumentWithTags | null> {
+  const normalized = normalizeUrl(url);
+  const doc = await getDocumentByUrl(db, normalized);
+  if (!doc) return null;
+  return getDocumentWithTags(db, doc.id);
+}
+
 export class DuplicateUrlError extends Error {
   public existingId: string;
   constructor(existingId: string) {

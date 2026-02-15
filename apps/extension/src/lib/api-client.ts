@@ -36,6 +36,40 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
   return res;
 }
 
+// --- Types (local to extension, no shared dependency) ---
+
+export interface DocumentDetail {
+  id: string;
+  type: string;
+  url: string | null;
+  title: string;
+  author: string | null;
+  excerpt: string | null;
+  site_name: string | null;
+  cover_image_url: string | null;
+  location: string;
+  is_read: number;
+  is_starred: number;
+  reading_progress: number;
+  saved_at: string;
+  tags: Tag[];
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
+export interface Collection {
+  id: string;
+  name: string;
+  description: string | null;
+  document_count?: number;
+}
+
+// --- Existing methods ---
+
 export interface SavePageOptions {
   type?: "article" | "bookmark";
   tagIds?: string[];
@@ -58,12 +92,6 @@ export async function savePage(
   return res.json();
 }
 
-export interface Tag {
-  id: string;
-  name: string;
-  color: string | null;
-}
-
 export async function getTags(): Promise<Tag[]> {
   const res = await request("/api/tags");
   return res.json();
@@ -76,4 +104,49 @@ export async function testConnection(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+// --- New methods ---
+
+export async function lookupByUrl(url: string): Promise<DocumentDetail | null> {
+  try {
+    const res = await request(`/api/documents/lookup?url=${encodeURIComponent(url)}`);
+    return res.json();
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("404")) return null;
+    // For "Document not found" errors from our API
+    if (err instanceof Error && err.message === "Document not found") return null;
+    throw err;
+  }
+}
+
+export async function updateDocument(
+  id: string,
+  patch: Record<string, unknown>
+): Promise<void> {
+  await request(`/api/documents/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function deleteDocument(id: string): Promise<void> {
+  await request(`/api/documents/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getCollections(): Promise<Collection[]> {
+  const res = await request("/api/collections");
+  return res.json();
+}
+
+export async function addToCollection(
+  collectionId: string,
+  documentId: string
+): Promise<void> {
+  await request(`/api/collections/${collectionId}/documents`, {
+    method: "POST",
+    body: JSON.stringify({ documentId }),
+  });
 }

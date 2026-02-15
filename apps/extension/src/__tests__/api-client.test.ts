@@ -27,15 +27,29 @@ const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
 // Import after mocks are set up
-const { getConfig, saveConfig, savePage, getTags, testConnection } = await import(
-  "../lib/api-client"
-);
+const {
+  getConfig,
+  saveConfig,
+  savePage,
+  getTags,
+  testConnection,
+  lookupByUrl,
+  updateDocument,
+  deleteDocument,
+  getCollections,
+  addToCollection,
+} = await import("../lib/api-client");
 
 beforeEach(() => {
   vi.clearAllMocks();
   // Reset storage
   for (const key of Object.keys(mockStorage)) delete mockStorage[key];
 });
+
+function configureApi() {
+  mockStorage.apiUrl = "https://example.com";
+  mockStorage.apiKey = "key123";
+}
 
 describe("getConfig", () => {
   it("returns null when not configured", async () => {
@@ -63,8 +77,7 @@ describe("saveConfig", () => {
 
 describe("savePage", () => {
   it("sends correct POST body", async () => {
-    mockStorage.apiUrl = "https://example.com";
-    mockStorage.apiKey = "key123";
+    configureApi();
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ id: "doc-1" }),
@@ -97,8 +110,7 @@ describe("savePage", () => {
   });
 
   it("throws on error response", async () => {
-    mockStorage.apiUrl = "https://example.com";
-    mockStorage.apiKey = "key123";
+    configureApi();
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 409,
@@ -113,8 +125,7 @@ describe("savePage", () => {
 
 describe("getTags", () => {
   it("sends GET with auth header", async () => {
-    mockStorage.apiUrl = "https://example.com";
-    mockStorage.apiKey = "key123";
+    configureApi();
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => [{ id: "t1", name: "News", color: "#ff0000" }],
@@ -134,8 +145,7 @@ describe("getTags", () => {
 
 describe("testConnection", () => {
   it("returns true when getTags succeeds", async () => {
-    mockStorage.apiUrl = "https://example.com";
-    mockStorage.apiKey = "key123";
+    configureApi();
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => [],
@@ -149,10 +159,176 @@ describe("testConnection", () => {
   });
 
   it("returns false on network error", async () => {
-    mockStorage.apiUrl = "https://example.com";
-    mockStorage.apiKey = "key123";
+    configureApi();
     mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
     expect(await testConnection()).toBe(false);
+  });
+});
+
+describe("lookupByUrl", () => {
+  it("sends GET with encoded url parameter", async () => {
+    configureApi();
+    const doc = { id: "doc-1", title: "Test", tags: [] };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => doc,
+    });
+
+    const result = await lookupByUrl("https://page.com/test?q=1");
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/api/documents/lookup?url=https%3A%2F%2Fpage.com%2Ftest%3Fq%3D1",
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer key123",
+        },
+      }
+    );
+    expect(result).toEqual(doc);
+  });
+
+  it("returns null when document not found", async () => {
+    configureApi();
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: { message: "Document not found" } }),
+    });
+
+    const result = await lookupByUrl("https://page.com/missing");
+    expect(result).toBeNull();
+  });
+
+  it("throws on non-404 errors", async () => {
+    configureApi();
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: { message: "Internal server error" } }),
+    });
+
+    await expect(lookupByUrl("https://page.com")).rejects.toThrow(
+      "Internal server error"
+    );
+  });
+});
+
+describe("updateDocument", () => {
+  it("sends PATCH with correct body", async () => {
+    configureApi();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    await updateDocument("doc-1", { is_starred: 1 });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/api/documents/doc-1",
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer key123",
+        },
+        body: JSON.stringify({ is_starred: 1 }),
+      }
+    );
+  });
+
+  it("throws when not configured", async () => {
+    await expect(updateDocument("doc-1", {})).rejects.toThrow(
+      "Extension not configured"
+    );
+  });
+});
+
+describe("deleteDocument", () => {
+  it("sends DELETE request", async () => {
+    configureApi();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    await deleteDocument("doc-1");
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/api/documents/doc-1",
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer key123",
+        },
+      }
+    );
+  });
+
+  it("throws on error response", async () => {
+    configureApi();
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: { message: "Document not found" } }),
+    });
+
+    await expect(deleteDocument("doc-missing")).rejects.toThrow("Document not found");
+  });
+});
+
+describe("getCollections", () => {
+  it("returns collections list", async () => {
+    configureApi();
+    const collections = [
+      { id: "c1", name: "Reading List", description: null },
+      { id: "c2", name: "Research", description: "Papers" },
+    ];
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => collections,
+    });
+
+    const result = await getCollections();
+
+    expect(mockFetch).toHaveBeenCalledWith("https://example.com/api/collections", {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer key123",
+      },
+    });
+    expect(result).toEqual(collections);
+  });
+});
+
+describe("addToCollection", () => {
+  it("sends POST with documentId", async () => {
+    configureApi();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    await addToCollection("c1", "doc-1");
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/api/collections/c1/documents",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer key123",
+        },
+        body: JSON.stringify({ documentId: "doc-1" }),
+      }
+    );
+  });
+
+  it("throws when not configured", async () => {
+    await expect(addToCollection("c1", "doc-1")).rejects.toThrow(
+      "Extension not configured"
+    );
   });
 });

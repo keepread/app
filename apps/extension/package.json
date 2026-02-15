@@ -11,13 +11,17 @@
     "clean": "rm -rf .output dist node_modules"
   },
   "dependencies": {
+    "@webext-core/messaging": "^2.3.0",
     "react": "^19",
     "react-dom": "^19"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@wxt-dev/module-react": "^1",
+    "autoprefixer": "^10.4.24",
+    "tailwindcss": "4",
     "typescript": "^5",
     "vitest": "~3.2.0",
     "wxt": "^0.19"
