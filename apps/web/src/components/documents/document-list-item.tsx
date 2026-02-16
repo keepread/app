@@ -51,8 +51,8 @@ export function DocumentListItem({
         actionsRef.current?.openMenu();
       }}
       className={cn(
-        "group relative flex gap-3 px-4 py-3 border-b cursor-pointer transition-colors",
-        isSelected ? "bg-accent" : "hover:bg-accent/50"
+        "group relative flex gap-3 px-4 py-3.5 border-b cursor-pointer transition-colors border-l-2",
+        isSelected ? "bg-accent/50 border-l-primary" : "border-l-transparent hover:bg-accent/50"
       )}
     >
       {/* Unread dot */}

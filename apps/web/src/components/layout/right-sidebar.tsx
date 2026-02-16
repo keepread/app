@@ -42,10 +42,11 @@ function scrollToHighlight(highlightId: string) {
 }
 
 export function RightSidebar() {
-  const { rightPanelVisible } = useApp();
+  const { rightPanelVisible, selectedDocumentId } = useApp();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const selectedId = searchParams.get("doc");
+  const urlDocId = searchParams.get("doc");
+  const selectedId = urlDocId || selectedDocumentId;
   const { document: doc } = useDocument(selectedId);
   const { highlights } = useHighlightsForDocument(selectedId);
   const { collections: docCollections } = useCollectionsForDocument(selectedId);
