@@ -4,6 +4,7 @@ import {
   createDocument,
   getDocument,
   getDocumentByUrl,
+  softDeleteDocument,
   updateDocument,
 } from "../queries/documents.js";
 import {
@@ -99,6 +100,23 @@ describe("db queries", () => {
       );
       expect(found).not.toBeNull();
       expect(found!.title).toBe("Article");
+    });
+
+    it("getDocumentByUrl excludes soft-deleted documents", async () => {
+      const doc = await createDocument(env.FOCUS_DB, {
+        type: "article",
+        title: "Deletable",
+        url: "https://example.com/deletable",
+        origin_type: "manual",
+      });
+
+      await softDeleteDocument(env.FOCUS_DB, doc.id);
+
+      const found = await getDocumentByUrl(
+        env.FOCUS_DB,
+        "https://example.com/deletable"
+      );
+      expect(found).toBeNull();
     });
 
     it("updates document fields", async () => {

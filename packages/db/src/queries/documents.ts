@@ -117,7 +117,7 @@ export async function getDocumentByUrl(
   url: string
 ): Promise<Document | null> {
   const result = await db
-    .prepare("SELECT * FROM document WHERE url = ?1")
+    .prepare("SELECT * FROM document WHERE url = ?1 AND deleted_at IS NULL")
     .bind(url)
     .first<Document>();
   return result ?? null;
