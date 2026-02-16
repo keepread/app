@@ -11,3 +11,4 @@ export * from "./highlights.js";
 export * from "./collections.js";
 export * from "./user-preferences.js";
 export * from "./export.js";
+export * from "./feed-polling.js";

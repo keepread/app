@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getFeeds, addFeed, DuplicateFeedError } from "@focus-reader/api";
+import { getFeeds, addFeed, DuplicateFeedError, pollSingleFeed } from "@focus-reader/api";
 import { getDb } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
@@ -28,6 +28,14 @@ export async function POST(request: NextRequest) {
       }
 
       const feed = await addFeed(db, url);
+
+      // Fetch articles immediately so the user doesn't wait for the next cron run
+      try {
+        await pollSingleFeed(db, feed.id);
+      } catch {
+        // Polling failure shouldn't prevent feed creation
+      }
+
       return json(feed, 201);
     } catch (err) {
       if (err instanceof DuplicateFeedError) {

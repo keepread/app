@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Trash2, Check, Pencil, Tag, X, Upload, Download, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
+import { Trash2, Check, Pencil, Tag, X, Upload, Download, AlertCircle, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import type { AutoTagRule } from "@focus-reader/shared";
 import { AutoTagEditor } from "@/components/settings/auto-tag-editor";
@@ -29,6 +29,8 @@ export default function FeedsSettingsPage() {
   const [adding, setAdding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [autoTagOpenId, setAutoTagOpenId] = useState<string | null>(null);
+  const [pollingAll, setPollingAll] = useState(false);
+  const [pollingId, setPollingId] = useState<string | null>(null);
 
   const handleAddFeed = async () => {
     const url = addUrl.trim();
@@ -41,11 +43,37 @@ export default function FeedsSettingsPage() {
       });
       mutate();
       setAddUrl("");
-      toast("Feed added");
+      toast("Feed added, fetching articles...");
     } catch {
       toast.error("Failed to add feed");
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handlePollAll = async () => {
+    setPollingAll(true);
+    try {
+      await apiFetch("/api/feeds/poll", { method: "POST" });
+      mutate();
+      toast("Feeds refreshed");
+    } catch {
+      toast.error("Failed to refresh feeds");
+    } finally {
+      setPollingAll(false);
+    }
+  };
+
+  const handlePollFeed = async (id: string) => {
+    setPollingId(id);
+    try {
+      await apiFetch(`/api/feeds/${id}/poll`, { method: "POST" });
+      mutate();
+      toast("Feed refreshed");
+    } catch {
+      toast.error("Failed to refresh feed");
+    } finally {
+      setPollingId(null);
     }
   };
 
@@ -173,6 +201,15 @@ export default function FeedsSettingsPage() {
           <Download className="size-4 mr-2" />
           Export OPML
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handlePollAll}
+          disabled={pollingAll}
+        >
+          <RefreshCw className={`size-4 mr-2 ${pollingAll ? "animate-spin" : ""}`} />
+          Refresh Feeds
+        </Button>
       </div>
 
       {/* Add feed */}
@@ -284,6 +321,16 @@ export default function FeedsSettingsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-muted-foreground"
+                  onClick={() => handlePollFeed(feed.id)}
+                  disabled={pollingId === feed.id}
+                  aria-label="Refresh feed"
+                >
+                  <RefreshCw className={`size-4 ${pollingId === feed.id ? "animate-spin" : ""}`} />
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button

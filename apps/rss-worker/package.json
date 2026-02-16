@@ -12,6 +12,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@focus-reader/api": "workspace:*",
     "@focus-reader/shared": "workspace:*",
     "@focus-reader/db": "workspace:*",
     "@focus-reader/parser": "workspace:*"

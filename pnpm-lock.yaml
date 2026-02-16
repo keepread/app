@@ -88,6 +88,9 @@ importers:
 
   apps/rss-worker:
     dependencies:
+      '@focus-reader/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@focus-reader/db':
         specifier: workspace:*
         version: link:../../packages/db
