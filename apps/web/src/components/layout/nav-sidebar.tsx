@@ -18,13 +18,13 @@ import {
   Filter,
   Highlighter,
   FolderOpen,
+  Tag,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useSubscriptions } from "@/hooks/use-subscriptions";
 import { useFeeds } from "@/hooks/use-feeds";
-import { useTags } from "@/hooks/use-tags";
 import { useSavedViews } from "@/hooks/use-saved-views";
 import { useCollections } from "@/hooks/use-collections";
 import { useApp } from "@/contexts/app-context";
@@ -39,6 +39,7 @@ const NAV_ITEMS = [
   { label: "All", icon: Library, path: "/all" },
   { label: "Starred", icon: Star, path: "/starred" },
   { label: "Highlights", icon: Highlighter, path: "/highlights" },
+  { label: "Tags", icon: Tag, path: "/tags" },
 ] as const;
 
 export function NavSidebar() {
@@ -46,12 +47,10 @@ export function NavSidebar() {
   const { sidebarCollapsed, toggleSidebar } = useApp();
   const { subscriptions } = useSubscriptions();
   const { feeds } = useFeeds();
-  const { tags } = useTags();
   const { views } = useSavedViews();
   const { collections, mutate: mutateCollections } = useCollections();
   const [subsOpen, setSubsOpen] = useState(true);
   const [feedsOpen, setFeedsOpen] = useState(true);
-  const [tagsOpen, setTagsOpen] = useState(true);
   const [collectionsOpen, setCollectionsOpen] = useState(true);
   const [viewsOpen, setViewsOpen] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -199,45 +198,6 @@ export function NavSidebar() {
                       {feed.unreadCount}
                     </span>
                   )}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Tags */}
-        <div className="mt-4">
-          <button
-            onClick={() => setTagsOpen(!tagsOpen)}
-            className="flex w-full items-center justify-between px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
-          >
-            <span>Tags</span>
-            {tagsOpen ? (
-              <ChevronDown className="size-3.5" />
-            ) : (
-              <ChevronRight className="size-3.5" />
-            )}
-          </button>
-          {tagsOpen && (
-            <div className="space-y-0.5">
-              {tags.map((tag) => (
-                <Link
-                  key={tag.id}
-                  href={`/tags/${tag.id}`}
-                  className={cn(
-                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-sidebar-accent",
-                    pathname === `/tags/${tag.id}` &&
-                      "bg-sidebar-accent font-medium"
-                  )}
-                >
-                  <span
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: tag.color || "#6366f1" }}
-                  />
-                  <span className="flex-1 truncate">{tag.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {tag.documentCount}
-                  </span>
                 </Link>
               ))}
             </div>
