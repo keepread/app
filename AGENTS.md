@@ -34,6 +34,13 @@ focus-reader/
     └── docs/            # Detailed development guides
 ```
 
+## Quick Reference
+
+- **Entity types:** `packages/shared/src/types.ts` (D1 conventions: `number` for bools, `string` for timestamps/UUIDs)
+- **Query helpers:** `packages/db/src/queries/` — every function takes `db: D1Database` as first param
+- **API pattern:** `apps/web/src/app/api/` routes are thin wrappers around `@focus-reader/api` business logic
+- **Sanitization:** `packages/parser/src/sanitize.ts` — manual linkedom walker (NOT DOMPurify)
+
 ## Key Constraints
 
 - **vitest** pinned to `~3.2.0` — `@cloudflare/vitest-pool-workers` does NOT support vitest 4.x
