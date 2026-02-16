@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
 
 interface AppState {
   selectedDocumentId: string | null;
@@ -19,6 +19,8 @@ interface AppState {
   toggleContentMode: () => void;
   focusMode: boolean;
   toggleFocusMode: () => void;
+  registerListMutate: (mutate: () => void) => void;
+  mutateDocumentList: () => void;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -41,6 +43,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     []
   );
   const toggleFocusMode = useCallback(() => setFocusMode((v) => !v), []);
+  const listMutateRef = useRef<(() => void) | null>(null);
+  const registerListMutate = useCallback((mutate: () => void) => {
+    listMutateRef.current = mutate;
+  }, []);
+  const mutateDocumentList = useCallback(() => {
+    listMutateRef.current?.();
+  }, []);
 
   return (
     <AppContext.Provider
@@ -61,6 +70,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toggleContentMode,
         focusMode,
         toggleFocusMode,
+        registerListMutate,
+        mutateDocumentList,
       }}
     >
       {children}

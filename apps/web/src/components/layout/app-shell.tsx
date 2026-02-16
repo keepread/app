@@ -45,6 +45,7 @@ export function AppShell({ children }: AppShellProps) {
     setCurrentDocumentIndex,
     selectedDocumentId,
     setSelectedDocumentId,
+    mutateDocumentList,
   } = useApp();
 
   const activeDocId = selectedDocId || selectedDocumentId;
@@ -66,8 +67,9 @@ export function AppShell({ children }: AppShellProps) {
         body: JSON.stringify(updates),
       });
       mutateDoc();
+      mutateDocumentList();
     },
-    [activeDocId, mutateDoc]
+    [activeDocId, mutateDoc, mutateDocumentList]
   );
 
   const selectDocByIndex = useCallback(
@@ -179,6 +181,7 @@ export function AppShell({ children }: AppShellProps) {
         if (!activeDocId) return;
         apiFetch(`/api/documents/${activeDocId}`, { method: "DELETE" }).then(() => {
           toast("Document deleted");
+          mutateDocumentList();
           const params = new URLSearchParams(searchParams.toString());
           params.delete("doc");
           const qs = params.toString();

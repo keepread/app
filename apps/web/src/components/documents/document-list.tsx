@@ -45,7 +45,7 @@ export function DocumentList({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const urlSelectedId = searchParams.get("doc");
-  const { selectedDocumentId, setSelectedDocumentId, setDocumentIds, setCurrentDocumentIndex } = useApp();
+  const { selectedDocumentId, setSelectedDocumentId, setDocumentIds, setCurrentDocumentIndex, registerListMutate } = useApp();
   const selectedId = urlSelectedId || selectedDocumentId;
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,6 +67,11 @@ export function DocumentList({
 
   const { documents, total, isLoading, isLoadingMore, hasMore, loadMore, mutate } =
     useDocuments(query);
+
+  // Register list mutate so app-shell hotkeys can trigger revalidation
+  useEffect(() => {
+    registerListMutate(() => mutate());
+  }, [registerListMutate, mutate]);
 
   const {
     results: searchResults,
