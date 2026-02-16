@@ -72,7 +72,7 @@ export function DocumentList({
     results: searchResults,
     total: searchTotal,
     isLoading: searchIsLoading,
-  } = useSearch(searchQuery, { location });
+  } = useSearch(searchQuery, { location, tagId });
 
   const isSearchActive = searchQuery.trim().length >= 2;
 
@@ -168,7 +168,7 @@ export function DocumentList({
             No results for &ldquo;{searchQuery}&rdquo;
           </div>
         ) : (
-          <EmptyState location={location} isStarred={isStarred} />
+          <EmptyState location={location} isStarred={isStarred} hasTag={!!tagId} />
         )}
       </div>
     );

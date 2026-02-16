@@ -1,7 +1,7 @@
 "use client";
 
 import type { DocumentLocation } from "@focus-reader/shared";
-import { Inbox, Clock, Archive, Star, SearchX } from "lucide-react";
+import { Inbox, Clock, Archive, Star, SearchX, Tag } from "lucide-react";
 
 const STATES: Record<
   string,
@@ -32,15 +32,21 @@ const STATES: Record<
     message: "No documents found",
     action: "Try different filters",
   },
+  tag: {
+    icon: Tag,
+    message: "No documents with this tag",
+    action: "Tag documents to organize them here",
+  },
 };
 
 interface EmptyStateProps {
   location?: DocumentLocation;
   isStarred?: boolean;
+  hasTag?: boolean;
 }
 
-export function EmptyState({ location, isStarred }: EmptyStateProps) {
-  const key = isStarred ? "starred" : location || "inbox";
+export function EmptyState({ location, isStarred, hasTag }: EmptyStateProps) {
+  const key = isStarred ? "starred" : hasTag ? "tag" : location || "inbox";
   const state = STATES[key] || STATES.inbox;
   const Icon = state.icon;
 

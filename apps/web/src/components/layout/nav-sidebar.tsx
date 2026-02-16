@@ -9,7 +9,6 @@ import {
   Archive,
   Library,
   Star,
-  Search,
   Settings,
   ChevronDown,
   ChevronRight,
@@ -22,6 +21,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useSubscriptions } from "@/hooks/use-subscriptions";
 import { useFeeds } from "@/hooks/use-feeds";
 import { useTags } from "@/hooks/use-tags";
@@ -75,12 +75,28 @@ export function NavSidebar() {
           <span className="text-sm font-semibold">Focus Reader</span>
         </div>
         <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
-            <PanelLeftClose className="size-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="size-7" onClick={() => setAddDialogOpen(true)}>
-            <Plus className="size-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
+                <PanelLeftClose className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <span>Toggle sidebar</span>
+              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">[</kbd>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" onClick={() => setAddDialogOpen(true)}>
+                <Plus className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <span>Add document</span>
+              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">A</kbd>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -312,10 +328,6 @@ export function NavSidebar() {
 
       {/* Footer */}
       <div className="border-t px-2 py-2 space-y-0.5">
-        <div className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground opacity-50 cursor-not-allowed">
-          <Search className="size-4" />
-          <span>Search</span>
-        </div>
         <Link
           href="/settings"
           className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"

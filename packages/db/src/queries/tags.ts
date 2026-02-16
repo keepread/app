@@ -80,9 +80,10 @@ export async function getTagsForDocument(
 export async function listTags(db: D1Database): Promise<TagWithCount[]> {
   const rows = await db
     .prepare(
-      `SELECT t.*, COUNT(dt.document_id) as documentCount
+      `SELECT t.*, COUNT(d.id) as documentCount
        FROM tag t
        LEFT JOIN document_tags dt ON dt.tag_id = t.id
+       LEFT JOIN document d ON d.id = dt.document_id AND d.deleted_at IS NULL
        GROUP BY t.id
        ORDER BY t.name ASC`
     )
