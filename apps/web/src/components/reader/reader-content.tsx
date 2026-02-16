@@ -14,6 +14,10 @@ import { HighlightPopover } from "./highlight-popover";
 import { HighlightRenderer } from "./highlight-renderer";
 import { HighlightDetailPopover } from "./highlight-detail-popover";
 import { usePreferences } from "@/hooks/use-preferences";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import hljs from "highlight.js/lib/common";
 
 interface ReaderContentProps {
   documentId: string;
@@ -135,6 +139,14 @@ export function ReaderContent({ documentId }: ReaderContentProps) {
     mutateHighlights();
   }, [activeHighlight, mutateHighlights]);
 
+  // Syntax highlighting for HTML mode code blocks
+  useEffect(() => {
+    if (contentMode !== "html" || !contentRef.current) return;
+    contentRef.current.querySelectorAll("pre code:not(.hljs)").forEach((block) => {
+      hljs.highlightElement(block as HTMLElement);
+    });
+  }, [contentMode, htmlContent]);
+
   if (!doc || contentLoading) {
     return (
       <div className="flex-1 overflow-y-auto">
@@ -159,6 +171,8 @@ export function ReaderContent({ documentId }: ReaderContentProps) {
   const domain = doc.url ? extractDomain(doc.url) : doc.site_name;
   const content =
     contentMode === "html" ? htmlContent : markdownContent;
+
+  const proseClassName = "prose prose-slate dark:prose-invert max-w-none prose-headings:font-serif prose-headings:font-bold prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4 prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3 prose-p:leading-relaxed prose-p:my-5 prose-li:my-1 prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-img:mx-auto prose-blockquote:border-l-primary prose-blockquote:not-italic prose-pre:rounded-lg prose-hr:my-10";
 
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto relative">
@@ -218,12 +232,14 @@ export function ReaderContent({ documentId }: ReaderContentProps) {
           contentMode === "html" ? (
             <div
               ref={contentRef}
-              className="prose prose-slate dark:prose-invert max-w-none prose-headings:font-serif prose-headings:font-bold prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4 prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3 prose-p:leading-relaxed prose-p:my-5 prose-li:my-1 prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-img:mx-auto prose-blockquote:border-l-primary prose-blockquote:not-italic prose-pre:rounded-lg prose-hr:my-10"
+              className={proseClassName}
               dangerouslySetInnerHTML={{ __html: content }}
             />
           ) : (
-            <div ref={contentRef} className="prose prose-slate dark:prose-invert max-w-none whitespace-pre-wrap">
-              {content}
+            <div ref={contentRef} className={proseClassName}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                {content}
+              </ReactMarkdown>
             </div>
           )
         ) : (
