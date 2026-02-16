@@ -63,6 +63,37 @@ function resolveTheme(theme: PopupTheme, prefersDark: boolean): "light" | "dark"
   return theme;
 }
 
+function isSiteAccessError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("cannot access contents of url") ||
+    message.includes("missing host permission") ||
+    message.includes("permission denied") ||
+    message.includes("requires host permission")
+  );
+}
+
+async function captureActiveTabHtml(): Promise<{
+  html: string | null;
+  permissionBlocked: boolean;
+}> {
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) {
+    return { html: null, permissionBlocked: false };
+  }
+
+  try {
+    const [injection] = await browser.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => document.documentElement.outerHTML,
+    });
+    return { html: typeof injection?.result === "string" ? injection.result : null, permissionBlocked: false };
+  } catch (err) {
+    return { html: null, permissionBlocked: isSiteAccessError(err) };
+  }
+}
+
 async function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
@@ -216,15 +247,15 @@ export function App() {
 
       let html: string | null = null;
       if (type === "article") {
-        try {
-          const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-          if (tab?.id) html = await sendMessage("captureHtml", undefined, tab.id);
-        } catch {
-          // Content script unavailable
-        }
+        const capture = await captureActiveTabHtml();
+        html = capture.html;
 
         if (!html) {
-          setError("Couldn't capture full article content for this page. Save as bookmark instead.");
+          setError(
+            capture.permissionBlocked
+              ? "Site access is blocked. In Chrome, grant Focus Reader access for this site, reload the page, then try again."
+              : "Couldn't capture full article content for this page. Save as bookmark instead."
+          );
           setCaptureFailed(true);
           setStatus("not-saved");
           return;

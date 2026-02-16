@@ -5,9 +5,9 @@ import {
   updateDocument,
   type DocumentDetail,
 } from "@/lib/api-client";
-import { sendMessage, onMessage } from "@/lib/messaging";
+import { onMessage } from "@/lib/messaging";
 
-// --- Badge cache ---
+// --- Page status cache ---
 
 interface CacheEntry {
   doc: DocumentDetail | null;
@@ -73,41 +73,15 @@ async function notify(title: string, message: string): Promise<void> {
   }
 }
 
-// --- Badge ---
-
-async function updateBadge(tabId: number, doc: DocumentDetail | null): Promise<void> {
-  if (doc) {
-    await browser.action.setBadgeText({ text: "\u2022", tabId });
-    await browser.action.setBadgeBackgroundColor({ color: "#3B82F6", tabId });
-  } else {
-    await browser.action.setBadgeText({ text: "", tabId });
-  }
-}
-
-async function checkAndUpdateBadge(tabId: number, url: string): Promise<void> {
-  if (!url || url.startsWith("chrome://") || url.startsWith("about:")) return;
-
-  const cached = getCached(url);
-  if (cached) {
-    await updateBadge(tabId, cached.doc);
-    return;
-  }
-
-  try {
-    const doc = await lookupByUrl(url);
-    setCache(url, doc);
-    await updateBadge(tabId, doc);
-  } catch {
-    // Not configured or network error — clear badge
-    await updateBadge(tabId, null);
-  }
-}
-
 // --- HTML capture helper ---
 
 async function captureTabHtml(tabId: number): Promise<string | null> {
   try {
-    return await sendMessage("captureHtml", undefined, tabId);
+    const [injection] = await browser.scripting.executeScript({
+      target: { tabId },
+      func: () => document.documentElement.outerHTML,
+    });
+    return typeof injection?.result === "string" ? injection.result : null;
   } catch {
     return null;
   }
@@ -163,21 +137,19 @@ export default defineBackground(() => {
         }
         const html = await captureTabHtml(tab.id);
         if (!html) {
-          throw new Error("Couldn't capture article content. Use 'Save as bookmark'.");
+          throw new Error(
+            "Couldn't capture article content. Grant site access, reload, then try again, or use 'Save as bookmark'."
+          );
         }
         await savePage(tab.url, html, { type: "article" });
         clearCache(tab.url);
-        await checkAndUpdateBadge(tab.id, tab.url);
         await notify("Focus Reader", "Saved page as article.");
       } else if (info.menuItemId === "save-bookmark" && tab?.url) {
         if (!isHttpUrl(tab.url)) {
           throw new Error("Only HTTP/HTTPS pages can be saved.");
         }
         await savePage(tab.url, null, { type: "bookmark" });
-        if (tab.id) {
-          clearCache(tab.url);
-          await checkAndUpdateBadge(tab.id, tab.url);
-        }
+        clearCache(tab.url);
         await notify("Focus Reader", "Saved page as bookmark.");
       } else if (info.menuItemId === "save-link" && info.linkUrl) {
         if (!isHttpUrl(info.linkUrl)) {
@@ -194,24 +166,6 @@ export default defineBackground(() => {
     }
   });
 
-  // Badge: tab navigation
-  browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (changeInfo.status === "complete" && tab.url) {
-      await checkAndUpdateBadge(tabId, tab.url);
-    }
-  });
-
-  browser.tabs.onActivated.addListener(async (activeInfo) => {
-    try {
-      const tab = await browser.tabs.get(activeInfo.tabId);
-      if (tab.url) {
-        await checkAndUpdateBadge(activeInfo.tabId, tab.url);
-      }
-    } catch {
-      // Tab may have been closed
-    }
-  });
-
   // Keyboard shortcuts
   browser.commands.onCommand.addListener(async (command) => {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
@@ -224,11 +178,12 @@ export default defineBackground(() => {
         }
         const html = await captureTabHtml(tab.id);
         if (!html) {
-          throw new Error("Couldn't capture article content. Use bookmark shortcut.");
+          throw new Error(
+            "Couldn't capture article content. Open the extension on this page to grant access, then try again."
+          );
         }
         await savePage(tab.url, html, { type: "article" });
         clearCache(tab.url);
-        await checkAndUpdateBadge(tab.id, tab.url);
         await notify("Focus Reader", "Saved page as article.");
       } else if (command === "save-bookmark") {
         if (!isHttpUrl(tab.url)) {
@@ -236,7 +191,6 @@ export default defineBackground(() => {
         }
         await savePage(tab.url, null, { type: "bookmark" });
         clearCache(tab.url);
-        await checkAndUpdateBadge(tab.id, tab.url);
         await notify("Focus Reader", "Saved page as bookmark.");
       }
     } catch (err) {
@@ -261,12 +215,6 @@ export default defineBackground(() => {
   onMessage("invalidatePageStatus", async (message) => {
     const { url } = message.data;
     clearCache(url);
-
-    // Re-check badge on the active tab
-    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id && tab.url === url) {
-      await checkAndUpdateBadge(tab.id, url);
-    }
   });
 
   onMessage("updateDocument", async (message) => {
