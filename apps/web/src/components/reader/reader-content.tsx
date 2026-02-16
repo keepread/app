@@ -163,7 +163,7 @@ export function ReaderContent({ documentId }: ReaderContentProps) {
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto relative">
       <article
-        className="mx-auto px-6 py-8"
+        className="mx-auto px-6 pt-10 pb-16"
         style={{
           maxWidth: `${contentWidth}px`,
           fontFamily,
@@ -173,7 +173,7 @@ export function ReaderContent({ documentId }: ReaderContentProps) {
       >
         {/* Source */}
         {domain && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider mb-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider mb-4">
             <span className="flex size-5 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">
               {domain.charAt(0).toUpperCase()}
             </span>
@@ -182,12 +182,12 @@ export function ReaderContent({ documentId }: ReaderContentProps) {
         )}
 
         {/* Title */}
-        <h1 className="text-2xl font-bold font-serif leading-tight mb-3">
+        <h1 className="text-3xl font-bold font-serif leading-tight mb-4">
           {doc.title}
         </h1>
 
         {/* Meta row */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-8">
+        <div className="flex items-center flex-wrap gap-2 text-sm text-muted-foreground mb-8">
           {doc.author && <span>{doc.author}</span>}
           {doc.reading_time_minutes > 0 && (
             <>
@@ -195,9 +195,19 @@ export function ReaderContent({ documentId }: ReaderContentProps) {
               <span>{doc.reading_time_minutes} mins</span>
             </>
           )}
-          {doc.published_at && (
+          {doc.tags.length > 0 && (
             <>
               <span>&middot;</span>
+              {doc.tags.map((tag) => (
+                <span key={tag.id} className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                  {tag.name}
+                </span>
+              ))}
+            </>
+          )}
+          {doc.published_at && (
+            <>
+              <span className="ml-auto" />
               <span>{formatDate(doc.published_at)}</span>
             </>
           )}
@@ -208,7 +218,7 @@ export function ReaderContent({ documentId }: ReaderContentProps) {
           contentMode === "html" ? (
             <div
               ref={contentRef}
-              className="prose prose-slate dark:prose-invert max-w-none prose-headings:font-serif prose-headings:font-bold prose-p:leading-relaxed prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-img:mx-auto prose-blockquote:border-l-primary prose-blockquote:not-italic"
+              className="prose prose-slate dark:prose-invert max-w-none prose-headings:font-serif prose-headings:font-bold prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4 prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3 prose-p:leading-relaxed prose-p:my-5 prose-li:my-1 prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-img:mx-auto prose-blockquote:border-l-primary prose-blockquote:not-italic prose-pre:rounded-lg prose-hr:my-10"
               dangerouslySetInnerHTML={{ __html: content }}
             />
           ) : (
