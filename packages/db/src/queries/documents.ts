@@ -57,12 +57,16 @@ export async function createDocument(
 
   const doc = (await getDocument(db, id))!;
 
-  await indexDocument(db, {
-    id: doc.id,
-    title: doc.title,
-    author: doc.author,
-    plain_text_content: doc.plain_text_content,
-  });
+  try {
+    await indexDocument(db, {
+      id: doc.id,
+      title: doc.title,
+      author: doc.author,
+      plain_text_content: doc.plain_text_content,
+    });
+  } catch {
+    // FTS table may not exist in some environments; document is still created
+  }
 
   return doc;
 }
