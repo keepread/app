@@ -1,9 +1,14 @@
 "use client";
 
+import { useRef } from "react";
 import type { DocumentWithTags } from "@focus-reader/shared";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
 import { Star, Mail, FileText, Bookmark, Rss } from "lucide-react";
+import {
+  DocumentListItemActions,
+  type DocumentListItemActionsHandle,
+} from "./document-list-item-actions";
 
 const TYPE_ICONS = {
   email: Mail,
@@ -19,6 +24,7 @@ interface DocumentListItemProps {
   isSelected: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
+  onMutate: () => void;
   snippet?: string;
 }
 
@@ -27,19 +33,25 @@ export function DocumentListItem({
   isSelected,
   onClick,
   onDoubleClick,
+  onMutate,
   snippet,
 }: DocumentListItemProps) {
   const isRead = doc.is_read === 1;
   const isStarred = doc.is_starred === 1;
   const TypeIcon = TYPE_ICONS[doc.type] || FileText;
+  const actionsRef = useRef<DocumentListItemActionsHandle>(null);
 
   return (
     <div
       data-selected={isSelected}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        actionsRef.current?.openMenu();
+      }}
       className={cn(
-        "relative flex gap-3 px-4 py-3 border-b cursor-pointer transition-colors",
+        "group relative flex gap-3 px-4 py-3 border-b cursor-pointer transition-colors",
         isSelected ? "bg-accent" : "hover:bg-accent/50"
       )}
     >
@@ -93,8 +105,8 @@ export function DocumentListItem({
         </div>
       </div>
 
-      {/* Right meta */}
-      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+      {/* Right meta - hidden on group hover when toolbar shows */}
+      <div className="flex flex-col items-end gap-1 flex-shrink-0 group-hover:opacity-0 transition-opacity">
         <span className="text-xs text-muted-foreground">
           {timeAgo(doc.saved_at)}
         </span>
@@ -107,6 +119,13 @@ export function DocumentListItem({
           </span>
         )}
       </div>
+
+      {/* Actions toolbar + context menu */}
+      <DocumentListItemActions
+        ref={actionsRef}
+        document={doc}
+        onMutate={onMutate}
+      />
 
       {/* Reading progress bar */}
       {doc.reading_progress > 0 && doc.reading_progress < 100 && (

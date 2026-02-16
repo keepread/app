@@ -65,7 +65,7 @@ export function DocumentList({
     sortDir: sortDirProp ?? "desc",
   };
 
-  const { documents, total, isLoading, isLoadingMore, hasMore, loadMore } =
+  const { documents, total, isLoading, isLoadingMore, hasMore, loadMore, mutate } =
     useDocuments(query);
 
   const {
@@ -192,6 +192,7 @@ export function DocumentList({
             isSelected={doc.id === selectedId}
             onClick={() => selectDocument(doc.id)}
             onDoubleClick={() => openDocument(doc.id)}
+            onMutate={() => mutate()}
             snippet={isSearchActive ? (doc as any).snippet : undefined}
           />
         ))}
