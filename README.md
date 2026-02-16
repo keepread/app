@@ -71,18 +71,19 @@ pnpm typecheck
 ### Local Development
 
 ```bash
-# Start the email worker locally
-pnpm --filter focus-reader-email-worker dev
+# Set up local .dev.vars files
+cp .dev.vars.example apps/web/.dev.vars
+cp .dev.vars.example apps/email-worker/.dev.vars
+# Edit both files with your values
+
+# Apply migrations to local D1 (required before first run)
+pnpm db:migrate
 
 # Start the web app locally
 pnpm --filter focus-reader-web dev
-```
 
-### Database Migrations
-
-```bash
-# Apply migrations to local D1
-pnpm --filter @focus-reader/db migrate
+# Start the email worker locally (in another terminal, if needed)
+pnpm --filter focus-reader-email-worker dev
 ```
 
 ### Scripts
@@ -121,22 +122,17 @@ Focus Reader has three deployable components on Cloudflare. All commands assume 
 
 #### Prerequisites
 
-1. Update `wrangler.toml` files with your Cloudflare D1 database ID and R2 bucket name.
+1. Update `wrangler.toml` files with your Cloudflare account ID, D1 database ID, R2 bucket names, domain, and `EMAIL_DOMAIN` var. See [cloudflare-installation-instructions.md](cloudflare-installation-instructions.md) for a detailed checklist.
 2. Set required secrets via `wrangler secret put`:
 
 ```bash
-# On the web app
 cd apps/web
-wrangler secret put EMAIL_DOMAIN        # e.g. read.yourdomain.com
 wrangler secret put OWNER_EMAIL          # e.g. you@example.com
 wrangler secret put CF_ACCESS_TEAM_DOMAIN # e.g. your-team (or your-team.cloudflareaccess.com)
 wrangler secret put CF_ACCESS_AUD        # Cloudflare Access Application Audience tag
-
-# On the email worker
-cd apps/email-worker
-wrangler secret put EMAIL_DOMAIN
-wrangler secret put OWNER_EMAIL
 ```
+
+`EMAIL_DOMAIN` and `COLLAPSE_PLUS_ALIAS` are set as `[vars]` in `wrangler.toml`, not as secrets.
 
 3. Configure [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/applications/) to protect your web app domain. CF Access provides authentication via a JWT cookie (`CF_Authorization`).
 
