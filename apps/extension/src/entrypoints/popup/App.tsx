@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   getConfig,
   savePage,
@@ -8,9 +8,11 @@ import {
   addToCollection,
   type DocumentDetail,
   type Collection,
+  type Tag,
 } from "@/lib/api-client";
 import { sendMessage } from "@/lib/messaging";
 import { TagPicker } from "@/components/TagPicker";
+import { SavedTagSection } from "@/components/SavedTagSection";
 
 type Status =
   | "not-configured"
@@ -23,6 +25,7 @@ type Status =
 type PopupTab = "page" | "saved";
 type PopupTheme = "light" | "dark" | "system";
 type DefaultSaveType = "article" | "bookmark";
+const POPUP_INIT_TIMEOUT_MS = 10_000;
 
 function isHttpUrl(url: string): boolean {
   try {
@@ -60,6 +63,25 @@ function resolveTheme(theme: PopupTheme, prefersDark: boolean): "light" | "dark"
   return theme;
 }
 
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 export function App() {
   const [status, setStatus] = useState<Status>("loading");
   const [activeTab, setActiveTab] = useState<PopupTab>("page");
@@ -69,12 +91,12 @@ export function App() {
   const [doc, setDoc] = useState<DocumentDetail | null>(null);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [showTags, setShowTags] = useState(false);
-  const [showPageSavedTagEditor, setShowPageSavedTagEditor] = useState(false);
-  const [showSavedTagEditor, setShowSavedTagEditor] = useState(false);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [showCollections, setShowCollections] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [actionInProgress, setActionInProgress] = useState(false);
+  const [pendingTagIds, setPendingTagIds] = useState<string[]>([]);
+  const pendingTagIdsRef = useRef(new Set<string>());
   const [captureFailed, setCaptureFailed] = useState(false);
 
   const [showSettings, setShowSettings] = useState(false);
@@ -115,16 +137,22 @@ export function App() {
     setError("");
     setCaptureFailed(false);
     setConfirmDelete(false);
-    setShowPageSavedTagEditor(false);
-    setShowSavedTagEditor(false);
     try {
-      const config = await getConfig();
+      const config = await withTimeout(
+        getConfig(),
+        POPUP_INIT_TIMEOUT_MS,
+        "Timed out loading extension settings."
+      );
       if (!config) {
         setStatus("not-configured");
         return;
       }
 
-      const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+      const [tab] = await withTimeout(
+        browser.tabs.query({ active: true, currentWindow: true }),
+        POPUP_INIT_TIMEOUT_MS,
+        "Timed out querying the active tab."
+      );
       if (tab?.url) setPageUrl(tab.url);
       if (tab?.title) setPageTitle(tab.title);
 
@@ -141,7 +169,11 @@ export function App() {
         return;
       }
 
-      const result = await sendMessage("getPageStatus", { url: tab.url, force: true });
+      const result = await withTimeout(
+        sendMessage("getPageStatus", { url: tab.url, force: true }),
+        POPUP_INIT_TIMEOUT_MS,
+        "Timed out checking saved status."
+      );
       if (result) {
         setDoc(result);
         setStatus("saved");
@@ -164,9 +196,9 @@ export function App() {
     });
   }, [loadPageState]);
 
-  const handleToggleTag = useCallback((tagId: string) => {
+  const handleToggleTag = useCallback((tag: Tag) => {
     setSelectedTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+      prev.includes(tag.id) ? prev.filter((id) => id !== tag.id) : [...prev, tag.id]
     );
   }, []);
 
@@ -300,8 +332,6 @@ export function App() {
       setDoc(null);
       setStatus("not-saved");
       setConfirmDelete(false);
-      setShowPageSavedTagEditor(false);
-      setShowSavedTagEditor(false);
       setActiveTab("page");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
@@ -336,18 +366,69 @@ export function App() {
   }, [collections.length]);
 
   const handleToggleSavedTag = useCallback(
-    async (tagId: string) => {
+    (tag: Tag) => {
       if (!doc?.id) return;
-      const hasTag = doc.tags.some((tag) => tag.id === tagId);
-      await handleAction(async () => {
-        await updateDocument(
-          doc.id,
-          hasTag ? { removeTagId: tagId } : { addTagId: tagId }
-        );
+      if (pendingTagIdsRef.current.has(tag.id)) return;
+
+      const shouldRemoveTag = doc.tags.some((t) => t.id === tag.id);
+
+      // Optimistic update
+      setDoc((prev) => {
+        if (!prev) return prev;
+        const hasTagNow = prev.tags.some((t) => t.id === tag.id);
+        const newTags = shouldRemoveTag
+          ? hasTagNow
+            ? prev.tags.filter((t) => t.id !== tag.id)
+            : prev.tags
+          : hasTagNow
+            ? prev.tags
+            : [...prev.tags, tag];
+        return { ...prev, tags: newTags };
       });
+
+      pendingTagIdsRef.current.add(tag.id);
+      setPendingTagIds((prev) => (prev.includes(tag.id) ? prev : [...prev, tag.id]));
+      setError("");
+
+      // Execute mutation in background so popup close won't cancel the request.
+      sendMessage("updateDocument", {
+        id: doc.id,
+        patch: shouldRemoveTag ? { removeTagId: tag.id } : { addTagId: tag.id },
+      })
+        .catch((err) => {
+          // Revert only this tag mutation so concurrent successful toggles are preserved.
+          setDoc((prev) => {
+            if (!prev) return prev;
+            const hasTagNow = prev.tags.some((t) => t.id === tag.id);
+            if (shouldRemoveTag) {
+              return hasTagNow ? prev : { ...prev, tags: [...prev.tags, tag] };
+            }
+            return hasTagNow
+              ? { ...prev, tags: prev.tags.filter((t) => t.id !== tag.id) }
+              : prev;
+          });
+          setError(err instanceof Error ? err.message : "Failed to update tag. Change was reverted.");
+        })
+        .finally(() => {
+          pendingTagIdsRef.current.delete(tag.id);
+          setPendingTagIds((prev) => prev.filter((id) => id !== tag.id));
+        });
     },
-    [doc, handleAction]
+    [doc]
   );
+
+  const handleSavedTagDone = useCallback(() => {
+    if (!pageUrl) return;
+    sendMessage("invalidatePageStatus", { url: pageUrl })
+      .then(() => sendMessage("getPageStatus", { url: pageUrl, force: true }))
+      .then((result) => {
+        if (result) {
+          setDoc(result);
+          setStatus("saved");
+        }
+      })
+      .catch(() => {});
+  }, [pageUrl]);
 
   const saveQuickSettings = useCallback(async () => {
     setSavingSettings(true);
@@ -383,6 +464,7 @@ export function App() {
   const canSavePage = isHttpUrl(pageUrl);
   const pageDomain = domainFromUrl(pageUrl);
   const isSaved = status === "saved" && !!doc;
+  const tagsBusy = actionInProgress || pendingTagIds.length > 0;
 
   const primarySaveType = defaultSaveType;
   const secondarySaveType = defaultSaveType === "article" ? "bookmark" : "article";
@@ -527,49 +609,13 @@ export function App() {
                   </button>
                 </div>
 
-                <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-card)] p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-[var(--text-secondary)]">
-                      Quick tags
-                    </span>
-                    <button
-                      disabled={actionInProgress}
-                      className="text-xs px-2 py-1 rounded-md border border-[var(--border)] hover:bg-[var(--bg-hover)] disabled:opacity-50"
-                      onClick={() => setShowPageSavedTagEditor((prev) => !prev)}
-                    >
-                      {showPageSavedTagEditor ? "Done" : "Edit tags"}
-                    </button>
-                  </div>
-
-                  {doc.tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {doc.tags.map((tag) => (
-                        <span
-                          key={tag.id}
-                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border border-[var(--border)]"
-                        >
-                          <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: tag.color ?? "#888" }}
-                          />
-                          {tag.name}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-[var(--text-tertiary)]">No tags yet.</p>
-                  )}
-
-                  {showPageSavedTagEditor ? (
-                    <div className="mt-2">
-                      <TagPicker
-                        selectedIds={doc.tags.map((tag) => tag.id)}
-                        onToggle={handleToggleSavedTag}
-                        disabled={actionInProgress}
-                      />
-                    </div>
-                  ) : null}
-                </div>
+                <SavedTagSection
+                  doc={doc}
+                  onToggleTag={handleToggleSavedTag}
+                  onDone={handleSavedTagDone}
+                  disabled={tagsBusy}
+                  label="Quick tags"
+                />
               </div>
             ) : !canSavePage ? (
               <p className="text-sm text-[var(--text-secondary)]">
@@ -626,46 +672,13 @@ export function App() {
           </>
         ) : isSaved && doc ? (
           <>
-            <div className="mb-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-[var(--text-secondary)]">Tags</span>
-                <button
-                  disabled={actionInProgress}
-                  className="text-xs px-2 py-1 rounded-md border border-[var(--border)] hover:bg-[var(--bg-hover)] disabled:opacity-50"
-                  onClick={() => setShowSavedTagEditor((prev) => !prev)}
-                >
-                  {showSavedTagEditor ? "Done" : "Edit tags"}
-                </button>
-              </div>
-
-              {doc.tags.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {doc.tags.map((tag) => (
-                    <span
-                      key={tag.id}
-                      className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border border-[var(--border)]"
-                    >
-                      <span
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: tag.color ?? "#888" }}
-                      />
-                      {tag.name}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-[var(--text-tertiary)]">No tags yet.</p>
-              )}
-
-              {showSavedTagEditor ? (
-                <div className="mt-2">
-                  <TagPicker
-                    selectedIds={doc.tags.map((tag) => tag.id)}
-                    onToggle={handleToggleSavedTag}
-                    disabled={actionInProgress}
-                  />
-                </div>
-              ) : null}
+            <div className="mb-3">
+              <SavedTagSection
+                doc={doc}
+                onToggleTag={handleToggleSavedTag}
+                onDone={handleSavedTagDone}
+                disabled={tagsBusy}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2 mb-2">

@@ -13,19 +13,44 @@ export async function saveConfig(config: ExtensionConfig): Promise<void> {
   await browser.storage.sync.set({ apiUrl: config.apiUrl, apiKey: config.apiKey });
 }
 
+const REQUEST_TIMEOUT_MS = 10_000;
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 async function request(path: string, init?: RequestInit): Promise<Response> {
   const config = await getConfig();
   if (!config) throw new Error("Extension not configured. Set API URL and key in options.");
 
   const url = `${config.apiUrl.replace(/\/$/, "")}${path}`;
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`,
-      ...init?.headers,
-    },
-  });
+  const res = await withTimeout(
+    fetch(url, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+        ...init?.headers,
+      },
+    }),
+    REQUEST_TIMEOUT_MS,
+    "Request timed out. Check your Focus Reader server and try again."
+  );
 
   if (!res.ok) {
     const body = await res.json().catch(() => null);

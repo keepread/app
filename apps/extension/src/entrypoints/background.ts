@@ -1,4 +1,10 @@
-import { savePage, lookupByUrl, getDocuments, type DocumentDetail } from "@/lib/api-client";
+import {
+  savePage,
+  lookupByUrl,
+  getDocuments,
+  updateDocument,
+  type DocumentDetail,
+} from "@/lib/api-client";
 import { sendMessage, onMessage } from "@/lib/messaging";
 
 // --- Badge cache ---
@@ -110,27 +116,41 @@ async function captureTabHtml(tabId: number): Promise<string | null> {
 // --- Background entry ---
 
 export default defineBackground(() => {
-  // Context menus
-  browser.runtime.onInstalled.addListener(() => {
-    browser.contextMenus.create({
+  async function registerContextMenus(): Promise<void> {
+    // Dev reloads can leave stale menu IDs behind, so clear first.
+    await browser.contextMenus.removeAll();
+    await browser.contextMenus.create({
       id: "save-page",
       title: "Save page to Focus Reader",
       contexts: ["page"],
     });
-    browser.contextMenus.create({
+    await browser.contextMenus.create({
       id: "save-bookmark",
       title: "Save as bookmark",
       contexts: ["page"],
     });
-    browser.contextMenus.create({
+    await browser.contextMenus.create({
       id: "save-link",
       title: "Save link to Focus Reader",
       contexts: ["link"],
     });
-    browser.contextMenus.create({
+    await browser.contextMenus.create({
       id: "open-sidepanel",
       title: "Open Focus Reader sidebar",
       contexts: ["page"],
+    });
+  }
+
+  // Context menus
+  browser.runtime.onInstalled.addListener(() => {
+    registerContextMenus().catch((err) => {
+      console.error("Failed to register context menus on install:", err);
+    });
+  });
+
+  browser.runtime.onStartup.addListener(() => {
+    registerContextMenus().catch((err) => {
+      console.error("Failed to register context menus on startup:", err);
     });
   });
 
@@ -247,6 +267,10 @@ export default defineBackground(() => {
     if (tab?.id && tab.url === url) {
       await checkAndUpdateBadge(tab.id, url);
     }
+  });
+
+  onMessage("updateDocument", async (message) => {
+    await updateDocument(message.data.id, message.data.patch);
   });
 
   onMessage("getDocuments", async (message) => {

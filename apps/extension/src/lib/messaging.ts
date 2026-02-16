@@ -5,6 +5,7 @@ interface MessagingProtocol {
   captureHtml(): string;
   getPageStatus(data: { url: string; force?: boolean }): DocumentDetail | null;
   invalidatePageStatus(data: { url: string }): void;
+  updateDocument(data: { id: string; patch: Record<string, unknown> }): void;
   getDocuments(data: {
     location?: string;
     isStarred?: boolean;

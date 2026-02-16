@@ -3,7 +3,7 @@ import { getTags, createTag, type Tag } from "@/lib/api-client";
 
 interface TagPickerProps {
   selectedIds: string[];
-  onToggle: (tagId: string) => void;
+  onToggle: (tag: Tag) => void;
   disabled?: boolean;
 }
 
@@ -66,12 +66,12 @@ export function TagPicker({ selectedIds, onToggle, disabled = false }: TagPicker
   }, []);
 
   const handleToggle = useCallback(
-    (tagId: string) => {
+    (tag: Tag) => {
       setCreateError("");
-      const alreadySelected = selectedIds.includes(tagId);
-      onToggle(tagId);
+      const alreadySelected = selectedIds.includes(tag.id);
+      onToggle(tag);
       if (!alreadySelected) {
-        const next = [tagId, ...recentTagIds.filter((id) => id !== tagId)].slice(
+        const next = [tag.id, ...recentTagIds.filter((id) => id !== tag.id)].slice(
           0,
           MAX_RECENT_TAGS
         );
@@ -94,7 +94,7 @@ export function TagPicker({ selectedIds, onToggle, disabled = false }: TagPicker
 
     const existing = tags.find((tag) => tag.name.toLowerCase() === name.toLowerCase());
     if (existing) {
-      handleToggle(existing.id);
+      handleToggle(existing);
       setQuery("");
       return;
     }
@@ -106,7 +106,7 @@ export function TagPicker({ selectedIds, onToggle, disabled = false }: TagPicker
       setTags((prev) =>
         [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
       );
-      handleToggle(created.id);
+      handleToggle(created);
       setQuery("");
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Failed to create tag.");
@@ -171,7 +171,7 @@ export function TagPicker({ selectedIds, onToggle, disabled = false }: TagPicker
                   <input
                     type="checkbox"
                     checked={selectedIds.includes(tag.id)}
-                    onChange={() => handleToggle(tag.id)}
+                    onChange={() => handleToggle(tag)}
                     disabled={disabled}
                     className="rounded border-gray-300"
                   />
@@ -200,7 +200,7 @@ export function TagPicker({ selectedIds, onToggle, disabled = false }: TagPicker
                   <input
                     type="checkbox"
                     checked={selectedIds.includes(tag.id)}
-                    onChange={() => handleToggle(tag.id)}
+                    onChange={() => handleToggle(tag)}
                     disabled={disabled}
                     className="rounded border-gray-300"
                   />
