@@ -20,7 +20,7 @@
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "migrate": "wrangler d1 migrations apply FOCUS_DB --local",
+    "migrate": "wrangler d1 migrations apply FOCUS_DB --local --persist-to ../../.wrangler/state",
     "clean": "rm -rf dist"
   },
   "dependencies": {
