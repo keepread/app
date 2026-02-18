@@ -11,8 +11,8 @@ export const metadata: Metadata = {
   title: "Focus Reader",
   description: "A self-hosted read-it-later app",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
   },
 };
 

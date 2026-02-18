@@ -63,7 +63,7 @@ export function NavSidebar() {
       <div className="flex items-center justify-between px-3 py-3">
         <div className="flex items-center gap-2">
           <Image
-            src="/focus-reader-logo.svg"
+            src="/navicon.svg"
             alt="Focus Reader logo"
             width={18}
             height={18}
