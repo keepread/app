@@ -4,6 +4,8 @@ import useSWR from "swr";
 import type { FeedWithStats } from "@focus-reader/shared";
 import { apiFetch } from "@/lib/api-client";
 
+const EMPTY_FEEDS: FeedWithStats[] = [];
+
 export function useFeeds() {
   const { data, error, isLoading, mutate } = useSWR(
     "/api/feeds",
@@ -11,7 +13,7 @@ export function useFeeds() {
   );
 
   return {
-    feeds: data ?? [],
+    feeds: data ?? EMPTY_FEEDS,
     isLoading,
     error,
     mutate,
