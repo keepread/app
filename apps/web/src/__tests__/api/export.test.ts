@@ -6,7 +6,7 @@ vi.mock("@focus-reader/api", () => ({
   exportDocumentMarkdown: vi.fn(),
   exportBulkMarkdown: vi.fn(),
   exportHighlightsMarkdown: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 vi.mock("jszip", () => {

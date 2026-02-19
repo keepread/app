@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { UserScopedDb } from "@focus-reader/db";
 
 vi.mock("@focus-reader/db", () => ({
   createApiKey: vi.fn(),
@@ -11,6 +12,7 @@ const { createApiKey: dbCreateApiKey, listApiKeys: dbListApiKeys, revokeApiKey: 
 const { generateApiKey, listApiKeys, revokeApiKey } = await import("../api-keys.js");
 
 const mockDb = {} as D1Database;
+const mockCtx = { db: mockDb, userId: "test-user-id" } as unknown as UserScopedDb;
 
 describe("api-keys (API)", () => {
   beforeEach(() => {
@@ -21,6 +23,7 @@ describe("api-keys (API)", () => {
     it("returns a 64-char hex plaintext key and record with matching prefix", async () => {
       vi.mocked(dbCreateApiKey).mockImplementation(async (_db, input) => ({
         id: "test-id",
+        user_id: "test-user-id",
         key_hash: input.key_hash,
         key_prefix: input.key_prefix,
         label: input.label,
@@ -29,7 +32,7 @@ describe("api-keys (API)", () => {
         revoked_at: null,
       }));
 
-      const result = await generateApiKey(mockDb, "Test Label");
+      const result = await generateApiKey(mockCtx, "Test Label");
 
       // Plaintext key should be 64 hex chars (32 bytes)
       expect(result.key).toMatch(/^[0-9a-f]{64}$/);
@@ -44,6 +47,7 @@ describe("api-keys (API)", () => {
         storedHash = input.key_hash;
         return {
           id: "test-id",
+          user_id: "test-user-id",
           key_hash: input.key_hash,
           key_prefix: input.key_prefix,
           label: input.label,
@@ -53,7 +57,7 @@ describe("api-keys (API)", () => {
         };
       });
 
-      const result = await generateApiKey(mockDb, "Hash Test");
+      const result = await generateApiKey(mockCtx, "Hash Test");
 
       // Manually hash the plaintext key and compare
       const encoder = new TextEncoder();
@@ -72,6 +76,7 @@ describe("api-keys (API)", () => {
       const mockKeys = [
         {
           id: "k1",
+          user_id: "test-user-id",
           key_hash: "h1",
           key_prefix: "p1",
           label: "Key 1",
@@ -82,9 +87,9 @@ describe("api-keys (API)", () => {
       ];
       vi.mocked(dbListApiKeys).mockResolvedValue(mockKeys);
 
-      const result = await listApiKeys(mockDb);
+      const result = await listApiKeys(mockCtx);
       expect(result).toEqual(mockKeys);
-      expect(dbListApiKeys).toHaveBeenCalledWith(mockDb);
+      expect(dbListApiKeys).toHaveBeenCalledWith(mockCtx);
     });
   });
 
@@ -92,8 +97,8 @@ describe("api-keys (API)", () => {
     it("delegates to DB function", async () => {
       vi.mocked(dbRevokeApiKey).mockResolvedValue(undefined);
 
-      await revokeApiKey(mockDb, "key-id");
-      expect(dbRevokeApiKey).toHaveBeenCalledWith(mockDb, "key-id");
+      await revokeApiKey(mockCtx, "key-id");
+      expect(dbRevokeApiKey).toHaveBeenCalledWith(mockCtx, "key-id");
     });
   });
 });

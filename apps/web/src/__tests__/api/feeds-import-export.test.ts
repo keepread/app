@@ -4,7 +4,7 @@ import { createRequest, mockDb, setAuthEnabled } from "../setup";
 vi.mock("@focus-reader/api", () => ({
   importOpml: vi.fn(),
   exportOpml: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { POST } from "@/app/api/feeds/import/route";
@@ -30,7 +30,7 @@ describe("POST /api/feeds/import", () => {
     const res = await POST(req);
 
     expect(res.status).toBe(200);
-    expect(importOpml).toHaveBeenCalledWith(mockDb, sampleOpml);
+    expect(importOpml).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), sampleOpml);
   });
 
   it("imports with raw XML body", async () => {
@@ -46,7 +46,7 @@ describe("POST /api/feeds/import", () => {
     const res = await POST(nextReq);
 
     expect(res.status).toBe(200);
-    expect(importOpml).toHaveBeenCalledWith(mockDb, sampleOpml);
+    expect(importOpml).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), sampleOpml);
   });
 
   it("returns 400 when empty", async () => {

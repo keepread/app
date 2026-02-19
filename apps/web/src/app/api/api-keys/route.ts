@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { generateApiKey, listApiKeys } from "@focus-reader/api";
 import type { ApiKey } from "@focus-reader/shared";
+import { scopeDb } from "@focus-reader/db";
 import { getDb } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
@@ -18,10 +19,11 @@ function toPublicApiKey(key: ApiKey) {
 }
 
 export async function GET(request: NextRequest) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
-      const keys = await listApiKeys(db);
+      const ctx = scopeDb(db, userId);
+      const keys = await listApiKeys(ctx);
       return json(keys.map(toPublicApiKey));
     } catch {
       return jsonError("Failed to list API keys", "FETCH_ERROR", 500);
@@ -30,9 +32,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const body = (await request.json()) as Record<string, unknown>;
       const { label } = body as { label?: string };
 
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest) {
         return jsonError("Label is required", "MISSING_LABEL", 400);
       }
 
-      const result = await generateApiKey(db, label.trim());
+      const result = await generateApiKey(ctx, label.trim());
       return json({ key: result.key, record: toPublicApiKey(result.record) }, 201);
     } catch {
       return jsonError("Failed to create API key", "CREATE_ERROR", 500);

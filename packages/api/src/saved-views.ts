@@ -7,6 +7,7 @@ import type {
   ListDocumentsQuery,
   ViewSortConfig,
 } from "@focus-reader/shared";
+import type { UserScopedDb } from "@focus-reader/db";
 import {
   listSavedViews as dbListSavedViews,
   createSavedView as dbCreateSavedView,
@@ -14,30 +15,30 @@ import {
   deleteSavedView as dbDeleteSavedView,
 } from "@focus-reader/db";
 
-export async function getSavedViews(db: D1Database): Promise<SavedView[]> {
-  return dbListSavedViews(db);
+export async function getSavedViews(ctx: UserScopedDb): Promise<SavedView[]> {
+  return dbListSavedViews(ctx);
 }
 
 export async function createView(
-  db: D1Database,
+  ctx: UserScopedDb,
   input: CreateSavedViewInput
 ): Promise<SavedView> {
-  return dbCreateSavedView(db, input);
+  return dbCreateSavedView(ctx, input);
 }
 
 export async function updateView(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string,
   updates: UpdateSavedViewInput
 ): Promise<void> {
-  return dbUpdateSavedView(db, id, updates);
+  return dbUpdateSavedView(ctx, id, updates);
 }
 
 export async function deleteView(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<void> {
-  return dbDeleteSavedView(db, id);
+  return dbDeleteSavedView(ctx, id);
 }
 
 export function queryAstToDocumentQuery(ast: ViewQueryAst): Partial<ListDocumentsQuery> {

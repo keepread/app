@@ -4,7 +4,7 @@ import { createRequest, routeParams, mockDb, setAuthEnabled } from "../setup";
 vi.mock("@focus-reader/api", () => ({
   tagDocument: vi.fn(),
   untagDocument: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { POST, DELETE } from "@/app/api/documents/[id]/tags/route";
@@ -25,7 +25,7 @@ describe("POST /api/documents/[id]/tags", () => {
     const res = await POST(req, routeParams("doc1"));
 
     expect(res.status).toBe(200);
-    expect(tagDocument).toHaveBeenCalledWith(mockDb, "doc1", "tag1");
+    expect(tagDocument).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "doc1", "tag1");
   });
 
   it("returns 400 when tagId missing", async () => {
@@ -50,7 +50,7 @@ describe("DELETE /api/documents/[id]/tags", () => {
     const res = await DELETE(req, routeParams("doc1"));
 
     expect(res.status).toBe(200);
-    expect(untagDocument).toHaveBeenCalledWith(mockDb, "doc1", "tag1");
+    expect(untagDocument).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "doc1", "tag1");
   });
 
   it("returns 400 when tagId missing", async () => {

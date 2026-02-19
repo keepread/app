@@ -5,7 +5,8 @@ import type {
   UpdateDocumentInput,
   Document,
 } from "@focus-reader/shared";
-import { nowISO, normalizeUrl } from "@focus-reader/shared";
+import { normalizeUrl } from "@focus-reader/shared";
+import type { UserScopedDb } from "@focus-reader/db";
 import {
   listDocuments,
   getDocumentWithTags,
@@ -19,15 +20,15 @@ import { extractArticle, extractMetadata, extractPdfMetadata } from "@focus-read
 import { tagDocument } from "./tags.js";
 
 export async function getDocuments(
-  db: D1Database,
+  ctx: UserScopedDb,
   query: ListDocumentsQuery
 ): Promise<PaginatedResponse<DocumentWithTags>> {
-  const result = await listDocuments(db, query);
+  const result = await listDocuments(ctx, query);
 
   // Enrich each document with tags
   const enriched: DocumentWithTags[] = [];
   for (const doc of result.items) {
-    const withTags = await getDocumentWithTags(db, doc.id);
+    const withTags = await getDocumentWithTags(ctx, doc.id);
     if (withTags) enriched.push(withTags);
   }
 
@@ -39,29 +40,29 @@ export async function getDocuments(
 }
 
 export async function getDocumentDetail(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<DocumentWithTags | null> {
-  return getDocumentWithTags(db, id);
+  return getDocumentWithTags(ctx, id);
 }
 
 export async function patchDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string,
   updates: UpdateDocumentInput
 ): Promise<void> {
-  await updateDocument(db, id, updates);
+  await updateDocument(ctx, id, updates);
 }
 
 export async function removeDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<void> {
-  await softDeleteDocument(db, id);
+  await softDeleteDocument(ctx, id);
 }
 
 export async function createBookmark(
-  db: D1Database,
+  ctx: UserScopedDb,
   url: string,
   options?: { type?: "article" | "bookmark"; html?: string | null; tagIds?: string[] }
 ): Promise<Document> {
@@ -69,7 +70,7 @@ export async function createBookmark(
   const normalized = normalizeUrl(url);
 
   // Check for duplicate
-  const existing = await getDocumentByUrl(db, normalized);
+  const existing = await getDocumentByUrl(ctx, normalized);
   if (existing) {
     throw new DuplicateUrlError(existing.id);
   }
@@ -100,7 +101,7 @@ export async function createBookmark(
       // Extract metadata for supplementary info (OG image, favicon)
       const meta = extractMetadata(html, url);
 
-      const doc = await createDocument(db, {
+      const doc = await createDocument(ctx, {
         type,
         url: normalized,
         title: article.title,
@@ -115,13 +116,13 @@ export async function createBookmark(
         published_at: meta.publishedDate,
         origin_type: "manual",
       });
-      for (const tagId of tagIds) await tagDocument(db, doc.id, tagId);
+      for (const tagId of tagIds) await tagDocument(ctx, doc.id, tagId);
       return doc;
     }
 
     // Fallback: use OG metadata only (lightweight bookmark)
     const meta = extractMetadata(html, url);
-    const doc = await createDocument(db, {
+    const doc = await createDocument(ctx, {
       type: "bookmark",
       url: normalized,
       title: meta.title || url,
@@ -132,23 +133,23 @@ export async function createBookmark(
       published_at: meta.publishedDate,
       origin_type: "manual",
     });
-    for (const tagId of tagIds) await tagDocument(db, doc.id, tagId);
+    for (const tagId of tagIds) await tagDocument(ctx, doc.id, tagId);
     return doc;
   }
 
   // No HTML available — bare bookmark
-  const doc = await createDocument(db, {
+  const doc = await createDocument(ctx, {
     type: "bookmark",
     url: normalized,
     title: url,
     origin_type: "manual",
   });
-  for (const tagId of tagIds) await tagDocument(db, doc.id, tagId);
+  for (const tagId of tagIds) await tagDocument(ctx, doc.id, tagId);
   return doc;
 }
 
 export async function createPdfDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   r2: R2Bucket,
   file: ArrayBuffer,
   filename: string
@@ -165,7 +166,7 @@ export async function createPdfDocument(
   const metadata = extractPdfMetadata(file, filename);
 
   // Create document
-  const doc = await createDocument(db, {
+  const doc = await createDocument(ctx, {
     id: docId,
     type: "pdf",
     title: metadata.title ?? filename,
@@ -173,8 +174,8 @@ export async function createPdfDocument(
     location: "inbox",
   });
 
-  // Create PDF metadata
-  await createPdfMeta(db, {
+  // Create PDF metadata (child entity — uses raw db)
+  await createPdfMeta(ctx.db, {
     document_id: docId,
     page_count: metadata.pageCount,
     file_size_bytes: metadata.fileSizeBytes,
@@ -185,13 +186,13 @@ export async function createPdfDocument(
 }
 
 export async function getDocumentByUrlDetail(
-  db: D1Database,
+  ctx: UserScopedDb,
   url: string
 ): Promise<DocumentWithTags | null> {
   const normalized = normalizeUrl(url);
-  const doc = await getDocumentByUrl(db, normalized);
+  const doc = await getDocumentByUrl(ctx, normalized);
   if (!doc) return null;
-  return getDocumentWithTags(db, doc.id);
+  return getDocumentWithTags(ctx, doc.id);
 }
 
 export class DuplicateUrlError extends Error {

@@ -1,12 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { authenticateRequest, validateApiKey } from "../auth.js";
 
-function createMockDb(keyResult: { id: string } | null = null) {
+function createMockDb(options?: {
+  keyResult?: { id: string; user_id: string } | null;
+  userResult?: { id: string; email: string; slug: string } | null;
+}) {
+  const keyResult = options?.keyResult ?? null;
+  const userResult = options?.userResult ?? { id: "user-1", email: "owner@localhost", slug: "owner" };
+
   const run = vi.fn().mockResolvedValue({});
-  const first = vi.fn().mockResolvedValue(keyResult);
-  const bind = vi.fn().mockReturnValue({ first, run });
-  const prepare = vi.fn().mockReturnValue({ bind });
-  return { prepare, bind, first, run } as unknown as D1Database & {
+  // first() called after bind() — used by adminGetApiKeyByHash
+  const boundFirst = vi.fn().mockResolvedValue(keyResult);
+  // first() called directly on prepare result (no bind) — used by getOrCreateSingleUser
+  const unboundFirst = vi.fn().mockResolvedValue(userResult);
+  const bind = vi.fn().mockReturnValue({ first: boundFirst, run });
+  const prepare = vi.fn().mockReturnValue({ bind, first: unboundFirst, run });
+
+  return { prepare, bind, unboundFirst, boundFirst, run } as unknown as D1Database & {
     prepare: ReturnType<typeof vi.fn>;
   };
 }
@@ -22,17 +32,18 @@ function createRequest(options?: {
 }
 
 describe("authenticateRequest", () => {
-  describe("dev mode passthrough", () => {
-    it("allows requests when CF_ACCESS env vars are not set", async () => {
+  describe("single-user mode (no CF Access config)", () => {
+    it("auto-authenticates when CF_ACCESS env vars are not set", async () => {
       const db = createMockDb();
       const request = createRequest();
       const result = await authenticateRequest(db, request, {});
 
       expect(result.authenticated).toBe(true);
-      expect(result.method).toBe("cf-access");
+      expect(result.method).toBe("single-user");
+      expect(result.userId).toBe("user-1");
     });
 
-    it("allows requests when CF_ACCESS env vars are empty strings", async () => {
+    it("auto-authenticates when CF_ACCESS env vars are empty strings", async () => {
       const db = createMockDb();
       const request = createRequest();
       const result = await authenticateRequest(db, request, {
@@ -41,12 +52,13 @@ describe("authenticateRequest", () => {
       });
 
       expect(result.authenticated).toBe(true);
+      expect(result.method).toBe("single-user");
     });
   });
 
   describe("API key auth", () => {
     it("authenticates with a valid Bearer token", async () => {
-      const db = createMockDb({ id: "key-123" });
+      const db = createMockDb({ keyResult: { id: "key-123", user_id: "user-1" } });
       const request = createRequest({
         authorization: "Bearer valid-api-key",
       });
@@ -57,10 +69,11 @@ describe("authenticateRequest", () => {
 
       expect(result.authenticated).toBe(true);
       expect(result.method).toBe("api-key");
+      expect(result.userId).toBe("user-1");
     });
 
     it("rejects an invalid Bearer token", async () => {
-      const db = createMockDb(null); // No matching key
+      const db = createMockDb({ keyResult: null });
       const request = createRequest({
         authorization: "Bearer invalid-key",
       });
@@ -74,7 +87,7 @@ describe("authenticateRequest", () => {
     });
 
     it("updates last_used_at on successful API key auth", async () => {
-      const db = createMockDb({ id: "key-456" });
+      const db = createMockDb({ keyResult: { id: "key-456", user_id: "user-1" } });
       await validateApiKey(db, "some-api-key");
 
       // Verify the second prepare call was the UPDATE for last_used_at
@@ -116,15 +129,16 @@ describe("authenticateRequest", () => {
       expect(result.error).toBe("Authentication required");
     });
 
-    it("skips JWT validation when CF Access env vars are missing", async () => {
+    it("falls through to single-user mode when CF Access env vars are missing", async () => {
       const db = createMockDb();
       const request = createRequest({
         cookie: "CF_Authorization=some.jwt.token",
       });
-      // Dev mode: no CF vars → passthrough
+      // No CF vars → single-user auto-auth
       const result = await authenticateRequest(db, request, {});
 
       expect(result.authenticated).toBe(true);
+      expect(result.method).toBe("single-user");
     });
   });
 });

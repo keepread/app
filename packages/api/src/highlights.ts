@@ -4,6 +4,7 @@ import type {
   HighlightWithTags,
   HighlightWithDocument,
 } from "@focus-reader/shared";
+import type { UserScopedDb } from "@focus-reader/db";
 import {
   createHighlight as dbCreateHighlight,
   getHighlightWithTags,
@@ -16,54 +17,54 @@ import {
 } from "@focus-reader/db";
 
 export async function getHighlightsForDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   documentId: string
 ): Promise<HighlightWithTags[]> {
-  return listHighlightsForDocument(db, documentId);
+  return listHighlightsForDocument(ctx, documentId);
 }
 
 export async function getAllHighlights(
-  db: D1Database,
+  ctx: UserScopedDb,
   options?: { tagId?: string; color?: string; limit?: number; cursor?: string }
 ): Promise<{ items: HighlightWithDocument[]; total: number; nextCursor?: string }> {
-  return listAllHighlights(db, options);
+  return listAllHighlights(ctx, options);
 }
 
 export async function createHighlight(
-  db: D1Database,
+  ctx: UserScopedDb,
   input: CreateHighlightInput
 ): Promise<HighlightWithTags> {
-  const highlight = await dbCreateHighlight(db, input);
+  const highlight = await dbCreateHighlight(ctx, input);
   return { ...highlight, tags: [] };
 }
 
 export async function patchHighlight(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string,
   updates: UpdateHighlightInput
 ): Promise<void> {
-  await updateHighlight(db, id, updates);
+  await updateHighlight(ctx, id, updates);
 }
 
 export async function removeHighlight(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<void> {
-  await deleteHighlight(db, id);
+  await deleteHighlight(ctx, id);
 }
 
 export async function tagHighlight(
-  db: D1Database,
+  ctx: UserScopedDb,
   highlightId: string,
   tagId: string
 ): Promise<void> {
-  await addTagToHighlight(db, highlightId, tagId);
+  await addTagToHighlight(ctx, highlightId, tagId);
 }
 
 export async function untagHighlight(
-  db: D1Database,
+  ctx: UserScopedDb,
   highlightId: string,
   tagId: string
 ): Promise<void> {
-  await removeTagFromHighlight(db, highlightId, tagId);
+  await removeTagFromHighlight(ctx, highlightId, tagId);
 }

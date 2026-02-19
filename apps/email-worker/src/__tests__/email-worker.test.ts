@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { env } from "cloudflare:test";
-import { INITIAL_SCHEMA_SQL, FTS5_MIGRATION_SQL } from "@focus-reader/db/migration-sql";
+import { INITIAL_SCHEMA_SQL, FTS5_MIGRATION_SQL, MULTI_TENANCY_SQL } from "@focus-reader/db/migration-sql";
 import {
   createSubscription,
   createTag,
   getSubscriptionByEmail,
+  scopeDb,
 } from "@focus-reader/db";
+import type { UserScopedDb } from "@focus-reader/db";
 import worker from "../index.js";
 import type { Env } from "../index.js";
 
@@ -190,6 +192,7 @@ const TABLES = [
   "user_preferences",
   "ingestion_report_daily",
   "denylist",
+  "user",
 ];
 
 async function resetDatabase(db: D1Database) {
@@ -198,7 +201,7 @@ async function resetDatabase(db: D1Database) {
     await db.prepare(`DROP TABLE IF EXISTS ${table}`).run();
   }
 
-  const allSql = INITIAL_SCHEMA_SQL + "\n" + FTS5_MIGRATION_SQL;
+  const allSql = INITIAL_SCHEMA_SQL + "\n" + FTS5_MIGRATION_SQL + "\n" + MULTI_TENANCY_SQL;
   const statements = allSql
     .split(";")
     .map((s) => s.trim())
@@ -229,6 +232,24 @@ function getEnv(): Env {
     EMAIL_DOMAIN: "read.example.com",
     COLLAPSE_PLUS_ALIAS: "false",
   };
+}
+
+/**
+ * Get a UserScopedDb context for the auto-created owner user.
+ * The email worker creates this user via getOrCreateSingleUser on first email.
+ * For test setup (pre-creating subscriptions/tags), we resolve the user first.
+ */
+async function getTestCtx(): Promise<UserScopedDb> {
+  // Ensure the owner user exists (same logic as resolveUserId in the worker)
+  let user = await env.FOCUS_DB.prepare("SELECT id FROM user LIMIT 1").first<{ id: string }>();
+  if (!user) {
+    const id = crypto.randomUUID();
+    await env.FOCUS_DB.prepare("INSERT INTO user (id, email, slug, is_admin) VALUES (?1, ?2, ?3, 1)")
+      .bind(id, "owner@localhost", "owner")
+      .run();
+    user = { id };
+  }
+  return scopeDb(env.FOCUS_DB, user.id);
 }
 
 const fakeCtx: ExecutionContext = {
@@ -287,8 +308,9 @@ describe("email worker", () => {
       expect(meta!.fingerprint).toBeTruthy();
 
       // Verify subscription was auto-created
+      const ctx = await getTestCtx();
       const sub = await getSubscriptionByEmail(
-        env.FOCUS_DB,
+        ctx,
         "morning-brew@read.example.com"
       );
       expect(sub).not.toBeNull();
@@ -498,8 +520,9 @@ describe("email worker", () => {
       const message = createMockMessage(SIMPLE_NEWSLETTER_EML);
 
       // No subscription exists yet
+      const ctx = await getTestCtx();
       const before = await getSubscriptionByEmail(
-        env.FOCUS_DB,
+        ctx,
         "morning-brew@read.example.com"
       );
       expect(before).toBeNull();
@@ -507,7 +530,7 @@ describe("email worker", () => {
       await worker.email(message, testEnv, fakeCtx);
 
       const after = await getSubscriptionByEmail(
-        env.FOCUS_DB,
+        ctx,
         "morning-brew@read.example.com"
       );
       expect(after).not.toBeNull();
@@ -519,7 +542,8 @@ describe("email worker", () => {
       const testEnv = getEnv();
 
       // Pre-create a subscription
-      const sub = await createSubscription(env.FOCUS_DB, {
+      const ctx = await getTestCtx();
+      const sub = await createSubscription(ctx, {
         pseudo_email: "morning-brew@read.example.com",
         display_name: "My Morning Brew",
         sender_address: "newsletter@morningbrew.com",
@@ -552,13 +576,14 @@ describe("email worker", () => {
       const testEnv = getEnv();
 
       // Pre-create subscription with tags
-      const sub = await createSubscription(env.FOCUS_DB, {
+      const ctx = await getTestCtx();
+      const sub = await createSubscription(ctx, {
         pseudo_email: "morning-brew@read.example.com",
         display_name: "Morning Brew",
       });
 
-      const tag1 = await createTag(env.FOCUS_DB, { name: "finance" });
-      const tag2 = await createTag(env.FOCUS_DB, { name: "daily" });
+      const tag1 = await createTag(ctx, { name: "finance" });
+      const tag2 = await createTag(ctx, { name: "daily" });
 
       await env.FOCUS_DB.prepare(
         "INSERT INTO subscription_tags (subscription_id, tag_id) VALUES (?1, ?2)"

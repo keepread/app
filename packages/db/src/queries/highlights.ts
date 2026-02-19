@@ -7,20 +7,22 @@ import type {
   Tag,
 } from "@focus-reader/shared";
 import { nowISO } from "@focus-reader/shared";
+import type { UserScopedDb } from "../scoped-db.js";
 
 export async function createHighlight(
-  db: D1Database,
+  ctx: UserScopedDb,
   input: CreateHighlightInput
 ): Promise<Highlight> {
   const id = input.id ?? crypto.randomUUID();
   const now = nowISO();
-  await db
+  await ctx.db
     .prepare(
-      `INSERT INTO highlight (id, document_id, text, note, color, position_selector, position_percent, created_at, updated_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`
+      `INSERT INTO highlight (id, user_id, document_id, text, note, color, position_selector, position_percent, created_at, updated_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`
     )
     .bind(
       id,
+      ctx.userId,
       input.document_id,
       input.text,
       input.note ?? null,
@@ -32,63 +34,63 @@ export async function createHighlight(
     )
     .run();
 
-  return (await db
+  return (await ctx.db
     .prepare("SELECT * FROM highlight WHERE id = ?1")
     .bind(id)
     .first<Highlight>())!;
 }
 
 export async function getHighlight(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<Highlight | null> {
-  const result = await db
-    .prepare("SELECT * FROM highlight WHERE id = ?1")
-    .bind(id)
+  const result = await ctx.db
+    .prepare("SELECT * FROM highlight WHERE id = ?1 AND user_id = ?2")
+    .bind(id, ctx.userId)
     .first<Highlight>();
   return result ?? null;
 }
 
 export async function getHighlightWithTags(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<HighlightWithTags | null> {
-  const highlight = await getHighlight(db, id);
+  const highlight = await getHighlight(ctx, id);
   if (!highlight) return null;
 
-  const tags = await getTagsForHighlight(db, id);
+  const tags = await getTagsForHighlight(ctx.db, id);
   return { ...highlight, tags };
 }
 
 export async function listHighlightsForDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   documentId: string
 ): Promise<HighlightWithTags[]> {
-  const result = await db
+  const result = await ctx.db
     .prepare(
       `SELECT * FROM highlight
-       WHERE document_id = ?1
+       WHERE document_id = ?1 AND user_id = ?2
        ORDER BY position_percent ASC`
     )
-    .bind(documentId)
+    .bind(documentId, ctx.userId)
     .all<Highlight>();
 
   const highlights: HighlightWithTags[] = [];
   for (const h of result.results) {
-    const tags = await getTagsForHighlight(db, h.id);
+    const tags = await getTagsForHighlight(ctx.db, h.id);
     highlights.push({ ...h, tags });
   }
   return highlights;
 }
 
 export async function listAllHighlights(
-  db: D1Database,
+  ctx: UserScopedDb,
   options?: { tagId?: string; color?: string; limit?: number; cursor?: string }
 ): Promise<{ items: HighlightWithDocument[]; total: number; nextCursor?: string }> {
   const limit = options?.limit ?? 20;
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-  let paramIdx = 1;
+  const conditions: string[] = ["h.user_id = ?1"];
+  const params: unknown[] = [ctx.userId];
+  let paramIdx = 2;
 
   if (options?.color) {
     conditions.push(`h.color = ?${paramIdx}`);
@@ -116,7 +118,7 @@ export async function listAllHighlights(
   const countConditions = conditions.filter(c => !c.includes("h.created_at <") && !c.includes("h.id <"));
   const countWhere = countConditions.length > 0 ? `WHERE ${countConditions.join(" AND ")}` : "";
   const countParams = options?.cursor ? params.slice(0, params.length - 2) : [...params];
-  const countResult = await db
+  const countResult = await ctx.db
     .prepare(`SELECT COUNT(*) as count FROM highlight h ${countWhere}`)
     .bind(...countParams)
     .first<{ count: number }>();
@@ -133,7 +135,7 @@ export async function listAllHighlights(
   `;
   params.push(limit + 1);
 
-  const result = await db.prepare(query).bind(...params).all<
+  const result = await ctx.db.prepare(query).bind(...params).all<
     Highlight & { doc_id: string; doc_title: string; doc_url: string | null; doc_author: string | null; doc_type: string }
   >();
 
@@ -142,7 +144,7 @@ export async function listAllHighlights(
 
   const items: HighlightWithDocument[] = [];
   for (const row of rows) {
-    const tags = await getTagsForHighlight(db, row.id);
+    const tags = await getTagsForHighlight(ctx.db, row.id);
     const { doc_id, doc_title, doc_url, doc_author, doc_type, ...highlight } = row;
     items.push({
       ...highlight,
@@ -165,7 +167,7 @@ export async function listAllHighlights(
 }
 
 export async function updateHighlight(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string,
   updates: UpdateHighlightInput
 ): Promise<void> {
@@ -185,37 +187,37 @@ export async function updateHighlight(
   values.push(nowISO());
   paramIdx++;
 
-  values.push(id);
+  values.push(id, ctx.userId);
 
-  await db
+  await ctx.db
     .prepare(
-      `UPDATE highlight SET ${fields.join(", ")} WHERE id = ?${paramIdx}`
+      `UPDATE highlight SET ${fields.join(", ")} WHERE id = ?${paramIdx} AND user_id = ?${paramIdx + 1}`
     )
     .bind(...values)
     .run();
 }
 
 export async function deleteHighlight(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<void> {
   // Remove from join table first (D1 doesn't enforce FK cascades)
-  await db
+  await ctx.db
     .prepare("DELETE FROM highlight_tags WHERE highlight_id = ?1")
     .bind(id)
     .run();
-  await db
-    .prepare("DELETE FROM highlight WHERE id = ?1")
-    .bind(id)
+  await ctx.db
+    .prepare("DELETE FROM highlight WHERE id = ?1 AND user_id = ?2")
+    .bind(id, ctx.userId)
     .run();
 }
 
 export async function addTagToHighlight(
-  db: D1Database,
+  ctx: UserScopedDb,
   highlightId: string,
   tagId: string
 ): Promise<void> {
-  await db
+  await ctx.db
     .prepare(
       "INSERT OR IGNORE INTO highlight_tags (highlight_id, tag_id) VALUES (?1, ?2)"
     )
@@ -224,11 +226,11 @@ export async function addTagToHighlight(
 }
 
 export async function removeTagFromHighlight(
-  db: D1Database,
+  ctx: UserScopedDb,
   highlightId: string,
   tagId: string
 ): Promise<void> {
-  await db
+  await ctx.db
     .prepare(
       "DELETE FROM highlight_tags WHERE highlight_id = ?1 AND tag_id = ?2"
     )
@@ -237,12 +239,12 @@ export async function removeTagFromHighlight(
 }
 
 export async function getHighlightCountForDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   documentId: string
 ): Promise<number> {
-  const result = await db
-    .prepare("SELECT COUNT(*) as count FROM highlight WHERE document_id = ?1")
-    .bind(documentId)
+  const result = await ctx.db
+    .prepare("SELECT COUNT(*) as count FROM highlight WHERE document_id = ?1 AND user_id = ?2")
+    .bind(documentId, ctx.userId)
     .first<{ count: number }>();
   return result?.count ?? 0;
 }

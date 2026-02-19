@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { exportDocumentMarkdown } from "@focus-reader/api";
+import { scopeDb } from "@focus-reader/db";
 import { getDb } from "@/lib/bindings";
 import { jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
@@ -8,16 +9,17 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const { id } = await params;
       const { searchParams } = new URL(request.url);
       const format = (searchParams.get("highlightFormat") ?? "appendix") as
         | "inline"
         | "appendix";
 
-      const md = await exportDocumentMarkdown(db, id, {
+      const md = await exportDocumentMarkdown(ctx, id, {
         includeHighlights: true,
         highlightFormat: format,
       });

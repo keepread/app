@@ -3,7 +3,7 @@ import {
   patchHighlight,
   removeHighlight,
 } from "@focus-reader/api";
-import { getHighlightWithTags } from "@focus-reader/db";
+import { getHighlightWithTags, scopeDb } from "@focus-reader/db";
 import type { UpdateHighlightInput } from "@focus-reader/shared";
 import { getDb } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
@@ -13,11 +13,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const { id } = await params;
-      const highlight = await getHighlightWithTags(db, id);
+      const highlight = await getHighlightWithTags(ctx, id);
       if (!highlight) {
         return jsonError("Highlight not found", "NOT_FOUND", 404);
       }
@@ -32,9 +33,10 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const { id } = await params;
       const body = (await request.json()) as Record<string, unknown>;
 
@@ -43,7 +45,7 @@ export async function PATCH(
       if (body.note !== undefined) updates.note = body.note as string | null;
       if (body.color !== undefined) updates.color = body.color as string;
 
-      await patchHighlight(db, id, updates);
+      await patchHighlight(ctx, id, updates);
       return json({ success: true });
     } catch {
       return jsonError("Failed to update highlight", "UPDATE_ERROR", 500);
@@ -55,11 +57,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const { id } = await params;
-      await removeHighlight(db, id);
+      await removeHighlight(ctx, id);
       return json({ success: true });
     } catch {
       return jsonError("Failed to delete highlight", "DELETE_ERROR", 500);

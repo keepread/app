@@ -1,4 +1,5 @@
 import type { ApiKey } from "@focus-reader/shared";
+import type { UserScopedDb } from "@focus-reader/db";
 import {
   createApiKey,
   listApiKeys,
@@ -8,19 +9,16 @@ import {
 export { listApiKeys, revokeApiKey };
 
 export async function generateApiKey(
-  db: D1Database,
+  ctx: UserScopedDb,
   label: string
 ): Promise<{ key: string; record: ApiKey }> {
-  // Generate 32 random bytes
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
 
-  // Hex-encode for the plaintext key
   const key = Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  // SHA-256 hash for storage
   const hashBuffer = await crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(key)
@@ -31,7 +29,7 @@ export async function generateApiKey(
 
   const key_prefix = key.slice(0, 8);
 
-  const record = await createApiKey(db, { key_hash, key_prefix, label });
+  const record = await createApiKey(ctx, { key_hash, key_prefix, label });
 
   return { key, record };
 }

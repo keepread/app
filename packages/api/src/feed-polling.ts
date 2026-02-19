@@ -7,8 +7,12 @@ import {
   evaluateAutoTagRules,
 } from "@focus-reader/shared";
 import type { Feed, AutoTagRule } from "@focus-reader/shared";
+import type { UserScopedDb } from "@focus-reader/db";
 import {
-  getFeedsDueForPoll,
+  getAllFeedsDueForPoll,
+  scopeDb,
+} from "@focus-reader/db";
+import {
   markFeedFetched,
   incrementFeedError,
   updateFeed,
@@ -58,14 +62,14 @@ async function withRetry<T>(
 }
 
 async function processItem(
-  db: D1Database,
+  ctx: UserScopedDb,
   feed: Feed,
   item: FeedItem
 ): Promise<boolean> {
   if (!item.url) return false;
 
   const normalized = normalizeUrl(item.url);
-  const existing = await getDocumentByUrl(db, normalized);
+  const existing = await getDocumentByUrl(ctx, normalized);
   if (existing) return false;
 
   const eventId = crypto.randomUUID();
@@ -132,7 +136,7 @@ async function processItem(
       excerpt = generateExcerpt(plainText);
     }
 
-    await createDocument(db, {
+    await createDocument(ctx, {
       id: documentId,
       type: "rss",
       url: normalized,
@@ -162,17 +166,17 @@ async function processItem(
         plain_text_content: plainText,
       });
       for (const tagId of matchedTagIds) {
-        await addTagToDocument(db, documentId, tagId);
+        await addTagToDocument(ctx, documentId, tagId);
       }
     }
 
     // Inherit feed tags
-    const feedTags = await getTagsForFeed(db, feed.id);
+    const feedTags = await getTagsForFeed(ctx, feed.id);
     for (const tag of feedTags) {
-      await addTagToDocument(db, documentId, tag.id);
+      await addTagToDocument(ctx, documentId, tag.id);
     }
 
-    await logIngestionEvent(db, {
+    await logIngestionEvent(ctx, {
       event_id: eventId,
       document_id: documentId,
       channel_type: "rss",
@@ -182,7 +186,7 @@ async function processItem(
     return true;
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    await logIngestionEvent(db, {
+    await logIngestionEvent(ctx, {
       event_id: eventId,
       document_id: documentId,
       channel_type: "rss",
@@ -198,45 +202,45 @@ async function processItem(
 }
 
 async function processFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   feed: Feed
 ): Promise<number> {
   const parsedFeed = await fetchFeed(feed.feed_url);
   let newItems = 0;
 
   for (const item of parsedFeed.items) {
-    const created = await processItem(db, feed, item);
+    const created = await processItem(ctx, feed, item);
     if (created) newItems++;
   }
 
-  await markFeedFetched(db, feed.id);
+  await markFeedFetched(ctx, feed.id);
   return newItems;
 }
 
 export async function pollSingleFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   feedId: string
 ): Promise<PollResult> {
-  const feed = await getFeed(db, feedId);
+  const feed = await getFeed(ctx, feedId);
   if (!feed) {
     return { feedId, success: false, newItems: 0, error: "Feed not found" };
   }
 
   try {
-    const newItems = await processFeed(db, feed);
+    const newItems = await processFeed(ctx, feed);
     return { feedId, success: true, newItems };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    await incrementFeedError(db, feedId, errorMessage);
+    await incrementFeedError(ctx, feedId, errorMessage);
 
     // Re-fetch feed to check error_count
-    const updated = await getFeed(db, feedId);
+    const updated = await getFeed(ctx, feedId);
     if (updated && updated.error_count >= MAX_CONSECUTIVE_ERRORS) {
-      await updateFeed(db, feedId, { is_active: 0 });
+      await updateFeed(ctx, feedId, { is_active: 0 });
     }
 
     // Log failure ingestion event
-    await logIngestionEvent(db, {
+    await logIngestionEvent(ctx, {
       event_id: crypto.randomUUID(),
       channel_type: "rss",
       status: "failure",
@@ -252,11 +256,16 @@ export async function pollDueFeeds(
   db: D1Database,
   maxFeeds = MAX_FEEDS_PER_RUN
 ): Promise<PollResult[]> {
-  const feeds = await getFeedsDueForPoll(db);
+  // Use admin query to get all feeds due for poll across all users
+  const feeds = await getAllFeedsDueForPoll(db);
   const batch = feeds.slice(0, maxFeeds);
 
   const results = await Promise.allSettled(
-    batch.map((feed) => pollSingleFeed(db, feed.id))
+    batch.map((feed) => {
+      // Create a user-scoped context for each feed's owner
+      const ctx = scopeDb(db, feed.user_id);
+      return pollSingleFeed(ctx, feed.id);
+    })
   );
 
   return results.map((r) =>

@@ -1,31 +1,32 @@
 import type { Tag, CreateTagInput, TagWithCount, UpdateTagInput } from "@focus-reader/shared";
 import { nowISO } from "@focus-reader/shared";
+import type { UserScopedDb } from "../scoped-db.js";
 
 export async function createTag(
-  db: D1Database,
+  ctx: UserScopedDb,
   input: CreateTagInput
 ): Promise<Tag> {
   const id = crypto.randomUUID();
   const now = nowISO();
-  const stmt = db.prepare(`
-    INSERT INTO tag (id, name, color, description, created_at)
-    VALUES (?1, ?2, ?3, ?4, ?5)
+  const stmt = ctx.db.prepare(`
+    INSERT INTO tag (id, user_id, name, color, description, created_at)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6)
   `);
   await stmt
-    .bind(id, input.name, input.color ?? null, input.description ?? null, now)
+    .bind(id, ctx.userId, input.name, input.color ?? null, input.description ?? null, now)
     .run();
 
-  return (await db
+  return (await ctx.db
     .prepare("SELECT * FROM tag WHERE id = ?1")
     .bind(id)
     .first<Tag>())!;
 }
 
 export async function getTagsForSubscription(
-  db: D1Database,
+  ctx: UserScopedDb,
   subscriptionId: string
 ): Promise<Tag[]> {
-  const result = await db
+  const result = await ctx.db
     .prepare(
       `SELECT t.* FROM tag t
        INNER JOIN subscription_tags st ON st.tag_id = t.id
@@ -37,11 +38,11 @@ export async function getTagsForSubscription(
 }
 
 export async function addTagToDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   documentId: string,
   tagId: string
 ): Promise<void> {
-  await db
+  await ctx.db
     .prepare(
       "INSERT OR IGNORE INTO document_tags (document_id, tag_id) VALUES (?1, ?2)"
     )
@@ -50,11 +51,11 @@ export async function addTagToDocument(
 }
 
 export async function removeTagFromDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   documentId: string,
   tagId: string
 ): Promise<void> {
-  await db
+  await ctx.db
     .prepare(
       "DELETE FROM document_tags WHERE document_id = ?1 AND tag_id = ?2"
     )
@@ -63,10 +64,10 @@ export async function removeTagFromDocument(
 }
 
 export async function getTagsForDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   documentId: string
 ): Promise<Tag[]> {
-  const result = await db
+  const result = await ctx.db
     .prepare(
       `SELECT t.* FROM tag t
        INNER JOIN document_tags dt ON dt.tag_id = t.id
@@ -77,33 +78,35 @@ export async function getTagsForDocument(
   return result.results;
 }
 
-export async function listTags(db: D1Database): Promise<TagWithCount[]> {
-  const rows = await db
+export async function listTags(ctx: UserScopedDb): Promise<TagWithCount[]> {
+  const rows = await ctx.db
     .prepare(
       `SELECT t.*, COUNT(d.id) as documentCount
        FROM tag t
        LEFT JOIN document_tags dt ON dt.tag_id = t.id
        LEFT JOIN document d ON d.id = dt.document_id AND d.deleted_at IS NULL
+       WHERE t.user_id = ?1
        GROUP BY t.id
        ORDER BY t.name ASC`
     )
+    .bind(ctx.userId)
     .all<TagWithCount>();
   return rows.results;
 }
 
 export async function getTag(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<Tag | null> {
-  const result = await db
-    .prepare("SELECT * FROM tag WHERE id = ?1")
-    .bind(id)
+  const result = await ctx.db
+    .prepare("SELECT * FROM tag WHERE id = ?1 AND user_id = ?2")
+    .bind(id, ctx.userId)
     .first<Tag>();
   return result ?? null;
 }
 
 export async function updateTag(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string,
   updates: UpdateTagInput
 ): Promise<void> {
@@ -119,45 +122,49 @@ export async function updateTag(
 
   if (fields.length === 0) return;
 
-  values.push(id);
+  values.push(id, ctx.userId);
 
-  await db
+  await ctx.db
     .prepare(
-      `UPDATE tag SET ${fields.join(", ")} WHERE id = ?${paramIdx}`
+      `UPDATE tag SET ${fields.join(", ")} WHERE id = ?${paramIdx} AND user_id = ?${paramIdx + 1}`
     )
     .bind(...values)
     .run();
 }
 
 export async function deleteTag(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<void> {
   // Remove from all join tables first (D1 doesn't enforce FK cascades)
-  await db
+  await ctx.db
     .prepare("DELETE FROM document_tags WHERE tag_id = ?1")
     .bind(id)
     .run();
-  await db
+  await ctx.db
     .prepare("DELETE FROM subscription_tags WHERE tag_id = ?1")
     .bind(id)
     .run();
-  await db
+  await ctx.db
     .prepare("DELETE FROM feed_tags WHERE tag_id = ?1")
     .bind(id)
     .run();
-  await db
-    .prepare("DELETE FROM tag WHERE id = ?1")
+  await ctx.db
+    .prepare("DELETE FROM highlight_tags WHERE tag_id = ?1")
     .bind(id)
+    .run();
+  await ctx.db
+    .prepare("DELETE FROM tag WHERE id = ?1 AND user_id = ?2")
+    .bind(id, ctx.userId)
     .run();
 }
 
 export async function addTagToSubscription(
-  db: D1Database,
+  ctx: UserScopedDb,
   subscriptionId: string,
   tagId: string
 ): Promise<void> {
-  await db
+  await ctx.db
     .prepare(
       "INSERT OR IGNORE INTO subscription_tags (subscription_id, tag_id) VALUES (?1, ?2)"
     )
@@ -166,11 +173,11 @@ export async function addTagToSubscription(
 }
 
 export async function removeTagFromSubscription(
-  db: D1Database,
+  ctx: UserScopedDb,
   subscriptionId: string,
   tagId: string
 ): Promise<void> {
-  await db
+  await ctx.db
     .prepare(
       "DELETE FROM subscription_tags WHERE subscription_id = ?1 AND tag_id = ?2"
     )
@@ -179,11 +186,11 @@ export async function removeTagFromSubscription(
 }
 
 export async function addTagToFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   feedId: string,
   tagId: string
 ): Promise<void> {
-  await db
+  await ctx.db
     .prepare(
       "INSERT OR IGNORE INTO feed_tags (feed_id, tag_id) VALUES (?1, ?2)"
     )
@@ -192,11 +199,11 @@ export async function addTagToFeed(
 }
 
 export async function removeTagFromFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   feedId: string,
   tagId: string
 ): Promise<void> {
-  await db
+  await ctx.db
     .prepare(
       "DELETE FROM feed_tags WHERE feed_id = ?1 AND tag_id = ?2"
     )
@@ -205,10 +212,10 @@ export async function removeTagFromFeed(
 }
 
 export async function getTagsForFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   feedId: string
 ): Promise<Tag[]> {
-  const result = await db
+  const result = await ctx.db
     .prepare(
       `SELECT t.* FROM tag t
        INNER JOIN feed_tags ft ON ft.tag_id = t.id

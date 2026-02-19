@@ -1,4 +1,5 @@
 import type { DocumentLocation } from "@focus-reader/shared";
+import type { UserScopedDb } from "@focus-reader/db";
 import {
   listDocuments,
   getDocument,
@@ -17,19 +18,19 @@ import {
   htmlToMarkdown,
 } from "@focus-reader/parser";
 
-export async function exportAllJson(db: D1Database): Promise<object> {
+export async function exportAllJson(ctx: UserScopedDb): Promise<object> {
   const [documents, tags, feeds, subscriptions, collections, preferences] =
     await Promise.all([
-      listDocuments(db, { limit: 10000 }),
-      listTags(db),
-      listFeeds(db),
-      listSubscriptions(db),
-      listCollections(db),
-      getUserPreferences(db),
+      listDocuments(ctx, { limit: 10000 }),
+      listTags(ctx),
+      listFeeds(ctx),
+      listSubscriptions(ctx),
+      listCollections(ctx),
+      getUserPreferences(ctx),
     ]);
 
   // Get all highlights
-  const allHighlights = await listAllHighlights(db, { limit: 10000 });
+  const allHighlights = await listAllHighlights(ctx, { limit: 10000 });
 
   return {
     exportedAt: new Date().toISOString(),
@@ -45,19 +46,19 @@ export async function exportAllJson(db: D1Database): Promise<object> {
 }
 
 export async function exportDocumentMarkdown(
-  db: D1Database,
+  ctx: UserScopedDb,
   documentId: string,
   options?: {
     includeHighlights?: boolean;
     highlightFormat?: "inline" | "appendix";
   }
 ): Promise<string | null> {
-  const doc = await getDocument(db, documentId);
+  const doc = await getDocument(ctx, documentId);
   if (!doc) return null;
 
   const [tags, highlights] = await Promise.all([
-    getTagsForDocument(db, documentId),
-    listHighlightsForDocument(db, documentId),
+    getTagsForDocument(ctx, documentId),
+    listHighlightsForDocument(ctx, documentId),
   ]);
 
   const markdownContent = doc.html_content
@@ -74,14 +75,14 @@ export async function exportDocumentMarkdown(
 }
 
 export async function exportBulkMarkdown(
-  db: D1Database,
+  ctx: UserScopedDb,
   options?: {
     tagId?: string;
     location?: DocumentLocation;
     includeHighlights?: boolean;
   }
 ): Promise<{ filename: string; content: string }[]> {
-  const docs = await listDocuments(db, {
+  const docs = await listDocuments(ctx, {
     limit: 10000,
     tagId: options?.tagId,
     location: options?.location,
@@ -89,7 +90,7 @@ export async function exportBulkMarkdown(
 
   const files: { filename: string; content: string }[] = [];
   for (const doc of docs.items) {
-    const md = await exportDocumentMarkdown(db, doc.id, {
+    const md = await exportDocumentMarkdown(ctx, doc.id, {
       includeHighlights: options?.includeHighlights ?? true,
     });
     if (md) {
@@ -106,12 +107,12 @@ export async function exportBulkMarkdown(
 }
 
 export async function exportHighlightsMarkdown(
-  db: D1Database,
+  ctx: UserScopedDb,
   options?: { tagId?: string; documentId?: string }
 ): Promise<string> {
   if (options?.documentId) {
-    const highlights = await listHighlightsForDocument(db, options.documentId);
-    const doc = await getDocument(db, options.documentId);
+    const highlights = await listHighlightsForDocument(ctx, options.documentId);
+    const doc = await getDocument(ctx, options.documentId);
     if (!doc || highlights.length === 0) return "";
 
     const withDoc = highlights.map((h) => ({
@@ -127,7 +128,7 @@ export async function exportHighlightsMarkdown(
     return formatHighlightsAsMarkdown(withDoc);
   }
 
-  const result = await listAllHighlights(db, {
+  const result = await listAllHighlights(ctx, {
     limit: 10000,
     tagId: options?.tagId,
   });

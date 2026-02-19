@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { env } from "cloudflare:test";
-import { INITIAL_SCHEMA_SQL } from "../migration-sql.js";
+import { INITIAL_SCHEMA_SQL, MULTI_TENANCY_SQL } from "../migration-sql.js";
 
 /**
  * Schema/type drift test.
@@ -14,8 +14,12 @@ import { INITIAL_SCHEMA_SQL } from "../migration-sql.js";
 
 // Map of table name -> expected column names from TypeScript interfaces
 const EXPECTED_COLUMNS: Record<string, string[]> = {
+  user: [
+    "id", "email", "slug", "name", "avatar_url",
+    "is_admin", "is_active", "created_at", "updated_at",
+  ],
   document: [
-    "id", "type", "url", "title", "author", "author_url", "site_name", "excerpt",
+    "id", "user_id", "type", "url", "title", "author", "author_url", "site_name", "excerpt",
     "word_count", "reading_time_minutes", "cover_image_url",
     "html_content", "markdown_content", "plain_text_content",
     "location", "is_read", "is_starred", "reading_progress",
@@ -28,25 +32,25 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     "needs_confirmation", "delivery_attempts",
   ],
   subscription: [
-    "id", "pseudo_email", "display_name", "sender_address", "sender_name",
+    "id", "user_id", "pseudo_email", "display_name", "sender_address", "sender_name",
     "is_active", "auto_tag_rules", "created_at", "updated_at", "deleted_at",
   ],
   tag: [
-    "id", "name", "color", "description", "created_at",
+    "id", "user_id", "name", "color", "description", "created_at",
   ],
   attachment: [
     "id", "document_id", "filename", "content_type", "size_bytes",
     "content_id", "storage_key", "created_at",
   ],
   denylist: [
-    "id", "domain", "reason", "created_at",
+    "id", "user_id", "domain", "reason", "created_at",
   ],
   ingestion_log: [
-    "id", "event_id", "document_id", "channel_type", "received_at",
+    "id", "user_id", "event_id", "document_id", "channel_type", "received_at",
     "status", "error_code", "error_detail", "attempts",
   ],
   feed: [
-    "id", "feed_url", "site_url", "title", "description", "icon_url",
+    "id", "user_id", "feed_url", "site_url", "title", "description", "icon_url",
     "last_fetched_at", "fetch_interval_minutes", "is_active", "fetch_full_content",
     "auto_tag_rules", "error_count", "last_error",
     "created_at", "updated_at", "deleted_at",
@@ -55,22 +59,22 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     "document_id", "page_count", "file_size_bytes", "storage_key",
   ],
   highlight: [
-    "id", "document_id", "text", "note", "color",
+    "id", "user_id", "document_id", "text", "note", "color",
     "position_selector", "position_percent",
     "created_at", "updated_at",
   ],
   collection: [
-    "id", "name", "description", "created_at", "updated_at",
+    "id", "user_id", "name", "description", "created_at", "updated_at",
   ],
   feed_token: [
-    "id", "token_hash", "label", "created_at", "revoked_at",
+    "id", "user_id", "token_hash", "label", "created_at", "revoked_at",
   ],
   api_key: [
-    "id", "key_hash", "key_prefix", "label",
+    "id", "user_id", "key_hash", "key_prefix", "label",
     "last_used_at", "created_at", "revoked_at",
   ],
   saved_view: [
-    "id", "name", "query_ast_json", "sort_json", "is_system",
+    "id", "user_id", "name", "query_ast_json", "sort_json", "is_system",
     "pinned_order", "created_at", "updated_at", "deleted_at",
   ],
   user_preferences: [
@@ -79,7 +83,7 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     "view_mode_prefs_json", "updated_at",
   ],
   ingestion_report_daily: [
-    "report_date", "total_events", "success_count", "failure_count",
+    "user_id", "report_date", "total_events", "success_count", "failure_count",
     "success_rate", "computed_at",
   ],
   // Join tables
@@ -91,7 +95,9 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
 };
 
 async function applyMigration(db: D1Database) {
-  const statements = INITIAL_SCHEMA_SQL.split(";")
+  const allSql = INITIAL_SCHEMA_SQL + "\n" + MULTI_TENANCY_SQL;
+  const statements = allSql
+    .split(";")
     .map((s) => s.trim())
     .filter(
       (s) =>

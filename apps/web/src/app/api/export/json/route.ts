@@ -1,14 +1,16 @@
 import { NextRequest } from "next/server";
 import { exportAllJson } from "@focus-reader/api";
+import { scopeDb } from "@focus-reader/db";
 import { getDb } from "@/lib/bindings";
 import { jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
 
 export async function GET(request: NextRequest) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
-      const data = await exportAllJson(db);
+      const ctx = scopeDb(db, userId);
+      const data = await exportAllJson(ctx);
       const json = JSON.stringify(data, null, 2);
       return new Response(json, {
         headers: {

@@ -5,7 +5,7 @@ vi.mock("@focus-reader/api", () => ({
   getDenylist: vi.fn(),
   addToDenylist: vi.fn(),
   removeFromDenylist: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { GET, POST } from "@/app/api/denylist/route";
@@ -63,6 +63,6 @@ describe("DELETE /api/denylist/[id]", () => {
     const res = await DELETE(req, routeParams("d1"));
 
     expect(res.status).toBe(200);
-    expect(removeFromDenylist).toHaveBeenCalledWith(mockDb, "d1");
+    expect(removeFromDenylist).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "d1");
   });
 });

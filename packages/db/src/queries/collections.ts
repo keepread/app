@@ -7,55 +7,58 @@ import type {
   Tag,
 } from "@focus-reader/shared";
 import { nowISO } from "@focus-reader/shared";
+import type { UserScopedDb } from "../scoped-db.js";
 
 export async function createCollection(
-  db: D1Database,
+  ctx: UserScopedDb,
   input: CreateCollectionInput
 ): Promise<Collection> {
   const id = input.id ?? crypto.randomUUID();
   const now = nowISO();
-  await db
+  await ctx.db
     .prepare(
-      `INSERT INTO collection (id, name, description, created_at, updated_at)
-       VALUES (?1, ?2, ?3, ?4, ?5)`
+      `INSERT INTO collection (id, user_id, name, description, created_at, updated_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
     )
-    .bind(id, input.name, input.description ?? null, now, now)
+    .bind(id, ctx.userId, input.name, input.description ?? null, now, now)
     .run();
 
-  return (await db
+  return (await ctx.db
     .prepare("SELECT * FROM collection WHERE id = ?1")
     .bind(id)
     .first<Collection>())!;
 }
 
 export async function getCollection(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<Collection | null> {
-  const result = await db
-    .prepare("SELECT * FROM collection WHERE id = ?1")
-    .bind(id)
+  const result = await ctx.db
+    .prepare("SELECT * FROM collection WHERE id = ?1 AND user_id = ?2")
+    .bind(id, ctx.userId)
     .first<Collection>();
   return result ?? null;
 }
 
 export async function listCollections(
-  db: D1Database
+  ctx: UserScopedDb
 ): Promise<CollectionWithCount[]> {
-  const rows = await db
+  const rows = await ctx.db
     .prepare(
       `SELECT c.*, COUNT(cd.document_id) as documentCount
        FROM collection c
        LEFT JOIN collection_documents cd ON cd.collection_id = c.id
+       WHERE c.user_id = ?1
        GROUP BY c.id
        ORDER BY c.name ASC`
     )
+    .bind(ctx.userId)
     .all<CollectionWithCount>();
   return rows.results;
 }
 
 export async function updateCollection(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string,
   updates: UpdateCollectionInput
 ): Promise<void> {
@@ -75,38 +78,38 @@ export async function updateCollection(
   values.push(nowISO());
   paramIdx++;
 
-  values.push(id);
+  values.push(id, ctx.userId);
 
-  await db
+  await ctx.db
     .prepare(
-      `UPDATE collection SET ${fields.join(", ")} WHERE id = ?${paramIdx}`
+      `UPDATE collection SET ${fields.join(", ")} WHERE id = ?${paramIdx} AND user_id = ?${paramIdx + 1}`
     )
     .bind(...values)
     .run();
 }
 
 export async function deleteCollection(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<void> {
-  await db
+  await ctx.db
     .prepare("DELETE FROM collection_documents WHERE collection_id = ?1")
     .bind(id)
     .run();
-  await db
-    .prepare("DELETE FROM collection WHERE id = ?1")
-    .bind(id)
+  await ctx.db
+    .prepare("DELETE FROM collection WHERE id = ?1 AND user_id = ?2")
+    .bind(id, ctx.userId)
     .run();
 }
 
 export async function addDocumentToCollection(
-  db: D1Database,
+  ctx: UserScopedDb,
   collectionId: string,
   documentId: string,
   sortOrder?: number
 ): Promise<void> {
   if (sortOrder === undefined) {
-    const maxResult = await db
+    const maxResult = await ctx.db
       .prepare(
         "SELECT MAX(sort_order) as max_order FROM collection_documents WHERE collection_id = ?1"
       )
@@ -115,7 +118,7 @@ export async function addDocumentToCollection(
     sortOrder = (maxResult?.max_order ?? -1) + 1;
   }
 
-  await db
+  await ctx.db
     .prepare(
       `INSERT OR IGNORE INTO collection_documents (collection_id, document_id, sort_order, added_at)
        VALUES (?1, ?2, ?3, ?4)`
@@ -125,11 +128,11 @@ export async function addDocumentToCollection(
 }
 
 export async function removeDocumentFromCollection(
-  db: D1Database,
+  ctx: UserScopedDb,
   collectionId: string,
   documentId: string
 ): Promise<void> {
-  await db
+  await ctx.db
     .prepare(
       "DELETE FROM collection_documents WHERE collection_id = ?1 AND document_id = ?2"
     )
@@ -138,10 +141,10 @@ export async function removeDocumentFromCollection(
 }
 
 export async function getCollectionDocuments(
-  db: D1Database,
+  ctx: UserScopedDb,
   collectionId: string
 ): Promise<(DocumentWithTags & { sort_order: number; added_at: string })[]> {
-  const rows = await db
+  const rows = await ctx.db
     .prepare(
       `SELECT d.*, cd.sort_order, cd.added_at as cd_added_at
        FROM document d
@@ -156,7 +159,7 @@ export async function getCollectionDocuments(
 
   const results: (DocumentWithTags & { sort_order: number; added_at: string })[] = [];
   for (const row of rows.results) {
-    const tags = await getTagsForDoc(db, row.id);
+    const tags = await getTagsForDoc(ctx.db, row.id);
     const { cd_added_at, ...doc } = row;
     results.push({ ...doc, tags, added_at: cd_added_at });
   }
@@ -164,12 +167,12 @@ export async function getCollectionDocuments(
 }
 
 export async function reorderCollectionDocuments(
-  db: D1Database,
+  ctx: UserScopedDb,
   collectionId: string,
   orderedDocumentIds: string[]
 ): Promise<void> {
   for (let i = 0; i < orderedDocumentIds.length; i++) {
-    await db
+    await ctx.db
       .prepare(
         "UPDATE collection_documents SET sort_order = ?1 WHERE collection_id = ?2 AND document_id = ?3"
       )
@@ -179,16 +182,16 @@ export async function reorderCollectionDocuments(
 }
 
 export async function getCollectionsForDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   documentId: string
 ): Promise<Collection[]> {
-  const result = await db
+  const result = await ctx.db
     .prepare(
       `SELECT c.* FROM collection c
        INNER JOIN collection_documents cd ON cd.collection_id = c.id
-       WHERE cd.document_id = ?1`
+       WHERE cd.document_id = ?1 AND c.user_id = ?2`
     )
-    .bind(documentId)
+    .bind(documentId, ctx.userId)
     .all<Collection>();
   return result.results;
 }

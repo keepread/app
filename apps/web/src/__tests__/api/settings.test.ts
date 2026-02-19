@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createRequest, setAuthEnabled } from "../setup";
 
 vi.mock("@focus-reader/api", () => ({
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { GET } from "@/app/api/settings/route";

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { createPdfDocument } from "@focus-reader/api";
+import { scopeDb } from "@focus-reader/db";
 import { getDb, getR2 } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
@@ -7,7 +8,7 @@ import { withAuth } from "@/lib/auth-middleware";
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
 export async function POST(request: NextRequest) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const formData = await request.formData();
       const file = formData.get("file");
@@ -25,9 +26,10 @@ export async function POST(request: NextRequest) {
       }
 
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const r2 = await getR2();
       const buffer = await file.arrayBuffer();
-      const doc = await createPdfDocument(db, r2, buffer, file.name);
+      const doc = await createPdfDocument(ctx, r2, buffer, file.name);
 
       return json(doc, 201);
     } catch {

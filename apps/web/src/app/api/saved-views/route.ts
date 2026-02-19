@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getSavedViews, createView } from "@focus-reader/api";
+import { scopeDb } from "@focus-reader/db";
 import { getDb } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
@@ -30,17 +31,18 @@ const DEFAULT_VIEWS = [
 ];
 
 export async function GET(request: NextRequest) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
-      let views = await getSavedViews(db);
+      const ctx = scopeDb(db, userId);
+      let views = await getSavedViews(ctx);
 
       // Seed default system views if none exist
       if (views.length === 0) {
         for (const defaultView of DEFAULT_VIEWS) {
-          await createView(db, defaultView);
+          await createView(ctx, defaultView);
         }
-        views = await getSavedViews(db);
+        views = await getSavedViews(ctx);
       }
 
       return json(views);
@@ -51,9 +53,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const body = (await request.json()) as Record<string, unknown>;
 
       if (!body.name || !body.query_ast_json) {
@@ -64,7 +67,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const view = await createView(db, {
+      const view = await createView(ctx, {
         name: body.name as string,
         query_ast_json: body.query_ast_json as string,
         sort_json: (body.sort_json as string) ?? null,

@@ -3,6 +3,7 @@ import {
   exportBulkMarkdown,
   exportHighlightsMarkdown,
 } from "@focus-reader/api";
+import { scopeDb } from "@focus-reader/db";
 import { getDb } from "@/lib/bindings";
 import { jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
@@ -10,15 +11,16 @@ import type { DocumentLocation } from "@focus-reader/shared";
 import JSZip from "jszip";
 
 export async function GET(request: NextRequest) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const { searchParams } = new URL(request.url);
       const mode = searchParams.get("mode") ?? "documents";
 
       if (mode === "highlights") {
         const tagId = searchParams.get("tagId") ?? undefined;
-        const md = await exportHighlightsMarkdown(db, { tagId });
+        const md = await exportHighlightsMarkdown(ctx, { tagId });
         return new Response(md, {
           headers: {
             "Content-Type": "text/markdown; charset=utf-8",
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
       const location = (searchParams.get("location") ?? undefined) as
         | DocumentLocation
         | undefined;
-      const files = await exportBulkMarkdown(db, {
+      const files = await exportBulkMarkdown(ctx, {
         tagId,
         location,
         includeHighlights: true,

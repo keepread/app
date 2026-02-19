@@ -6,7 +6,7 @@ vi.mock("@focus-reader/api", () => ({
   getDocuments: vi.fn(),
   createBookmark: vi.fn(),
   DuplicateUrlError: class DuplicateUrlError extends Error {},
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { GET, POST, OPTIONS } from "@/app/api/documents/route";
@@ -28,7 +28,7 @@ describe("GET /api/documents", () => {
     expect(res.status).toBe(200);
     const body = await res.json() as Record<string, any>;
     expect(body.data).toHaveLength(1);
-    expect(getDocuments).toHaveBeenCalledWith(mockDb, expect.objectContaining({ limit: 10 }));
+    expect(getDocuments).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), expect.objectContaining({ limit: 10 }));
   });
 
   it("passes query params correctly", async () => {
@@ -38,7 +38,7 @@ describe("GET /api/documents", () => {
     await GET(req);
 
     expect(getDocuments).toHaveBeenCalledWith(
-      mockDb,
+      expect.objectContaining({ db: mockDb, userId: "test-user-id" }),
       expect.objectContaining({
         location: "inbox",
         status: "unread",

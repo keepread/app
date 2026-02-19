@@ -6,12 +6,13 @@ vi.mock("@focus-reader/api", () => ({
   createView: vi.fn(),
   updateView: vi.fn(),
   deleteView: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
-vi.mock("@focus-reader/db", () => ({
-  getSavedView: vi.fn(),
-}));
+vi.mock("@focus-reader/db", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@focus-reader/db")>();
+  return { ...actual, getSavedView: vi.fn() };
+});
 
 import { GET, POST } from "@/app/api/saved-views/route";
 import { GET as GetById, PATCH, DELETE } from "@/app/api/saved-views/[id]/route";
@@ -106,7 +107,7 @@ describe("PATCH /api/saved-views/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(updateView).toHaveBeenCalledWith(
-      mockDb,
+      expect.objectContaining({ db: mockDb, userId: "test-user-id" }),
       "v1",
       expect.objectContaining({ name: "Updated" })
     );
@@ -122,7 +123,7 @@ describe("DELETE /api/saved-views/[id]", () => {
     const res = await DELETE(req, routeParams("v1"));
 
     expect(res.status).toBe(200);
-    expect(deleteView).toHaveBeenCalledWith(mockDb, "v1");
+    expect(deleteView).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "v1");
   });
 
   it("returns 400 for system view", async () => {

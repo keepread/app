@@ -16,11 +16,26 @@ export type ChannelType = "email" | "rss" | "api" | "extension";
 
 export type IngestionStatus = "success" | "failure";
 
+// --- User entity ---
+
+export interface User {
+  id: string;
+  email: string;
+  slug: string;
+  name: string | null;
+  avatar_url: string | null;
+  is_admin: number;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // --- Core entity interfaces ---
 // D1 conventions: number for booleans, string for timestamps
 
 export interface Document {
   id: string;
+  user_id: string;
   type: DocumentType;
   url: string | null;
   title: string;
@@ -62,6 +77,7 @@ export interface DocumentEmailMeta {
 
 export interface Subscription {
   id: string;
+  user_id: string;
   pseudo_email: string;
   display_name: string;
   sender_address: string | null;
@@ -75,6 +91,7 @@ export interface Subscription {
 
 export interface Tag {
   id: string;
+  user_id: string;
   name: string;
   color: string | null;
   description: string | null;
@@ -94,6 +111,7 @@ export interface Attachment {
 
 export interface Denylist {
   id: string;
+  user_id: string;
   domain: string;
   reason: string | null;
   created_at: string;
@@ -101,6 +119,7 @@ export interface Denylist {
 
 export interface IngestionLog {
   id: string;
+  user_id: string;
   event_id: string;
   document_id: string | null;
   channel_type: ChannelType;
@@ -115,6 +134,7 @@ export interface IngestionLog {
 
 export interface Feed {
   id: string;
+  user_id: string;
   feed_url: string;
   site_url: string | null;
   title: string;
@@ -141,6 +161,7 @@ export interface DocumentPdfMeta {
 
 export interface Highlight {
   id: string;
+  user_id: string;
   document_id: string;
   text: string;
   note: string | null;
@@ -153,6 +174,7 @@ export interface Highlight {
 
 export interface Collection {
   id: string;
+  user_id: string;
   name: string;
   description: string | null;
   created_at: string;
@@ -161,6 +183,7 @@ export interface Collection {
 
 export interface FeedToken {
   id: string;
+  user_id: string;
   token_hash: string;
   label: string;
   created_at: string;
@@ -169,6 +192,7 @@ export interface FeedToken {
 
 export interface ApiKey {
   id: string;
+  user_id: string;
   key_hash: string;
   key_prefix: string;
   label: string;
@@ -179,6 +203,7 @@ export interface ApiKey {
 
 export interface SavedView {
   id: string;
+  user_id: string;
   name: string;
   query_ast_json: string;
   sort_json: string | null;
@@ -213,6 +238,7 @@ export interface UpdateUserPreferencesInput {
 }
 
 export interface IngestionReportDaily {
+  user_id: string;
   report_date: string;
   total_events: number;
   success_count: number;

@@ -5,7 +5,7 @@ vi.mock("@focus-reader/api", () => ({
   listApiKeys: vi.fn(),
   generateApiKey: vi.fn(),
   revokeApiKey: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { GET, POST } from "@/app/api/api-keys/route";
@@ -95,6 +95,6 @@ describe("DELETE /api/api-keys/[id]", () => {
     const res = await DELETE(req, routeParams("k1"));
 
     expect(res.status).toBe(200);
-    expect(revokeApiKey).toHaveBeenCalledWith(mockDb, "k1");
+    expect(revokeApiKey).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "k1");
   });
 });

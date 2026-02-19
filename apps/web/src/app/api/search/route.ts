@@ -1,14 +1,16 @@
 import { NextRequest } from "next/server";
 import { searchDocuments } from "@focus-reader/api";
 import type { DocumentLocation, DocumentType } from "@focus-reader/shared";
+import { scopeDb } from "@focus-reader/db";
 import { getDb } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
 
 export async function GET(request: NextRequest) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const params = request.nextUrl.searchParams;
 
       const q = params.get("q");
@@ -16,7 +18,7 @@ export async function GET(request: NextRequest) {
         return jsonError("Query parameter 'q' is required", "MISSING_QUERY", 400);
       }
 
-      const result = await searchDocuments(db, {
+      const result = await searchDocuments(ctx, {
         q,
         location: (params.get("location") as DocumentLocation) || undefined,
         type: (params.get("type") as DocumentType) || undefined,

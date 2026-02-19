@@ -4,6 +4,7 @@ import type {
   CreateTagInput,
   UpdateTagInput,
 } from "@focus-reader/shared";
+import type { UserScopedDb } from "@focus-reader/db";
 import {
   listTags,
   createTag,
@@ -15,60 +16,34 @@ import {
   removeTagFromSubscription,
 } from "@focus-reader/db";
 
-export async function getTags(db: D1Database): Promise<TagWithCount[]> {
-  return listTags(db);
+export async function getTags(ctx: UserScopedDb): Promise<TagWithCount[]> {
+  return listTags(ctx);
 }
 
-export async function createNewTag(
-  db: D1Database,
-  input: CreateTagInput
-): Promise<Tag> {
-  return createTag(db, input);
+export async function createNewTag(ctx: UserScopedDb, input: CreateTagInput): Promise<Tag> {
+  return createTag(ctx, input);
 }
 
-export async function patchTag(
-  db: D1Database,
-  id: string,
-  updates: UpdateTagInput
-): Promise<void> {
-  await updateTag(db, id, updates);
+export async function patchTag(ctx: UserScopedDb, id: string, updates: UpdateTagInput): Promise<void> {
+  await updateTag(ctx, id, updates);
 }
 
-export async function removeTag(
-  db: D1Database,
-  id: string
-): Promise<void> {
-  await deleteTag(db, id);
+export async function removeTag(ctx: UserScopedDb, id: string): Promise<void> {
+  await deleteTag(ctx, id);
 }
 
-export async function tagDocument(
-  db: D1Database,
-  documentId: string,
-  tagId: string
-): Promise<void> {
-  await addTagToDocument(db, documentId, tagId);
+export async function tagDocument(ctx: UserScopedDb, documentId: string, tagId: string): Promise<void> {
+  await addTagToDocument(ctx, documentId, tagId);
 }
 
-export async function untagDocument(
-  db: D1Database,
-  documentId: string,
-  tagId: string
-): Promise<void> {
-  await removeTagFromDocument(db, documentId, tagId);
+export async function untagDocument(ctx: UserScopedDb, documentId: string, tagId: string): Promise<void> {
+  await removeTagFromDocument(ctx, documentId, tagId);
 }
 
-export async function tagSubscription(
-  db: D1Database,
-  subscriptionId: string,
-  tagId: string
-): Promise<void> {
-  await addTagToSubscription(db, subscriptionId, tagId);
+export async function tagSubscription(ctx: UserScopedDb, subscriptionId: string, tagId: string): Promise<void> {
+  await addTagToSubscription(ctx, subscriptionId, tagId);
 }
 
-export async function untagSubscription(
-  db: D1Database,
-  subscriptionId: string,
-  tagId: string
-): Promise<void> {
-  await removeTagFromSubscription(db, subscriptionId, tagId);
+export async function untagSubscription(ctx: UserScopedDb, subscriptionId: string, tagId: string): Promise<void> {
+  await removeTagFromSubscription(ctx, subscriptionId, tagId);
 }

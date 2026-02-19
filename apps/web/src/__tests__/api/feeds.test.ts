@@ -9,7 +9,7 @@ vi.mock("@focus-reader/api", () => ({
   removeFeed: vi.fn(),
   tagFeed: vi.fn(),
   untagFeed: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { GET, POST } from "@/app/api/feeds/route";
@@ -88,7 +88,7 @@ describe("PATCH /api/feeds/[id]", () => {
     const res = await PATCH(req, routeParams("f1"));
 
     expect(res.status).toBe(200);
-    expect(patchFeed).toHaveBeenCalledWith(mockDb, "f1", expect.objectContaining({ title: "Updated" }));
+    expect(patchFeed).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "f1", expect.objectContaining({ title: "Updated" }));
   });
 
   it("handles addTagId", async () => {
@@ -100,7 +100,7 @@ describe("PATCH /api/feeds/[id]", () => {
     const res = await PATCH(req, routeParams("f1"));
 
     expect(res.status).toBe(200);
-    expect(tagFeed).toHaveBeenCalledWith(mockDb, "f1", "tag1");
+    expect(tagFeed).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "f1", "tag1");
   });
 });
 
@@ -112,7 +112,7 @@ describe("DELETE /api/feeds/[id]", () => {
     const res = await DELETE(req, routeParams("f1"));
 
     expect(res.status).toBe(200);
-    expect(removeFeed).toHaveBeenCalledWith(mockDb, "f1", false);
+    expect(removeFeed).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "f1", false);
   });
 });
 
@@ -126,7 +126,7 @@ describe("POST /api/feeds/[id]/tags", () => {
     const res = await TagPOST(req, routeParams("f1"));
 
     expect(res.status).toBe(200);
-    expect(tagFeed).toHaveBeenCalledWith(mockDb, "f1", "tag1");
+    expect(tagFeed).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "f1", "tag1");
   });
 
   it("returns 400 when tagId missing", async () => {
@@ -147,6 +147,6 @@ describe("DELETE /api/feeds/[id]/tags", () => {
     const res = await TagDELETE(req, routeParams("f1"));
 
     expect(res.status).toBe(200);
-    expect(untagFeed).toHaveBeenCalledWith(mockDb, "f1", "tag1");
+    expect(untagFeed).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "f1", "tag1");
   });
 });

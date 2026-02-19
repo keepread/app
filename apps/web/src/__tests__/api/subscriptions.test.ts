@@ -8,7 +8,7 @@ vi.mock("@focus-reader/api", () => ({
   removeSubscription: vi.fn(),
   tagSubscription: vi.fn(),
   untagSubscription: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { GET, POST } from "@/app/api/subscriptions/route";
@@ -57,7 +57,7 @@ describe("POST /api/subscriptions", () => {
 
     expect(res.status).toBe(201);
     expect(addSubscription).toHaveBeenCalledWith(
-      mockDb,
+      expect.objectContaining({ db: mockDb, userId: "test-user-id" }),
       expect.objectContaining({
         display_name: "My Newsletter",
         pseudo_email: "my-newsletter@read.example.com",
@@ -86,7 +86,7 @@ describe("PATCH /api/subscriptions/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(patchSubscription).toHaveBeenCalledWith(
-      mockDb,
+      expect.objectContaining({ db: mockDb, userId: "test-user-id" }),
       "s1",
       expect.objectContaining({ display_name: "Updated" })
     );
@@ -101,7 +101,7 @@ describe("PATCH /api/subscriptions/[id]", () => {
     const res = await PATCH(req, routeParams("s1"));
 
     expect(res.status).toBe(200);
-    expect(tagSubscription).toHaveBeenCalledWith(mockDb, "s1", "tag1");
+    expect(tagSubscription).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "s1", "tag1");
   });
 });
 
@@ -113,7 +113,7 @@ describe("DELETE /api/subscriptions/[id]", () => {
     const res = await DELETE(req, routeParams("s1"));
 
     expect(res.status).toBe(200);
-    expect(removeSubscription).toHaveBeenCalledWith(mockDb, "s1", false);
+    expect(removeSubscription).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "s1", false);
   });
 });
 
@@ -127,7 +127,7 @@ describe("POST /api/subscriptions/[id]/tags", () => {
     const res = await TagPOST(req, routeParams("s1"));
 
     expect(res.status).toBe(200);
-    expect(tagSubscription).toHaveBeenCalledWith(mockDb, "s1", "tag1");
+    expect(tagSubscription).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "s1", "tag1");
   });
 
   it("returns 400 when tagId missing", async () => {
@@ -148,6 +148,6 @@ describe("DELETE /api/subscriptions/[id]/tags", () => {
     const res = await TagDELETE(req, routeParams("s1"));
 
     expect(res.status).toBe(200);
-    expect(untagSubscription).toHaveBeenCalledWith(mockDb, "s1", "tag1");
+    expect(untagSubscription).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "s1", "tag1");
   });
 });

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { updateView, deleteView } from "@focus-reader/api";
-import { getSavedView } from "@focus-reader/db";
+import { getSavedView, scopeDb } from "@focus-reader/db";
 import { getDb } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
@@ -9,11 +9,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const { id } = await params;
-      const view = await getSavedView(db, id);
+      const view = await getSavedView(ctx, id);
       if (!view) {
         return jsonError("Saved view not found", "NOT_FOUND", 404);
       }
@@ -28,13 +29,14 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const { id } = await params;
       const body = (await request.json()) as Record<string, unknown>;
 
-      await updateView(db, id, {
+      await updateView(ctx, id, {
         name: body.name as string | undefined,
         query_ast_json: body.query_ast_json as string | undefined,
         sort_json: body.sort_json as string | null | undefined,
@@ -52,12 +54,13 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const { id } = await params;
 
-      const view = await getSavedView(db, id);
+      const view = await getSavedView(ctx, id);
       if (!view) {
         return jsonError("Saved view not found", "NOT_FOUND", 404);
       }
@@ -69,7 +72,7 @@ export async function DELETE(
         );
       }
 
-      await deleteView(db, id);
+      await deleteView(ctx, id);
       return json({ success: true });
     } catch {
       return jsonError("Failed to delete saved view", "DELETE_ERROR", 500);

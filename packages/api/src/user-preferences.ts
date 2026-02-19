@@ -1,21 +1,22 @@
 import type { UserPreferences, UpdateUserPreferencesInput } from "@focus-reader/shared";
+import type { UserScopedDb } from "@focus-reader/db";
 import {
   getUserPreferences,
   upsertUserPreferences,
 } from "@focus-reader/db";
 
 export async function getPreferences(
-  db: D1Database
+  ctx: UserScopedDb
 ): Promise<UserPreferences> {
-  const prefs = await getUserPreferences(db);
+  const prefs = await getUserPreferences(ctx);
   if (prefs) return prefs;
   // Return defaults if no preferences exist yet
-  return upsertUserPreferences(db, {});
+  return upsertUserPreferences(ctx, {});
 }
 
 export async function updatePreferences(
-  db: D1Database,
+  ctx: UserScopedDb,
   updates: UpdateUserPreferencesInput
 ): Promise<UserPreferences> {
-  return upsertUserPreferences(db, updates);
+  return upsertUserPreferences(ctx, updates);
 }

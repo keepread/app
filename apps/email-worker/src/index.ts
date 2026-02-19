@@ -8,7 +8,10 @@ import {
   evaluateAutoTagRules,
 } from "@focus-reader/shared";
 import type { AutoTagRule } from "@focus-reader/shared";
+import type { UserScopedDb } from "@focus-reader/db";
 import {
+  scopeDb,
+  getOrCreateSingleUser,
   createDocument,
   getDocument,
   createEmailMeta,
@@ -41,6 +44,8 @@ export interface Env {
   FOCUS_STORAGE: R2Bucket;
   EMAIL_DOMAIN: string;
   COLLAPSE_PLUS_ALIAS: string;
+  OWNER_EMAIL?: string;
+  AUTH_MODE?: string;
 }
 
 async function withRetry<T>(
@@ -86,6 +91,14 @@ async function streamToArrayBuffer(
   return combined.buffer;
 }
 
+async function resolveUserId(db: D1Database, env: Env): Promise<string> {
+  // For now, resolve to the single/default user.
+  // Phase 4 will add subdomain-based routing for multi-user mode.
+  const email = env.OWNER_EMAIL || "owner@localhost";
+  const user = await getOrCreateSingleUser(db, email);
+  return user.id;
+}
+
 export default {
   async email(
     message: ForwardableEmailMessage,
@@ -94,6 +107,7 @@ export default {
   ): Promise<void> {
     const eventId = crypto.randomUUID();
     const collapsePlus = env.COLLAPSE_PLUS_ALIAS === "true";
+    const db = env.FOCUS_DB;
 
     try {
       // Read raw stream once before retries (streams can only be consumed once)
@@ -103,14 +117,22 @@ export default {
       // use the same ID across attempts, preventing orphan objects and duplicates
       const documentId = crypto.randomUUID();
 
+      // Resolve user for this email
+      const userId = await resolveUserId(db, env);
+      const ctx = scopeDb(db, userId);
+
       await withRetry(MAX_RETRY_ATTEMPTS, () =>
-        processEmail(rawBuffer, message.to, env, eventId, collapsePlus, documentId)
+        processEmail(rawBuffer, message.to, env, ctx, eventId, collapsePlus, documentId)
       );
     } catch (err) {
       // Final failure after all retries
       const errorMessage =
         err instanceof Error ? err.message : String(err);
-      await logIngestionEvent(env.FOCUS_DB, {
+
+      // Log with a temporary context for error logging
+      const userId = await resolveUserId(db, env).catch(() => "00000000-0000-0000-0000-000000000000");
+      const ctx = scopeDb(db, userId);
+      await logIngestionEvent(ctx, {
         event_id: eventId,
         channel_type: "email",
         status: "failure",
@@ -128,11 +150,12 @@ async function processEmail(
   rawBuffer: ArrayBuffer,
   recipientAddress: string,
   env: Env,
+  ctx: UserScopedDb,
   eventId: string,
   collapsePlus: boolean,
   documentId: string
 ): Promise<void> {
-  const db = env.FOCUS_DB;
+  const db = ctx.db;
 
   // Step 1: Parse MIME
   const parsed = await parseEmail(rawBuffer);
@@ -143,14 +166,14 @@ async function processEmail(
     collapsePlus
   );
 
-  // Step 3: Deduplicate
+  // Step 3: Deduplicate (child entity queries use raw db)
   const messageId = extractMessageId(parsed.headers);
 
   if (messageId) {
     const existingByMsgId = await getEmailMetaByMessageId(db, messageId);
     if (existingByMsgId) {
       await incrementDeliveryAttempts(db, existingByMsgId.document_id);
-      await logIngestionEvent(db, {
+      await logIngestionEvent(ctx, {
         event_id: eventId,
         document_id: existingByMsgId.document_id,
         channel_type: "email",
@@ -175,7 +198,7 @@ async function processEmail(
   const existingByFp = await getEmailMetaByFingerprint(db, fingerprint);
   if (existingByFp) {
     await incrementDeliveryAttempts(db, existingByFp.document_id);
-    await logIngestionEvent(db, {
+    await logIngestionEvent(ctx, {
       event_id: eventId,
       document_id: existingByFp.document_id,
       channel_type: "email",
@@ -191,7 +214,7 @@ async function processEmail(
   );
   const deniedDomains: string[] = [];
   // Check if sender domain is denied
-  if (senderDomain && (await isDomainDenied(db, senderDomain))) {
+  if (senderDomain && (await isDomainDenied(ctx, senderDomain))) {
     deniedDomains.push(senderDomain);
   }
   const validation = validateEmail(parsed, deniedDomains);
@@ -201,7 +224,7 @@ async function processEmail(
 
   // Step 6: documentId is pre-generated before the retry loop (passed in)
   // Check if a previous retry partially completed (document exists but email_meta doesn't)
-  const existingDoc = await getDocument(db, documentId);
+  const existingDoc = await getDocument(ctx, documentId);
   if (existingDoc) {
     // Document was created by a previous attempt — check if email_meta exists
     const existingMeta = messageId
@@ -257,9 +280,9 @@ async function processEmail(
 
   // Step 12: Look up or auto-create subscription
   const pseudoEmail = `${subscriptionKey}@${env.EMAIL_DOMAIN}`;
-  let subscription = await getSubscriptionByEmail(db, pseudoEmail);
+  let subscription = await getSubscriptionByEmail(ctx, pseudoEmail);
   if (!subscription) {
-    subscription = await createSubscription(db, {
+    subscription = await createSubscription(ctx, {
       pseudo_email: pseudoEmail,
       display_name: slugToDisplayName(subscriptionKey),
       sender_address: parsed.from.address,
@@ -269,7 +292,7 @@ async function processEmail(
 
   // Step 13: Create Document (skip if already exists from a partial retry)
   if (!existingDoc) {
-    await createDocument(db, {
+    await createDocument(ctx, {
       id: documentId,
       type: "email",
       title: parsed.subject || "(No subject)",
@@ -287,7 +310,7 @@ async function processEmail(
     });
   }
 
-  // Step 14: Create EmailMeta
+  // Step 14: Create EmailMeta (child entity — uses raw db)
   await createEmailMeta(db, {
     document_id: documentId,
     message_id: messageId,
@@ -301,7 +324,7 @@ async function processEmail(
     delivery_attempts: 1,
   });
 
-  // Step 15: Create Attachments
+  // Step 15: Create Attachments (child entity — uses raw db)
   const allAttachmentMeta = extractAttachmentMeta(parsed.attachments);
   for (const att of allAttachmentMeta) {
     const cidStorageKey = att.contentId
@@ -328,18 +351,18 @@ async function processEmail(
       from_address: parsed.from.address,
     });
     for (const tagId of matchedTagIds) {
-      await addTagToDocument(db, documentId, tagId);
+      await addTagToDocument(ctx, documentId, tagId);
     }
   }
 
   // Step 16: Inherit subscription tags
-  const subTags = await getTagsForSubscription(db, subscription.id);
+  const subTags = await getTagsForSubscription(ctx, subscription.id);
   for (const tag of subTags) {
-    await addTagToDocument(db, documentId, tag.id);
+    await addTagToDocument(ctx, documentId, tag.id);
   }
 
   // Step 17: Log ingestion
-  await logIngestionEvent(db, {
+  await logIngestionEvent(ctx, {
     event_id: eventId,
     document_id: documentId,
     channel_type: "email",

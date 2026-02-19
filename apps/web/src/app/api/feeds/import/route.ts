@@ -1,13 +1,15 @@
 import { NextRequest } from "next/server";
 import { importOpml } from "@focus-reader/api";
+import { scopeDb } from "@focus-reader/db";
 import { getDb } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
 
 export async function POST(request: NextRequest) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
 
       let xml: string;
       const contentType = request.headers.get("content-type") ?? "";
@@ -27,7 +29,7 @@ export async function POST(request: NextRequest) {
         return jsonError("OPML content is required", "MISSING_BODY", 400);
       }
 
-      const result = await importOpml(db, xml);
+      const result = await importOpml(ctx, xml);
       return json(result);
     } catch {
       return jsonError("Failed to import OPML", "IMPORT_ERROR", 500);

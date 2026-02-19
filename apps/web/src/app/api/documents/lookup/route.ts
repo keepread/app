@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getDocumentByUrlDetail } from "@focus-reader/api";
+import { scopeDb } from "@focus-reader/db";
 import { getDb } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
@@ -7,7 +8,7 @@ import { withCors, handlePreflight } from "@/lib/cors";
 
 export async function GET(request: NextRequest) {
   const origin = request.headers.get("origin");
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const url = request.nextUrl.searchParams.get("url");
       if (!url) {
@@ -15,7 +16,8 @@ export async function GET(request: NextRequest) {
       }
 
       const db = await getDb();
-      const doc = await getDocumentByUrlDetail(db, url);
+      const ctx = scopeDb(db, userId);
+      const doc = await getDocumentByUrlDetail(ctx, url);
       if (!doc) {
         return withCors(jsonError("Document not found", "NOT_FOUND", 404), origin);
       }

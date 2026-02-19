@@ -2,12 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createRequest, mockDb, setAuthEnabled } from "../setup";
 
 vi.mock("@focus-reader/api", () => ({
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
-vi.mock("@focus-reader/db", () => ({
-  listIngestionLogs: vi.fn(),
-}));
+vi.mock("@focus-reader/db", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@focus-reader/db")>();
+  return { ...actual, listIngestionLogs: vi.fn() };
+});
 
 import { GET } from "@/app/api/ingestion-log/route";
 import { listIngestionLogs } from "@focus-reader/db";

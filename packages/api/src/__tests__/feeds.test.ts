@@ -11,6 +11,7 @@ vi.mock("@focus-reader/db", () => ({
   hardDeleteFeed: vi.fn(),
   addTagToFeed: vi.fn(),
   removeTagFromFeed: vi.fn(),
+  scopeDb: vi.fn(),
 }));
 
 vi.mock("@focus-reader/parser", () => ({
@@ -48,7 +49,10 @@ const {
   DuplicateFeedError,
 } = await import("../feeds.js");
 
+import type { UserScopedDb } from "@focus-reader/db";
+
 const mockDb = {} as D1Database;
+const mockCtx: UserScopedDb = { db: mockDb, userId: "test-user-id" };
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -73,6 +77,7 @@ describe("addFeed", () => {
     vi.mocked(getFeedByUrlIncludeDeleted).mockResolvedValue(null);
     vi.mocked(createFeed).mockResolvedValue({
       id: "feed-1",
+      user_id: "test-user-id",
       feed_url: "https://myblog.com/feed.xml",
       title: "My Blog",
       description: "A great blog",
@@ -90,15 +95,15 @@ describe("addFeed", () => {
       deleted_at: null,
     });
 
-    const result = await addFeed(mockDb, "https://myblog.com/feed.xml");
+    const result = await addFeed(mockCtx, "https://myblog.com/feed.xml");
 
     // Duplicate check happens BEFORE fetchFeed for direct URLs
     expect(getFeedByUrl).toHaveBeenCalledWith(
-      mockDb,
+      mockCtx,
       "https://myblog.com/feed.xml"
     );
     expect(fetchFeed).toHaveBeenCalledWith("https://myblog.com/feed.xml");
-    expect(createFeed).toHaveBeenCalledWith(mockDb, {
+    expect(createFeed).toHaveBeenCalledWith(mockCtx, {
       feed_url: "https://myblog.com/feed.xml",
       title: "My Blog",
       description: "A great blog",
@@ -136,6 +141,7 @@ describe("addFeed", () => {
     vi.mocked(getFeedByUrlIncludeDeleted).mockResolvedValue(null);
     vi.mocked(createFeed).mockResolvedValue({
       id: "feed-2",
+      user_id: "test-user-id",
       feed_url: "https://myblog.com/feed.xml",
       title: "Discovered Blog",
       description: null,
@@ -153,7 +159,7 @@ describe("addFeed", () => {
       deleted_at: null,
     });
 
-    const result = await addFeed(mockDb, "https://myblog.com");
+    const result = await addFeed(mockCtx, "https://myblog.com");
 
     expect(discoverFeedUrl).toHaveBeenCalledWith(mockHtml, "https://myblog.com");
     expect(fetchFeed).toHaveBeenCalledTimes(2);
@@ -164,6 +170,7 @@ describe("addFeed", () => {
   it("throws DuplicateFeedError before network fetch when URL already in DB", async () => {
     vi.mocked(getFeedByUrl).mockResolvedValue({
       id: "existing-feed",
+      user_id: "test-user-id",
       feed_url: "https://myblog.com/feed.xml",
       title: "Existing Blog",
       description: null,
@@ -182,14 +189,14 @@ describe("addFeed", () => {
     });
 
     await expect(
-      addFeed(mockDb, "https://myblog.com/feed.xml")
+      addFeed(mockCtx, "https://myblog.com/feed.xml")
     ).rejects.toThrow(DuplicateFeedError);
 
     // fetchFeed should NOT have been called — duplicate detected before network
     expect(fetchFeed).not.toHaveBeenCalled();
 
     try {
-      await addFeed(mockDb, "https://myblog.com/feed.xml");
+      await addFeed(mockCtx, "https://myblog.com/feed.xml");
     } catch (err) {
       expect(err).toBeInstanceOf(DuplicateFeedError);
       expect((err as InstanceType<typeof DuplicateFeedError>).existingId).toBe("existing-feed");
@@ -199,6 +206,7 @@ describe("addFeed", () => {
   it("restores a soft-deleted direct-url feed instead of creating a duplicate", async () => {
     const deletedFeed = {
       id: "deleted-feed",
+      user_id: "test-user-id",
       feed_url: "https://myblog.com/feed.xml",
       title: "Deleted Blog",
       description: null,
@@ -227,9 +235,9 @@ describe("addFeed", () => {
     vi.mocked(getFeedByUrlIncludeDeleted).mockResolvedValue(deletedFeed);
     vi.mocked(restoreFeed).mockResolvedValue(restoredFeed);
 
-    const result = await addFeed(mockDb, "https://myblog.com/feed.xml");
+    const result = await addFeed(mockCtx, "https://myblog.com/feed.xml");
 
-    expect(restoreFeed).toHaveBeenCalledWith(mockDb, "deleted-feed");
+    expect(restoreFeed).toHaveBeenCalledWith(mockCtx, "deleted-feed");
     expect(fetchFeed).not.toHaveBeenCalled();
     expect(createFeed).not.toHaveBeenCalled();
     expect(result).toEqual(restoredFeed);
@@ -255,6 +263,7 @@ describe("importOpml", () => {
       .mockResolvedValueOnce({
         // Blog B: existing
         id: "existing-b",
+        user_id: "test-user-id",
         feed_url: "https://b.com/feed.xml",
         title: "Blog B",
         description: null,
@@ -278,6 +287,7 @@ describe("importOpml", () => {
 
     vi.mocked(createFeed).mockResolvedValue({
       id: "new-feed",
+      user_id: "test-user-id",
       feed_url: "",
       title: "",
       description: null,
@@ -295,16 +305,16 @@ describe("importOpml", () => {
       deleted_at: null,
     });
 
-    const result = await importOpml(mockDb, "<opml>...</opml>");
+    const result = await importOpml(mockCtx, "<opml>...</opml>");
 
     expect(result).toEqual({ imported: 2, skipped: 1 });
     expect(createFeed).toHaveBeenCalledTimes(2);
-    expect(createFeed).toHaveBeenCalledWith(mockDb, {
+    expect(createFeed).toHaveBeenCalledWith(mockCtx, {
       feed_url: "https://a.com/feed.xml",
       title: "Blog A",
       site_url: null,
     });
-    expect(createFeed).toHaveBeenCalledWith(mockDb, {
+    expect(createFeed).toHaveBeenCalledWith(mockCtx, {
       feed_url: "https://c.com/feed.xml",
       title: "Blog C",
       site_url: null,
@@ -321,6 +331,7 @@ describe("importOpml", () => {
     ];
     const deletedFeed = {
       id: "deleted-import-feed",
+      user_id: "test-user-id",
       feed_url: "https://restorable.com/feed.xml",
       title: "Restorable Blog",
       description: null,
@@ -349,10 +360,10 @@ describe("importOpml", () => {
       last_error: null,
     });
 
-    const result = await importOpml(mockDb, "<opml>...</opml>");
+    const result = await importOpml(mockCtx, "<opml>...</opml>");
 
     expect(result).toEqual({ imported: 1, skipped: 0 });
-    expect(restoreFeed).toHaveBeenCalledWith(mockDb, "deleted-import-feed");
+    expect(restoreFeed).toHaveBeenCalledWith(mockCtx, "deleted-import-feed");
     expect(createFeed).not.toHaveBeenCalled();
   });
 });
@@ -362,6 +373,7 @@ describe("exportOpml", () => {
     const feeds = [
       {
         id: "f1",
+        user_id: "test-user-id",
         feed_url: "https://a.com/feed.xml",
         title: "Blog A",
         site_url: "https://a.com",
@@ -382,6 +394,7 @@ describe("exportOpml", () => {
       },
       {
         id: "f2",
+        user_id: "test-user-id",
         feed_url: "https://b.com/feed.xml",
         title: "Blog B",
         site_url: null,
@@ -404,7 +417,7 @@ describe("exportOpml", () => {
     vi.mocked(listFeeds).mockResolvedValue(feeds);
     vi.mocked(generateOpml).mockReturnValue("<opml>generated</opml>");
 
-    const result = await exportOpml(mockDb);
+    const result = await exportOpml(mockCtx);
 
     expect(generateOpml).toHaveBeenCalledWith(
       [
@@ -429,9 +442,9 @@ describe("patchFeed", () => {
   it("delegates to updateFeed", async () => {
     vi.mocked(updateFeed).mockResolvedValue(undefined);
 
-    await patchFeed(mockDb, "feed-1", { title: "New Title" });
+    await patchFeed(mockCtx, "feed-1", { title: "New Title" });
 
-    expect(updateFeed).toHaveBeenCalledWith(mockDb, "feed-1", {
+    expect(updateFeed).toHaveBeenCalledWith(mockCtx, "feed-1", {
       title: "New Title",
     });
   });
@@ -441,18 +454,18 @@ describe("removeFeed", () => {
   it("soft-deletes by default", async () => {
     vi.mocked(softDeleteFeed).mockResolvedValue(undefined);
 
-    await removeFeed(mockDb, "feed-1");
+    await removeFeed(mockCtx, "feed-1");
 
-    expect(softDeleteFeed).toHaveBeenCalledWith(mockDb, "feed-1");
+    expect(softDeleteFeed).toHaveBeenCalledWith(mockCtx, "feed-1");
     expect(hardDeleteFeed).not.toHaveBeenCalled();
   });
 
   it("hard-deletes when hard=true", async () => {
     vi.mocked(hardDeleteFeed).mockResolvedValue(undefined);
 
-    await removeFeed(mockDb, "feed-1", true);
+    await removeFeed(mockCtx, "feed-1", true);
 
-    expect(hardDeleteFeed).toHaveBeenCalledWith(mockDb, "feed-1");
+    expect(hardDeleteFeed).toHaveBeenCalledWith(mockCtx, "feed-1");
     expect(softDeleteFeed).not.toHaveBeenCalled();
   });
 });
@@ -461,16 +474,16 @@ describe("tagFeed / untagFeed", () => {
   it("tagFeed delegates to addTagToFeed", async () => {
     vi.mocked(addTagToFeed).mockResolvedValue(undefined);
 
-    await tagFeed(mockDb, "feed-1", "tag-1");
+    await tagFeed(mockCtx, "feed-1", "tag-1");
 
-    expect(addTagToFeed).toHaveBeenCalledWith(mockDb, "feed-1", "tag-1");
+    expect(addTagToFeed).toHaveBeenCalledWith(mockCtx, "feed-1", "tag-1");
   });
 
   it("untagFeed delegates to removeTagFromFeed", async () => {
     vi.mocked(removeTagFromFeed).mockResolvedValue(undefined);
 
-    await untagFeed(mockDb, "feed-1", "tag-1");
+    await untagFeed(mockCtx, "feed-1", "tag-1");
 
-    expect(removeTagFromFeed).toHaveBeenCalledWith(mockDb, "feed-1", "tag-1");
+    expect(removeTagFromFeed).toHaveBeenCalledWith(mockCtx, "feed-1", "tag-1");
   });
 });

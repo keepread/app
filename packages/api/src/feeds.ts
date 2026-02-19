@@ -3,6 +3,7 @@ import type {
   FeedWithStats,
   UpdateFeedInput,
 } from "@focus-reader/shared";
+import type { UserScopedDb } from "@focus-reader/db";
 import {
   listFeeds,
   createFeed,
@@ -23,21 +24,21 @@ import {
 } from "@focus-reader/parser";
 import type { OpmlFeed } from "@focus-reader/parser";
 
-export async function getFeeds(db: D1Database): Promise<FeedWithStats[]> {
-  return listFeeds(db);
+export async function getFeeds(ctx: UserScopedDb): Promise<FeedWithStats[]> {
+  return listFeeds(ctx);
 }
 
-export async function addFeed(db: D1Database, url: string): Promise<Feed> {
+export async function addFeed(ctx: UserScopedDb, url: string): Promise<Feed> {
   // Check for duplicate before any network fetch (idempotent for known URLs)
-  const existingDirect = await getFeedByUrl(db, url);
+  const existingDirect = await getFeedByUrl(ctx, url);
   if (existingDirect) {
     throw new DuplicateFeedError(existingDirect.id);
   }
 
   // Check if soft-deleted — restore instead of creating new
-  const deletedDirect = await getFeedByUrlIncludeDeleted(db, url);
+  const deletedDirect = await getFeedByUrlIncludeDeleted(ctx, url);
   if (deletedDirect && deletedDirect.deleted_at) {
-    return restoreFeed(db, deletedDirect.id);
+    return restoreFeed(ctx, deletedDirect.id);
   }
 
   let feedUrl = url;
@@ -63,15 +64,15 @@ export async function addFeed(db: D1Database, url: string): Promise<Feed> {
     feedUrl = discovered;
 
     // Check duplicate for discovered URL before second fetch
-    const existingDiscovered = await getFeedByUrl(db, feedUrl);
+    const existingDiscovered = await getFeedByUrl(ctx, feedUrl);
     if (existingDiscovered) {
       throw new DuplicateFeedError(existingDiscovered.id);
     }
 
     // Check soft-deleted for discovered URL
-    const deletedDiscovered = await getFeedByUrlIncludeDeleted(db, feedUrl);
+    const deletedDiscovered = await getFeedByUrlIncludeDeleted(ctx, feedUrl);
     if (deletedDiscovered && deletedDiscovered.deleted_at) {
-      return restoreFeed(db, deletedDiscovered.id);
+      return restoreFeed(ctx, deletedDiscovered.id);
     }
 
     parsedFeed = await fetchFeed(feedUrl);
@@ -80,19 +81,19 @@ export async function addFeed(db: D1Database, url: string): Promise<Feed> {
   // Final duplicate check (feedUrl may differ from input url for direct feeds
   // if the input URL was not already in DB but resolved to a known feed_url)
   if (feedUrl !== url) {
-    const existingFinal = await getFeedByUrl(db, feedUrl);
+    const existingFinal = await getFeedByUrl(ctx, feedUrl);
     if (existingFinal) {
       throw new DuplicateFeedError(existingFinal.id);
     }
 
     // Check soft-deleted for final resolved URL
-    const deletedFinal = await getFeedByUrlIncludeDeleted(db, feedUrl);
+    const deletedFinal = await getFeedByUrlIncludeDeleted(ctx, feedUrl);
     if (deletedFinal && deletedFinal.deleted_at) {
-      return restoreFeed(db, deletedFinal.id);
+      return restoreFeed(ctx, deletedFinal.id);
     }
   }
 
-  return createFeed(db, {
+  return createFeed(ctx, {
     feed_url: feedUrl,
     title: parsedFeed.title || feedUrl,
     description: parsedFeed.description,
@@ -102,27 +103,27 @@ export async function addFeed(db: D1Database, url: string): Promise<Feed> {
 }
 
 export async function patchFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string,
   updates: UpdateFeedInput
 ): Promise<void> {
-  await updateFeed(db, id, updates);
+  await updateFeed(ctx, id, updates);
 }
 
 export async function removeFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string,
   hard = false
 ): Promise<void> {
   if (hard) {
-    await hardDeleteFeed(db, id);
+    await hardDeleteFeed(ctx, id);
   } else {
-    await softDeleteFeed(db, id);
+    await softDeleteFeed(ctx, id);
   }
 }
 
 export async function importOpml(
-  db: D1Database,
+  ctx: UserScopedDb,
   xml: string
 ): Promise<{ imported: number; skipped: number }> {
   const feeds = parseOpml(xml);
@@ -131,21 +132,21 @@ export async function importOpml(
 
   for (const feed of feeds) {
     // Skip active duplicates
-    const existing = await getFeedByUrl(db, feed.feedUrl);
+    const existing = await getFeedByUrl(ctx, feed.feedUrl);
     if (existing) {
       skipped++;
       continue;
     }
 
     // Restore soft-deleted feeds
-    const deleted = await getFeedByUrlIncludeDeleted(db, feed.feedUrl);
+    const deleted = await getFeedByUrlIncludeDeleted(ctx, feed.feedUrl);
     if (deleted && deleted.deleted_at) {
-      await restoreFeed(db, deleted.id);
+      await restoreFeed(ctx, deleted.id);
       imported++;
       continue;
     }
 
-    await createFeed(db, {
+    await createFeed(ctx, {
       feed_url: feed.feedUrl,
       title: feed.title || feed.feedUrl,
       site_url: feed.siteUrl,
@@ -156,8 +157,8 @@ export async function importOpml(
   return { imported, skipped };
 }
 
-export async function exportOpml(db: D1Database): Promise<string> {
-  const feeds = await listFeeds(db);
+export async function exportOpml(ctx: UserScopedDb): Promise<string> {
+  const feeds = await listFeeds(ctx);
   const opmlFeeds: OpmlFeed[] = feeds.map((f) => ({
     title: f.title,
     feedUrl: f.feed_url,
@@ -167,19 +168,19 @@ export async function exportOpml(db: D1Database): Promise<string> {
 }
 
 export async function tagFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   feedId: string,
   tagId: string
 ): Promise<void> {
-  await addTagToFeed(db, feedId, tagId);
+  await addTagToFeed(ctx, feedId, tagId);
 }
 
 export async function untagFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   feedId: string,
   tagId: string
 ): Promise<void> {
-  await removeTagFromFeed(db, feedId, tagId);
+  await removeTagFromFeed(ctx, feedId, tagId);
 }
 
 export class DuplicateFeedError extends Error {

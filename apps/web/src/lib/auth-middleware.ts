@@ -4,7 +4,7 @@ import { jsonError } from "./api-helpers";
 
 export async function withAuth(
   request: Request,
-  handler: () => Promise<Response>
+  handler: (userId: string) => Promise<Response>
 ): Promise<Response> {
   const db = await getDb();
   const env = await getEnv();
@@ -12,13 +12,14 @@ export async function withAuth(
     OWNER_EMAIL: env.OWNER_EMAIL,
     CF_ACCESS_TEAM_DOMAIN: env.CF_ACCESS_TEAM_DOMAIN,
     CF_ACCESS_AUD: env.CF_ACCESS_AUD,
+    AUTH_MODE: env.AUTH_MODE,
   });
-  if (!result.authenticated) {
+  if (!result.authenticated || !result.userId) {
     return jsonError(
       result.error || "Authentication required",
       "UNAUTHORIZED",
       401
     );
   }
-  return handler();
+  return handler(result.userId);
 }

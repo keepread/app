@@ -6,7 +6,7 @@ vi.mock("@focus-reader/api", () => ({
   createNewTag: vi.fn(),
   patchTag: vi.fn(),
   removeTag: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { GET, POST, OPTIONS } from "@/app/api/tags/route";
@@ -79,7 +79,7 @@ describe("PATCH /api/tags/[id]", () => {
     const res = await PATCH(req, routeParams("t1"));
 
     expect(res.status).toBe(200);
-    expect(patchTag).toHaveBeenCalledWith(mockDb, "t1", expect.objectContaining({ name: "Updated" }));
+    expect(patchTag).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "t1", expect.objectContaining({ name: "Updated" }));
   });
 });
 
@@ -91,7 +91,7 @@ describe("DELETE /api/tags/[id]", () => {
     const res = await DELETE(req, routeParams("t1"));
 
     expect(res.status).toBe(200);
-    expect(removeTag).toHaveBeenCalledWith(mockDb, "t1");
+    expect(removeTag).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "t1");
   });
 });
 

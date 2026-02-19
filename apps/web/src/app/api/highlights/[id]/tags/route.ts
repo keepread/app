@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { tagHighlight, untagHighlight } from "@focus-reader/api";
+import { scopeDb } from "@focus-reader/db";
 import { getDb } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
@@ -8,9 +9,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const { id } = await params;
       const body = (await request.json()) as Record<string, unknown>;
       const { tagId } = body as { tagId?: string };
@@ -19,7 +21,7 @@ export async function POST(
         return jsonError("tagId is required", "MISSING_TAG_ID", 400);
       }
 
-      await tagHighlight(db, id, tagId);
+      await tagHighlight(ctx, id, tagId);
       return json({ success: true });
     } catch {
       return jsonError("Failed to add tag", "TAG_ERROR", 500);
@@ -31,9 +33,10 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withAuth(request, async () => {
+  return withAuth(request, async (userId) => {
     try {
       const db = await getDb();
+      const ctx = scopeDb(db, userId);
       const { id } = await params;
       const body = (await request.json()) as Record<string, unknown>;
       const { tagId } = body as { tagId?: string };
@@ -42,7 +45,7 @@ export async function DELETE(
         return jsonError("tagId is required", "MISSING_TAG_ID", 400);
       }
 
-      await untagHighlight(db, id, tagId);
+      await untagHighlight(ctx, id, tagId);
       return json({ success: true });
     } catch {
       return jsonError("Failed to remove tag", "TAG_ERROR", 500);

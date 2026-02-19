@@ -5,23 +5,25 @@ import type {
   UpdateFeedInput,
 } from "@focus-reader/shared";
 import { nowISO } from "@focus-reader/shared";
+import type { UserScopedDb } from "../scoped-db.js";
 
 export async function createFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   input: CreateFeedInput
 ): Promise<Feed> {
   const id = input.id ?? crypto.randomUUID();
   const now = nowISO();
-  const stmt = db.prepare(`
+  const stmt = ctx.db.prepare(`
     INSERT INTO feed (
-      id, feed_url, site_url, title, description, icon_url,
+      id, user_id, feed_url, site_url, title, description, icon_url,
       fetch_interval_minutes, is_active, fetch_full_content,
       auto_tag_rules, error_count, created_at, updated_at
-    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?9, 0, ?10, ?10)
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1, ?9, ?10, 0, ?11, ?11)
   `);
   await stmt
     .bind(
       id,
+      ctx.userId,
       input.feed_url,
       input.site_url ?? null,
       input.title,
@@ -34,82 +36,83 @@ export async function createFeed(
     )
     .run();
 
-  return (await db
+  return (await ctx.db
     .prepare("SELECT * FROM feed WHERE id = ?1")
     .bind(id)
     .first<Feed>())!;
 }
 
 export async function getFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<Feed | null> {
-  const result = await db
-    .prepare("SELECT * FROM feed WHERE id = ?1")
-    .bind(id)
+  const result = await ctx.db
+    .prepare("SELECT * FROM feed WHERE id = ?1 AND user_id = ?2")
+    .bind(id, ctx.userId)
     .first<Feed>();
   return result ?? null;
 }
 
 export async function getFeedByUrl(
-  db: D1Database,
+  ctx: UserScopedDb,
   feedUrl: string
 ): Promise<Feed | null> {
-  const result = await db
-    .prepare("SELECT * FROM feed WHERE feed_url = ?1 AND deleted_at IS NULL")
-    .bind(feedUrl)
+  const result = await ctx.db
+    .prepare("SELECT * FROM feed WHERE feed_url = ?1 AND user_id = ?2 AND deleted_at IS NULL")
+    .bind(feedUrl, ctx.userId)
     .first<Feed>();
   return result ?? null;
 }
 
 export async function getFeedByUrlIncludeDeleted(
-  db: D1Database,
+  ctx: UserScopedDb,
   feedUrl: string
 ): Promise<Feed | null> {
-  const result = await db
-    .prepare("SELECT * FROM feed WHERE feed_url = ?1")
-    .bind(feedUrl)
+  const result = await ctx.db
+    .prepare("SELECT * FROM feed WHERE feed_url = ?1 AND user_id = ?2")
+    .bind(feedUrl, ctx.userId)
     .first<Feed>();
   return result ?? null;
 }
 
 export async function restoreFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<Feed> {
   const now = nowISO();
-  await db
+  await ctx.db
     .prepare(
-      "UPDATE feed SET deleted_at = NULL, is_active = 1, error_count = 0, last_error = NULL, updated_at = ?1 WHERE id = ?2"
+      "UPDATE feed SET deleted_at = NULL, is_active = 1, error_count = 0, last_error = NULL, updated_at = ?1 WHERE id = ?2 AND user_id = ?3"
     )
-    .bind(now, id)
+    .bind(now, id, ctx.userId)
     .run();
-  return (await db
+  return (await ctx.db
     .prepare("SELECT * FROM feed WHERE id = ?1")
     .bind(id)
     .first<Feed>())!;
 }
 
 export async function listFeeds(
-  db: D1Database
+  ctx: UserScopedDb
 ): Promise<FeedWithStats[]> {
-  const rows = await db
+  const rows = await ctx.db
     .prepare(
       `SELECT f.*,
               COUNT(d.id) as documentCount,
               SUM(CASE WHEN d.is_read = 0 AND d.deleted_at IS NULL THEN 1 ELSE 0 END) as unreadCount
        FROM feed f
        LEFT JOIN document d ON d.source_id = f.id AND d.deleted_at IS NULL
-       WHERE f.deleted_at IS NULL
+       WHERE f.deleted_at IS NULL AND f.user_id = ?1
        GROUP BY f.id
        ORDER BY f.title ASC`
     )
+    .bind(ctx.userId)
     .all<FeedWithStats>();
   return rows.results;
 }
 
 export async function updateFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string,
   updates: UpdateFeedInput
 ): Promise<void> {
@@ -129,104 +132,107 @@ export async function updateFeed(
   values.push(nowISO());
   paramIdx++;
 
-  values.push(id);
+  values.push(id, ctx.userId);
 
-  await db
+  await ctx.db
     .prepare(
-      `UPDATE feed SET ${fields.join(", ")} WHERE id = ?${paramIdx}`
+      `UPDATE feed SET ${fields.join(", ")} WHERE id = ?${paramIdx} AND user_id = ?${paramIdx + 1}`
     )
     .bind(...values)
     .run();
 }
 
 export async function softDeleteFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<void> {
   const now = nowISO();
-  await db
+  await ctx.db
     .prepare(
-      "UPDATE feed SET deleted_at = ?1, updated_at = ?1 WHERE id = ?2"
+      "UPDATE feed SET deleted_at = ?1, updated_at = ?1 WHERE id = ?2 AND user_id = ?3"
     )
-    .bind(now, id)
+    .bind(now, id, ctx.userId)
     .run();
 }
 
 export async function hardDeleteFeed(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<void> {
-  await db
+  await ctx.db
     .prepare("DELETE FROM feed_tags WHERE feed_id = ?1")
     .bind(id)
     .run();
-  await db
-    .prepare("DELETE FROM feed WHERE id = ?1")
-    .bind(id)
+  await ctx.db
+    .prepare("DELETE FROM feed WHERE id = ?1 AND user_id = ?2")
+    .bind(id, ctx.userId)
     .run();
 }
 
 export async function getActiveFeeds(
-  db: D1Database
+  ctx: UserScopedDb
 ): Promise<Feed[]> {
-  const rows = await db
+  const rows = await ctx.db
     .prepare(
-      "SELECT * FROM feed WHERE is_active = 1 AND deleted_at IS NULL"
+      "SELECT * FROM feed WHERE is_active = 1 AND deleted_at IS NULL AND user_id = ?1"
     )
+    .bind(ctx.userId)
     .all<Feed>();
   return rows.results;
 }
 
 export async function markFeedFetched(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<void> {
   const now = nowISO();
-  await db
+  await ctx.db
     .prepare(
-      "UPDATE feed SET last_fetched_at = ?1, error_count = 0, last_error = NULL, updated_at = ?1 WHERE id = ?2"
+      "UPDATE feed SET last_fetched_at = ?1, error_count = 0, last_error = NULL, updated_at = ?1 WHERE id = ?2 AND user_id = ?3"
     )
-    .bind(now, id)
+    .bind(now, id, ctx.userId)
     .run();
 }
 
 export async function incrementFeedError(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string,
   error: string
 ): Promise<void> {
   const now = nowISO();
-  await db
+  await ctx.db
     .prepare(
-      "UPDATE feed SET error_count = error_count + 1, last_error = ?1, updated_at = ?2 WHERE id = ?3"
+      "UPDATE feed SET error_count = error_count + 1, last_error = ?1, updated_at = ?2 WHERE id = ?3 AND user_id = ?4"
     )
-    .bind(error, now, id)
+    .bind(error, now, id, ctx.userId)
     .run();
 }
 
 export async function resetFeedErrors(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<void> {
   const now = nowISO();
-  await db
+  await ctx.db
     .prepare(
-      "UPDATE feed SET error_count = 0, last_error = NULL, updated_at = ?1 WHERE id = ?2"
+      "UPDATE feed SET error_count = 0, last_error = NULL, updated_at = ?1 WHERE id = ?2 AND user_id = ?3"
     )
-    .bind(now, id)
+    .bind(now, id, ctx.userId)
     .run();
 }
 
 export async function getFeedsDueForPoll(
-  db: D1Database
+  ctx: UserScopedDb
 ): Promise<Feed[]> {
-  const rows = await db
+  const rows = await ctx.db
     .prepare(
       `SELECT * FROM feed
        WHERE is_active = 1
          AND deleted_at IS NULL
+         AND user_id = ?1
          AND (last_fetched_at IS NULL OR datetime(last_fetched_at) < datetime('now', '-' || fetch_interval_minutes || ' minutes'))`
     )
+    .bind(ctx.userId)
     .all<Feed>();
   return rows.results;
 }

@@ -1,24 +1,25 @@
 import type { Denylist, CreateDenylistInput } from "@focus-reader/shared";
+import type { UserScopedDb } from "@focus-reader/db";
 import {
   listDenylistEntries,
   addDenylistEntry,
   removeDenylistEntry,
 } from "@focus-reader/db";
 
-export async function getDenylist(db: D1Database): Promise<Denylist[]> {
-  return listDenylistEntries(db);
+export async function getDenylist(ctx: UserScopedDb): Promise<Denylist[]> {
+  return listDenylistEntries(ctx);
 }
 
 export async function addToDenylist(
-  db: D1Database,
+  ctx: UserScopedDb,
   input: CreateDenylistInput
 ): Promise<Denylist> {
-  return addDenylistEntry(db, input);
+  return addDenylistEntry(ctx, input);
 }
 
 export async function removeFromDenylist(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<void> {
-  await removeDenylistEntry(db, id);
+  await removeDenylistEntry(ctx, id);
 }

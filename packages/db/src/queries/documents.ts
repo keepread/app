@@ -7,33 +7,35 @@ import type {
   Tag,
 } from "@focus-reader/shared";
 import { nowISO, DEFAULT_PAGE_SIZE } from "@focus-reader/shared";
+import type { UserScopedDb } from "../scoped-db.js";
 import { indexDocument, deindexDocument, sanitizeFtsQuery } from "./search.js";
 import { getEmailMetaByDocumentId } from "./email-meta.js";
 
 export async function createDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   input: CreateDocumentInput
 ): Promise<Document> {
   const id = input.id ?? crypto.randomUUID();
   const now = nowISO();
-  const stmt = db.prepare(`
+  const stmt = ctx.db.prepare(`
     INSERT INTO document (
-      id, type, url, title, author, author_url, site_name, excerpt,
+      id, user_id, type, url, title, author, author_url, site_name, excerpt,
       word_count, reading_time_minutes, cover_image_url,
       html_content, markdown_content, plain_text_content,
       location, is_read, is_starred, reading_progress,
       saved_at, published_at, updated_at, source_id, origin_type
     ) VALUES (
-      ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8,
-      ?9, ?10, ?11,
-      ?12, ?13, ?14,
-      ?15, 0, 0, 0.0,
-      ?16, ?17, ?16, ?18, ?19
+      ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
+      ?10, ?11, ?12,
+      ?13, ?14, ?15,
+      ?16, 0, 0, 0.0,
+      ?17, ?18, ?17, ?19, ?20
     )
   `);
   await stmt
     .bind(
       id,
+      ctx.userId,
       input.type,
       input.url ?? null,
       input.title,
@@ -55,10 +57,10 @@ export async function createDocument(
     )
     .run();
 
-  const doc = (await getDocument(db, id))!;
+  const doc = (await getDocument(ctx, id))!;
 
   try {
-    await indexDocument(db, {
+    await indexDocument(ctx.db, {
       id: doc.id,
       title: doc.title,
       author: doc.author,
@@ -72,18 +74,18 @@ export async function createDocument(
 }
 
 export async function getDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<Document | null> {
-  const result = await db
-    .prepare("SELECT * FROM document WHERE id = ?1")
-    .bind(id)
+  const result = await ctx.db
+    .prepare("SELECT * FROM document WHERE id = ?1 AND user_id = ?2")
+    .bind(id, ctx.userId)
     .first<Document>();
   return result ?? null;
 }
 
 export async function updateDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string,
   updates: Partial<Pick<Document, "updated_at" | "location" | "is_read" | "is_starred" | "reading_progress" | "last_read_at" | "deleted_at">>
 ): Promise<void> {
@@ -106,34 +108,34 @@ export async function updateDocument(
     paramIndex++;
   }
 
-  values.push(id);
+  values.push(id, ctx.userId);
 
-  await db
+  await ctx.db
     .prepare(
-      `UPDATE document SET ${fields.join(", ")} WHERE id = ?${paramIndex}`
+      `UPDATE document SET ${fields.join(", ")} WHERE id = ?${paramIndex} AND user_id = ?${paramIndex + 1}`
     )
     .bind(...values)
     .run();
 }
 
 export async function getDocumentByUrl(
-  db: D1Database,
+  ctx: UserScopedDb,
   url: string
 ): Promise<Document | null> {
-  const result = await db
-    .prepare("SELECT * FROM document WHERE url = ?1 AND deleted_at IS NULL")
-    .bind(url)
+  const result = await ctx.db
+    .prepare("SELECT * FROM document WHERE url = ?1 AND user_id = ?2 AND deleted_at IS NULL")
+    .bind(url, ctx.userId)
     .first<Document>();
   return result ?? null;
 }
 
 export async function listDocuments(
-  db: D1Database,
+  ctx: UserScopedDb,
   query: ListDocumentsQuery
 ): Promise<{ items: Document[]; total: number; nextCursor?: string }> {
-  const conditions: string[] = ["d.deleted_at IS NULL"];
-  const bindings: unknown[] = [];
-  let paramIdx = 1;
+  const conditions: string[] = ["d.deleted_at IS NULL", "d.user_id = ?1"];
+  const bindings: unknown[] = [ctx.userId];
+  let paramIdx = 2;
 
   if (query.location) {
     conditions.push(`d.location = ?${paramIdx}`);
@@ -191,7 +193,7 @@ export async function listDocuments(
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   // Count query
-  const countResult = await db
+  const countResult = await ctx.db
     .prepare(`SELECT COUNT(*) as cnt FROM document d ${where}`)
     .bind(...bindings)
     .first<{ cnt: number }>();
@@ -218,7 +220,7 @@ export async function listDocuments(
       : "";
 
   const sqlDir = sortDir === "desc" ? "DESC" : "ASC";
-  const rows = await db
+  const rows = await ctx.db
     .prepare(
       `SELECT d.* FROM document d ${cursorWhere} ORDER BY d.${sortBy} ${sqlDir} LIMIT ?${paramIdx}`
     )
@@ -233,13 +235,13 @@ export async function listDocuments(
 }
 
 export async function getDocumentWithTags(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<DocumentWithTags | null> {
-  const doc = await getDocument(db, id);
+  const doc = await getDocument(ctx, id);
   if (!doc) return null;
 
-  const tagRows = await db
+  const tagRows = await ctx.db
     .prepare(
       `SELECT t.* FROM tag t
        INNER JOIN document_tags dt ON dt.tag_id = t.id
@@ -249,14 +251,14 @@ export async function getDocumentWithTags(
     .all<Tag>();
 
   const subscription = doc.source_id
-    ? await db
-        .prepare("SELECT * FROM subscription WHERE id = ?1")
-        .bind(doc.source_id)
+    ? await ctx.db
+        .prepare("SELECT * FROM subscription WHERE id = ?1 AND user_id = ?2")
+        .bind(doc.source_id, ctx.userId)
         .first()
     : undefined;
 
   const emailMeta = doc.type === "email"
-    ? await getEmailMetaByDocumentId(db, id)
+    ? await getEmailMetaByDocumentId(ctx.db, id)
     : undefined;
 
   return {
@@ -268,43 +270,43 @@ export async function getDocumentWithTags(
 }
 
 export async function softDeleteDocument(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string
 ): Promise<void> {
   const now = nowISO();
-  await db
-    .prepare("UPDATE document SET deleted_at = ?1, updated_at = ?1 WHERE id = ?2")
-    .bind(now, id)
+  await ctx.db
+    .prepare("UPDATE document SET deleted_at = ?1, updated_at = ?1 WHERE id = ?2 AND user_id = ?3")
+    .bind(now, id, ctx.userId)
     .run();
   try {
-    await deindexDocument(db, id);
+    await deindexDocument(ctx.db, id);
   } catch {
     // FTS table may not exist in some environments; soft-delete still succeeds
   }
 }
 
 export async function updateReadingProgress(
-  db: D1Database,
+  ctx: UserScopedDb,
   id: string,
   progress: number,
   scrollPosition?: number
 ): Promise<void> {
   const now = nowISO();
-  await db
+  await ctx.db
     .prepare(
-      `UPDATE document SET reading_progress = ?1, last_read_at = ?2, updated_at = ?2 WHERE id = ?3`
+      `UPDATE document SET reading_progress = ?1, last_read_at = ?2, updated_at = ?2 WHERE id = ?3 AND user_id = ?4`
     )
-    .bind(progress, now, id)
+    .bind(progress, now, id, ctx.userId)
     .run();
 }
 
 export async function getDocumentCount(
-  db: D1Database,
+  ctx: UserScopedDb,
   filters: { location?: string; isStarred?: boolean; isRead?: boolean }
 ): Promise<number> {
-  const conditions: string[] = ["deleted_at IS NULL"];
-  const bindings: unknown[] = [];
-  let paramIdx = 1;
+  const conditions: string[] = ["deleted_at IS NULL", "user_id = ?1"];
+  const bindings: unknown[] = [ctx.userId];
+  let paramIdx = 2;
 
   if (filters.location) {
     conditions.push(`location = ?${paramIdx}`);
@@ -319,7 +321,7 @@ export async function getDocumentCount(
   }
 
   const where = `WHERE ${conditions.join(" AND ")}`;
-  const result = await db
+  const result = await ctx.db
     .prepare(`SELECT COUNT(*) as cnt FROM document ${where}`)
     .bind(...bindings)
     .first<{ cnt: number }>();
@@ -327,7 +329,7 @@ export async function getDocumentCount(
 }
 
 export async function batchUpdateDocuments(
-  db: D1Database,
+  ctx: UserScopedDb,
   ids: string[],
   updates: Partial<Pick<Document, "location" | "is_read" | "is_starred">>
 ): Promise<void> {
@@ -343,11 +345,16 @@ export async function batchUpdateDocuments(
     paramIdx++;
   }
 
+  // user_id param
+  values.push(ctx.userId);
+  const userIdParam = paramIdx;
+  paramIdx++;
+
   const placeholders = ids.map((_, i) => `?${paramIdx + i}`).join(", ");
 
-  await db
+  await ctx.db
     .prepare(
-      `UPDATE document SET ${fields.join(", ")} WHERE id IN (${placeholders})`
+      `UPDATE document SET ${fields.join(", ")} WHERE user_id = ?${userIdParam} AND id IN (${placeholders})`
     )
     .bind(...values, ...ids)
     .run();

@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
-import { INITIAL_SCHEMA_SQL, FTS5_MIGRATION_SQL } from "@focus-reader/db/migration-sql";
-import { createFeed, createTag, addTagToFeed } from "@focus-reader/db";
+import { INITIAL_SCHEMA_SQL, FTS5_MIGRATION_SQL, MULTI_TENANCY_SQL } from "@focus-reader/db/migration-sql";
+import { createFeed, createTag, addTagToFeed, scopeDb } from "@focus-reader/db";
+import type { UserScopedDb } from "@focus-reader/db";
 import worker from "../index.js";
 import type { Env } from "../index.js";
 
@@ -39,6 +40,8 @@ const EMPTY_RSS_FIXTURE = `<?xml version="1.0"?>
 
 // --- Test helpers ---
 
+const TEST_USER_ID = "test-user-00000000-0000-0000-0001";
+
 const TABLES = [
   "document_fts",
   "document_tags",
@@ -51,6 +54,7 @@ const TABLES = [
   "document_pdf_meta",
   "highlight",
   "ingestion_log",
+  "ingestion_report_daily",
   "document",
   "subscription",
   "tag",
@@ -60,8 +64,8 @@ const TABLES = [
   "api_key",
   "saved_view",
   "user_preferences",
-  "ingestion_report_daily",
   "denylist",
+  "user",
 ];
 
 async function resetDatabase(db: D1Database) {
@@ -69,7 +73,7 @@ async function resetDatabase(db: D1Database) {
     await db.prepare(`DROP TABLE IF EXISTS ${table}`).run();
   }
 
-  const allSql = INITIAL_SCHEMA_SQL + "\n" + FTS5_MIGRATION_SQL;
+  const allSql = INITIAL_SCHEMA_SQL + "\n" + FTS5_MIGRATION_SQL + "\n" + MULTI_TENANCY_SQL;
   const statements = allSql
     .split(";")
     .map((s) => s.trim())
@@ -84,6 +88,16 @@ async function resetDatabase(db: D1Database) {
   for (const stmt of statements) {
     await db.prepare(stmt).run();
   }
+
+  // Create test user
+  await db
+    .prepare("INSERT INTO user (id, email, slug, is_admin) VALUES (?1, ?2, ?3, 1)")
+    .bind(TEST_USER_ID, "test@example.com", "test")
+    .run();
+}
+
+function getCtx(): UserScopedDb {
+  return scopeDb(env.FOCUS_DB, TEST_USER_ID);
 }
 
 function getEnv(): Env {
@@ -119,8 +133,9 @@ describe("rss worker", () => {
   });
 
   it("creates documents from feed items (happy path)", async () => {
+    const ctx = getCtx();
     // Seed a feed that is due for polling (no last_fetched_at)
-    const feed = await createFeed(env.FOCUS_DB, {
+    const feed = await createFeed(ctx, {
       feed_url: "https://testblog.example.com/feed.xml",
       title: "Test Blog",
     });
@@ -171,7 +186,8 @@ describe("rss worker", () => {
   });
 
   it("deduplicates items across multiple runs", async () => {
-    const feed = await createFeed(env.FOCUS_DB, {
+    const ctx = getCtx();
+    const feed = await createFeed(ctx, {
       feed_url: "https://testblog.example.com/feed.xml",
       title: "Test Blog",
     });
@@ -212,7 +228,8 @@ describe("rss worker", () => {
   });
 
   it("increments error count on feed fetch failure", async () => {
-    const feed = await createFeed(env.FOCUS_DB, {
+    const ctx = getCtx();
+    const feed = await createFeed(ctx, {
       feed_url: "https://testblog.example.com/feed.xml",
       title: "Test Blog",
     });
@@ -243,8 +260,9 @@ describe("rss worker", () => {
   });
 
   it("auto-deactivates feed after max consecutive errors", async () => {
+    const ctx = getCtx();
     // Seed feed with error_count = 4 (one away from threshold of 5)
-    const feed = await createFeed(env.FOCUS_DB, {
+    const feed = await createFeed(ctx, {
       feed_url: "https://testblog.example.com/feed.xml",
       title: "Test Blog",
     });
@@ -274,15 +292,16 @@ describe("rss worker", () => {
   });
 
   it("inherits tags from feed to documents", async () => {
-    const feed = await createFeed(env.FOCUS_DB, {
+    const ctx = getCtx();
+    const feed = await createFeed(ctx, {
       feed_url: "https://testblog.example.com/feed.xml",
       title: "Test Blog",
     });
 
-    const tag1 = await createTag(env.FOCUS_DB, { name: "tech" });
-    const tag2 = await createTag(env.FOCUS_DB, { name: "news" });
-    await addTagToFeed(env.FOCUS_DB, feed.id, tag1.id);
-    await addTagToFeed(env.FOCUS_DB, feed.id, tag2.id);
+    const tag1 = await createTag(ctx, { name: "tech" });
+    const tag2 = await createTag(ctx, { name: "news" });
+    await addTagToFeed(ctx, feed.id, tag1.id);
+    await addTagToFeed(ctx, feed.id, tag2.id);
 
     fetchMock
       .get("https://testblog.example.com")
@@ -314,7 +333,8 @@ describe("rss worker", () => {
   });
 
   it("handles empty feed with no items", async () => {
-    const feed = await createFeed(env.FOCUS_DB, {
+    const ctx = getCtx();
+    const feed = await createFeed(ctx, {
       feed_url: "https://emptyblog.example.com/feed.xml",
       title: "Empty Blog",
     });
@@ -346,7 +366,8 @@ describe("rss worker", () => {
   });
 
   it("deduplicates via URL normalization (tracking params, trailing slash)", async () => {
-    const feed = await createFeed(env.FOCUS_DB, {
+    const ctx = getCtx();
+    const feed = await createFeed(ctx, {
       feed_url: "https://testblog.example.com/feed.xml",
       title: "Test Blog",
     });
@@ -403,8 +424,9 @@ describe("rss worker", () => {
   });
 
   it("skips inactive and recently-fetched feeds", async () => {
+    const ctx = getCtx();
     // Inactive feed
-    const inactiveFeed = await createFeed(env.FOCUS_DB, {
+    const inactiveFeed = await createFeed(ctx, {
       feed_url: "https://inactive.example.com/feed.xml",
       title: "Inactive Feed",
     });
@@ -415,7 +437,7 @@ describe("rss worker", () => {
       .run();
 
     // Recently-fetched feed (fetched just now, interval is 60 min default)
-    const recentFeed = await createFeed(env.FOCUS_DB, {
+    const recentFeed = await createFeed(ctx, {
       feed_url: "https://recent.example.com/feed.xml",
       title: "Recent Feed",
     });

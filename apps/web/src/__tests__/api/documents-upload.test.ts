@@ -3,7 +3,7 @@ import { createRequest, setAuthEnabled } from "../setup";
 
 vi.mock("@focus-reader/api", () => ({
   createPdfDocument: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { POST } from "@/app/api/documents/upload/route";

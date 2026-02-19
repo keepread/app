@@ -3,12 +3,13 @@ import { createRequest, routeParams, mockDb, mockR2, setAuthEnabled } from "../s
 
 vi.mock("@focus-reader/api", () => ({
   getDocumentDetail: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
-vi.mock("@focus-reader/db", () => ({
-  getPdfMeta: vi.fn(),
-}));
+vi.mock("@focus-reader/db", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@focus-reader/db")>();
+  return { ...actual, getPdfMeta: vi.fn() };
+});
 
 import { GET } from "@/app/api/documents/[id]/content/route";
 import { getDocumentDetail } from "@focus-reader/api";

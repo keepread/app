@@ -1,3 +1,4 @@
+export * from "./scoped-db.js";
 export * from "./schema.js";
 export * from "./queries/documents.js";
 export * from "./queries/email-meta.js";
@@ -14,3 +15,4 @@ export * from "./queries/saved-views.js";
 export * from "./queries/highlights.js";
 export * from "./queries/collections.js";
 export * from "./queries/user-preferences.js";
+export * from "./queries/admin.js";

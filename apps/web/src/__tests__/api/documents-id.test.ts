@@ -7,7 +7,7 @@ vi.mock("@focus-reader/api", () => ({
   removeDocument: vi.fn(),
   tagDocument: vi.fn(),
   untagDocument: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { GET, PATCH, DELETE } from "@/app/api/documents/[id]/route";
@@ -54,7 +54,7 @@ describe("PATCH /api/documents/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(patchDocument).toHaveBeenCalledWith(
-      mockDb,
+      expect.objectContaining({ db: mockDb, userId: "test-user-id" }),
       "doc1",
       expect.objectContaining({ title: "Updated Title", is_read: 1 })
     );
@@ -69,7 +69,7 @@ describe("PATCH /api/documents/[id]", () => {
     const res = await PATCH(req, routeParams("doc1"));
 
     expect(res.status).toBe(200);
-    expect(tagDocument).toHaveBeenCalledWith(mockDb, "doc1", "tag1");
+    expect(tagDocument).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "doc1", "tag1");
   });
 
   it("handles removeTagId", async () => {
@@ -81,7 +81,7 @@ describe("PATCH /api/documents/[id]", () => {
     const res = await PATCH(req, routeParams("doc1"));
 
     expect(res.status).toBe(200);
-    expect(untagDocument).toHaveBeenCalledWith(mockDb, "doc1", "tag1");
+    expect(untagDocument).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "doc1", "tag1");
   });
 });
 
@@ -93,6 +93,6 @@ describe("DELETE /api/documents/[id]", () => {
     const res = await DELETE(req, routeParams("doc1"));
 
     expect(res.status).toBe(200);
-    expect(removeDocument).toHaveBeenCalledWith(mockDb, "doc1");
+    expect(removeDocument).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "doc1");
   });
 });

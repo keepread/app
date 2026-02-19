@@ -11,6 +11,10 @@ import { NextRequest } from "next/server";
 // ---------------------------------------------------------------------------
 // Mock D1Database
 // ---------------------------------------------------------------------------
+// Default mock user returned by unbounded .prepare().first() calls
+// (used by getOrCreateSingleUser in single-user auth mode)
+const mockUserRow = { id: "test-user-id", email: "owner@localhost", slug: "owner" };
+
 export function createMockDb(): D1Database {
   return {
     prepare: vi.fn().mockReturnValue({
@@ -19,7 +23,7 @@ export function createMockDb(): D1Database {
         all: vi.fn().mockResolvedValue({ results: [] }),
         run: vi.fn().mockResolvedValue({ success: true }),
       }),
-      first: vi.fn().mockResolvedValue(null),
+      first: vi.fn().mockResolvedValue(mockUserRow),
       all: vi.fn().mockResolvedValue({ results: [] }),
       run: vi.fn().mockResolvedValue({ success: true }),
     }),
@@ -49,6 +53,7 @@ export function createMockR2(): R2Bucket {
 // ---------------------------------------------------------------------------
 export const mockDb = createMockDb();
 export const mockR2 = createMockR2();
+export const mockUserId = "test-user-id";
 
 // Auth env — no CF_ACCESS vars by default (dev mode passthrough)
 let envOverrides: Record<string, string | undefined> = {};

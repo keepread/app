@@ -10,7 +10,7 @@ vi.mock("@focus-reader/api", () => ({
   addToCollection: vi.fn(),
   removeFromCollection: vi.fn(),
   reorderCollection: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { GET as listGET, POST as createPOST } from "@/app/api/collections/route";
@@ -99,7 +99,7 @@ describe("PATCH /api/collections/[id]", () => {
     const res = await PATCH(req, routeParams("c1"));
 
     expect(res.status).toBe(200);
-    expect(patchCollection).toHaveBeenCalledWith(mockDb, "c1", { name: "Updated" });
+    expect(patchCollection).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "c1", { name: "Updated" });
   });
 });
 
@@ -124,7 +124,7 @@ describe("POST /api/collections/[id]/documents", () => {
     const res = await addDocPOST(req, routeParams("c1"));
 
     expect(res.status).toBe(200);
-    expect(addToCollection).toHaveBeenCalledWith(mockDb, "c1", "d1");
+    expect(addToCollection).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "c1", "d1");
   });
 
   it("returns 400 when documentId missing", async () => {
@@ -157,7 +157,7 @@ describe("PUT /api/collections/[id]/reorder", () => {
     const res = await reorderPUT(req, routeParams("c1"));
 
     expect(res.status).toBe(200);
-    expect(reorderCollection).toHaveBeenCalledWith(mockDb, "c1", ["d3", "d1", "d2"]);
+    expect(reorderCollection).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "c1", ["d3", "d1", "d2"]);
   });
 
   it("returns 400 when orderedDocumentIds missing", async () => {

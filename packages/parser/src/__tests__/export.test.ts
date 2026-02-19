@@ -8,6 +8,7 @@ import type { Document, Tag, HighlightWithTags, HighlightWithDocument } from "@f
 
 const mockDoc: Document = {
   id: "d1",
+  user_id: "test-user-id",
   type: "article",
   title: "Test Article",
   author: "Jane Doe",
@@ -35,12 +36,13 @@ const mockDoc: Document = {
 };
 
 const mockTags: Tag[] = [
-  { id: "t1", name: "reading", color: "#6366f1", description: null, created_at: "2026-01-01T00:00:00Z" },
-  { id: "t2", name: "tech", color: "#22c55e", description: null, created_at: "2026-01-01T00:00:00Z" },
+  { id: "t1", user_id: "test-user-id", name: "reading", color: "#6366f1", description: null, created_at: "2026-01-01T00:00:00Z" },
+  { id: "t2", user_id: "test-user-id", name: "tech", color: "#22c55e", description: null, created_at: "2026-01-01T00:00:00Z" },
 ];
 
 const mockHighlight: HighlightWithTags = {
   id: "h1",
+  user_id: "test-user-id",
   document_id: "d1",
   text: "This is a highlighted passage.",
   note: "Important insight",

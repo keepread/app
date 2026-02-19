@@ -3,7 +3,7 @@ import { createRequest, mockDb, setAuthEnabled } from "../setup";
 
 vi.mock("@focus-reader/api", () => ({
   searchDocuments: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { GET } from "@/app/api/search/route";
@@ -24,7 +24,7 @@ describe("GET /api/search", () => {
 
     expect(res.status).toBe(200);
     expect(searchDocuments).toHaveBeenCalledWith(
-      mockDb,
+      expect.objectContaining({ db: mockDb, userId: "test-user-id" }),
       expect.objectContaining({ q: "test" })
     );
   });

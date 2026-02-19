@@ -25,12 +25,13 @@ import {
 import { logIngestionEvent } from "../queries/ingestion-log.js";
 import { isDomainDenied } from "../queries/denylist.js";
 import { createAttachment } from "../queries/attachments.js";
-import { INITIAL_SCHEMA_SQL, FTS5_MIGRATION_SQL } from "../migration-sql.js";
+import { INITIAL_SCHEMA_SQL, FTS5_MIGRATION_SQL, MULTI_TENANCY_SQL } from "../migration-sql.js";
+import { scopeDb } from "../scoped-db.js";
 
 async function applyMigration(db: D1Database) {
   // Split SQL into individual statements and execute via prepare().run()
   // db.exec() has a workerd bug with response metadata, so we avoid it.
-  const allSql = INITIAL_SCHEMA_SQL + "\n" + FTS5_MIGRATION_SQL;
+  const allSql = INITIAL_SCHEMA_SQL + "\n" + FTS5_MIGRATION_SQL + "\n" + MULTI_TENANCY_SQL;
   const statements = allSql
     .split(";")
     .map((s) => s.trim())
@@ -48,13 +49,19 @@ async function applyMigration(db: D1Database) {
 }
 
 describe("db queries", () => {
+  let ctx: ReturnType<typeof scopeDb>;
+
   beforeEach(async () => {
     await applyMigration(env.FOCUS_DB);
+    await env.FOCUS_DB.prepare("INSERT INTO user (id, email, slug, is_admin) VALUES (?1, ?2, ?3, 1)")
+      .bind("test-user-id", "test@example.com", "test")
+      .run();
+    ctx = scopeDb(env.FOCUS_DB, "test-user-id");
   });
 
   describe("documents", () => {
     it("creates and retrieves a document", async () => {
-      const doc = await createDocument(env.FOCUS_DB, {
+      const doc = await createDocument(ctx, {
         type: "email",
         title: "Test Newsletter",
         origin_type: "subscription",
@@ -70,14 +77,14 @@ describe("db queries", () => {
       expect(doc.is_read).toBe(0);
       expect(doc.origin_type).toBe("subscription");
 
-      const fetched = await getDocument(env.FOCUS_DB, doc.id);
+      const fetched = await getDocument(ctx, doc.id);
       expect(fetched).not.toBeNull();
       expect(fetched!.title).toBe("Test Newsletter");
     });
 
     it("creates document with pre-generated id", async () => {
       const customId = crypto.randomUUID();
-      const doc = await createDocument(env.FOCUS_DB, {
+      const doc = await createDocument(ctx, {
         id: customId,
         type: "email",
         title: "Pre-ID Doc",
@@ -87,7 +94,7 @@ describe("db queries", () => {
     });
 
     it("gets document by URL", async () => {
-      await createDocument(env.FOCUS_DB, {
+      await createDocument(ctx, {
         type: "article",
         title: "Article",
         url: "https://example.com/post",
@@ -95,7 +102,7 @@ describe("db queries", () => {
       });
 
       const found = await getDocumentByUrl(
-        env.FOCUS_DB,
+        ctx,
         "https://example.com/post"
       );
       expect(found).not.toBeNull();
@@ -103,35 +110,35 @@ describe("db queries", () => {
     });
 
     it("getDocumentByUrl excludes soft-deleted documents", async () => {
-      const doc = await createDocument(env.FOCUS_DB, {
+      const doc = await createDocument(ctx, {
         type: "article",
         title: "Deletable",
         url: "https://example.com/deletable",
         origin_type: "manual",
       });
 
-      await softDeleteDocument(env.FOCUS_DB, doc.id);
+      await softDeleteDocument(ctx, doc.id);
 
       const found = await getDocumentByUrl(
-        env.FOCUS_DB,
+        ctx,
         "https://example.com/deletable"
       );
       expect(found).toBeNull();
     });
 
     it("updates document fields", async () => {
-      const doc = await createDocument(env.FOCUS_DB, {
+      const doc = await createDocument(ctx, {
         type: "email",
         title: "Test",
         origin_type: "subscription",
       });
 
-      await updateDocument(env.FOCUS_DB, doc.id, {
+      await updateDocument(ctx, doc.id, {
         is_read: 1,
         location: "archive",
       });
 
-      const updated = await getDocument(env.FOCUS_DB, doc.id);
+      const updated = await getDocument(ctx, doc.id);
       expect(updated!.is_read).toBe(1);
       expect(updated!.location).toBe("archive");
     });
@@ -139,7 +146,7 @@ describe("db queries", () => {
 
   describe("email meta", () => {
     it("creates email meta with message_id dedup", async () => {
-      const doc = await createDocument(env.FOCUS_DB, {
+      const doc = await createDocument(ctx, {
         type: "email",
         title: "Newsletter",
         origin_type: "subscription",
@@ -164,7 +171,7 @@ describe("db queries", () => {
     });
 
     it("looks up by fingerprint", async () => {
-      const doc = await createDocument(env.FOCUS_DB, {
+      const doc = await createDocument(ctx, {
         type: "email",
         title: "Newsletter",
         origin_type: "subscription",
@@ -185,7 +192,7 @@ describe("db queries", () => {
     });
 
     it("increments delivery attempts", async () => {
-      const doc = await createDocument(env.FOCUS_DB, {
+      const doc = await createDocument(ctx, {
         type: "email",
         title: "Newsletter",
         origin_type: "subscription",
@@ -209,7 +216,7 @@ describe("db queries", () => {
 
   describe("subscriptions", () => {
     it("creates and finds subscription by email", async () => {
-      const sub = await createSubscription(env.FOCUS_DB, {
+      const sub = await createSubscription(ctx, {
         pseudo_email: "morning-brew@read.example.com",
         display_name: "Morning Brew",
         sender_address: "newsletter@morningbrew.com",
@@ -219,7 +226,7 @@ describe("db queries", () => {
       expect(sub.is_active).toBe(1);
 
       const found = await getSubscriptionByEmail(
-        env.FOCUS_DB,
+        ctx,
         "morning-brew@read.example.com"
       );
       expect(found).not.toBeNull();
@@ -228,7 +235,7 @@ describe("db queries", () => {
 
     it("returns null for unknown email", async () => {
       const found = await getSubscriptionByEmail(
-        env.FOCUS_DB,
+        ctx,
         "unknown@read.example.com"
       );
       expect(found).toBeNull();
@@ -237,7 +244,7 @@ describe("db queries", () => {
 
   describe("tags", () => {
     it("creates a tag", async () => {
-      const tag = await createTag(env.FOCUS_DB, {
+      const tag = await createTag(ctx, {
         name: "tech",
         color: "#0000FF",
       });
@@ -246,13 +253,13 @@ describe("db queries", () => {
     });
 
     it("gets tags for subscription", async () => {
-      const sub = await createSubscription(env.FOCUS_DB, {
+      const sub = await createSubscription(ctx, {
         pseudo_email: "test@read.example.com",
         display_name: "Test",
       });
 
-      const tag1 = await createTag(env.FOCUS_DB, { name: "tech" });
-      const tag2 = await createTag(env.FOCUS_DB, { name: "ai" });
+      const tag1 = await createTag(ctx, { name: "tech" });
+      const tag2 = await createTag(ctx, { name: "ai" });
 
       await env.FOCUS_DB.prepare(
         "INSERT INTO subscription_tags (subscription_id, tag_id) VALUES (?1, ?2)"
@@ -265,20 +272,20 @@ describe("db queries", () => {
         .bind(sub.id, tag2.id)
         .run();
 
-      const tags = await getTagsForSubscription(env.FOCUS_DB, sub.id);
+      const tags = await getTagsForSubscription(ctx, sub.id);
       expect(tags).toHaveLength(2);
       expect(tags.map((t) => t.name).sort()).toEqual(["ai", "tech"]);
     });
 
     it("adds tag to document", async () => {
-      const doc = await createDocument(env.FOCUS_DB, {
+      const doc = await createDocument(ctx, {
         type: "email",
         title: "Test",
         origin_type: "subscription",
       });
 
-      const tag = await createTag(env.FOCUS_DB, { name: "newsletter" });
-      await addTagToDocument(env.FOCUS_DB, doc.id, tag.id);
+      const tag = await createTag(ctx, { name: "newsletter" });
+      await addTagToDocument(ctx, doc.id, tag.id);
 
       const result = await env.FOCUS_DB.prepare(
         "SELECT * FROM document_tags WHERE document_id = ?1 AND tag_id = ?2"
@@ -289,27 +296,27 @@ describe("db queries", () => {
     });
 
     it("handles duplicate tag-to-document gracefully", async () => {
-      const doc = await createDocument(env.FOCUS_DB, {
+      const doc = await createDocument(ctx, {
         type: "email",
         title: "Test",
         origin_type: "subscription",
       });
 
-      const tag = await createTag(env.FOCUS_DB, { name: "newsletter" });
-      await addTagToDocument(env.FOCUS_DB, doc.id, tag.id);
-      await addTagToDocument(env.FOCUS_DB, doc.id, tag.id);
+      const tag = await createTag(ctx, { name: "newsletter" });
+      await addTagToDocument(ctx, doc.id, tag.id);
+      await addTagToDocument(ctx, doc.id, tag.id);
     });
   });
 
   describe("ingestion log", () => {
     it("logs a successful ingestion event", async () => {
-      const doc = await createDocument(env.FOCUS_DB, {
+      const doc = await createDocument(ctx, {
         type: "email",
         title: "Test",
         origin_type: "subscription",
       });
 
-      const log = await logIngestionEvent(env.FOCUS_DB, {
+      const log = await logIngestionEvent(ctx, {
         event_id: "evt-001",
         document_id: doc.id,
         channel_type: "email",
@@ -322,7 +329,7 @@ describe("db queries", () => {
     });
 
     it("logs a failed ingestion event", async () => {
-      const log = await logIngestionEvent(env.FOCUS_DB, {
+      const log = await logIngestionEvent(ctx, {
         event_id: "evt-002",
         channel_type: "email",
         status: "failure",
@@ -339,26 +346,26 @@ describe("db queries", () => {
 
   describe("denylist", () => {
     it("detects denied domain", async () => {
-      await env.FOCUS_DB.exec(
-        "INSERT INTO denylist (id, domain, reason) VALUES ('d1', 'spam.com', 'spam')"
-      );
+      await env.FOCUS_DB.prepare(
+        "INSERT INTO denylist (id, user_id, domain, reason) VALUES ('d1', ?1, 'spam.com', 'spam')"
+      ).bind("test-user-id").run();
 
-      expect(await isDomainDenied(env.FOCUS_DB, "spam.com")).toBe(true);
-      expect(await isDomainDenied(env.FOCUS_DB, "legit.com")).toBe(false);
+      expect(await isDomainDenied(ctx, "spam.com")).toBe(true);
+      expect(await isDomainDenied(ctx, "legit.com")).toBe(false);
     });
 
     it("is case-insensitive", async () => {
-      await env.FOCUS_DB.exec(
-        "INSERT INTO denylist (id, domain, reason) VALUES ('d2', 'spam.com', 'spam')"
-      );
+      await env.FOCUS_DB.prepare(
+        "INSERT INTO denylist (id, user_id, domain, reason) VALUES ('d2', ?1, 'spam.com', 'spam')"
+      ).bind("test-user-id").run();
 
-      expect(await isDomainDenied(env.FOCUS_DB, "SPAM.COM")).toBe(true);
+      expect(await isDomainDenied(ctx, "SPAM.COM")).toBe(true);
     });
   });
 
   describe("attachments", () => {
     it("creates an attachment record", async () => {
-      const doc = await createDocument(env.FOCUS_DB, {
+      const doc = await createDocument(ctx, {
         type: "email",
         title: "Test",
         origin_type: "subscription",

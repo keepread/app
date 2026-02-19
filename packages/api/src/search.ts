@@ -4,6 +4,7 @@ import type {
   DocumentWithTags,
   PaginatedResponse,
 } from "@focus-reader/shared";
+import type { UserScopedDb } from "@focus-reader/db";
 import {
   searchDocuments as dbSearch,
   getDocumentWithTags,
@@ -19,10 +20,10 @@ export interface SearchDocumentsQuery {
 }
 
 export async function searchDocuments(
-  db: D1Database,
+  ctx: UserScopedDb,
   query: SearchDocumentsQuery
 ): Promise<PaginatedResponse<DocumentWithTags & { snippet: string }>> {
-  const { results, total } = await dbSearch(db, query.q, {
+  const { results, total } = await dbSearch(ctx, query.q, {
     limit: query.limit,
     offset: query.offset,
     location: query.location,
@@ -32,7 +33,7 @@ export async function searchDocuments(
 
   const items: (DocumentWithTags & { snippet: string })[] = [];
   for (const result of results) {
-    const doc = await getDocumentWithTags(db, result.documentId);
+    const doc = await getDocumentWithTags(ctx, result.documentId);
     if (doc) {
       items.push({ ...doc, snippet: result.snippet });
     }

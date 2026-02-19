@@ -9,12 +9,13 @@ vi.mock("@focus-reader/api", () => ({
   removeHighlight: vi.fn(),
   tagHighlight: vi.fn(),
   untagHighlight: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
-vi.mock("@focus-reader/db", () => ({
-  getHighlightWithTags: vi.fn(),
-}));
+vi.mock("@focus-reader/db", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@focus-reader/db")>();
+  return { ...actual, getHighlightWithTags: vi.fn() };
+});
 
 import { GET as docHighlightsGET, POST as docHighlightsPOST } from "@/app/api/documents/[id]/highlights/route";
 import { GET as allHighlightsGET } from "@/app/api/highlights/route";
@@ -49,7 +50,7 @@ describe("GET /api/documents/[id]/highlights", () => {
     expect(res.status).toBe(200);
     const body = await res.json() as Record<string, unknown>[];
     expect(body).toHaveLength(1);
-    expect(getHighlightsForDocument).toHaveBeenCalledWith(mockDb, "d1");
+    expect(getHighlightsForDocument).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "d1");
   });
 });
 
@@ -71,7 +72,7 @@ describe("POST /api/documents/[id]/highlights", () => {
 
     expect(res.status).toBe(201);
     expect(createHighlight).toHaveBeenCalledWith(
-      mockDb,
+      expect.objectContaining({ db: mockDb, userId: "test-user-id" }),
       expect.objectContaining({
         document_id: "d1",
         text: "Highlighted text",
@@ -115,7 +116,7 @@ describe("GET /api/highlights", () => {
     await allHighlightsGET(req);
 
     expect(getAllHighlights).toHaveBeenCalledWith(
-      mockDb,
+      expect.objectContaining({ db: mockDb, userId: "test-user-id" }),
       expect.objectContaining({
         color: "#90EE90",
         tagId: "t1",
@@ -157,7 +158,7 @@ describe("PATCH /api/highlights/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(patchHighlight).toHaveBeenCalledWith(
-      mockDb,
+      expect.objectContaining({ db: mockDb, userId: "test-user-id" }),
       "h1",
       expect.objectContaining({ note: "Updated note", color: "#FF6B6B" })
     );
@@ -172,7 +173,7 @@ describe("DELETE /api/highlights/[id]", () => {
     const res = await highlightDELETE(req, routeParams("h1"));
 
     expect(res.status).toBe(200);
-    expect(removeHighlight).toHaveBeenCalledWith(mockDb, "h1");
+    expect(removeHighlight).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "h1");
   });
 });
 
@@ -186,7 +187,7 @@ describe("POST /api/highlights/[id]/tags", () => {
     const res = await tagPOST(req, routeParams("h1"));
 
     expect(res.status).toBe(200);
-    expect(tagHighlight).toHaveBeenCalledWith(mockDb, "h1", "t1");
+    expect(tagHighlight).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "h1", "t1");
   });
 
   it("returns 400 when tagId missing", async () => {
@@ -209,7 +210,7 @@ describe("DELETE /api/highlights/[id]/tags", () => {
     const res = await tagDELETE(req, routeParams("h1"));
 
     expect(res.status).toBe(200);
-    expect(untagHighlight).toHaveBeenCalledWith(mockDb, "h1", "t1");
+    expect(untagHighlight).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), "h1", "t1");
   });
 
   it("returns 400 when tagId missing", async () => {

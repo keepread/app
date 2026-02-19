@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { UserScopedDb } from "@focus-reader/db";
 
 vi.mock("@focus-reader/db", () => ({
   searchDocuments: vi.fn(),
@@ -11,6 +12,7 @@ const { searchDocuments: dbSearch, getDocumentWithTags } = await import(
 const { searchDocuments } = await import("../search.js");
 
 const mockDb = {} as D1Database;
+const mockCtx = { db: mockDb, userId: "test-user-id" } as unknown as UserScopedDb;
 
 describe("searchDocuments (API)", () => {
   beforeEach(() => {
@@ -26,8 +28,9 @@ describe("searchDocuments (API)", () => {
       total: 2,
     });
 
-    vi.mocked(getDocumentWithTags).mockImplementation(async (_db, id) => ({
+    vi.mocked(getDocumentWithTags).mockImplementation(async (_ctx, id) => ({
       id,
+      user_id: "test-user-id",
       type: "article" as const,
       url: null,
       title: `Doc ${id}`,
@@ -55,7 +58,7 @@ describe("searchDocuments (API)", () => {
       tags: [],
     }));
 
-    const result = await searchDocuments(mockDb, { q: "test" });
+    const result = await searchDocuments(mockCtx, { q: "test" });
 
     expect(result.items).toHaveLength(2);
     expect(result.total).toBe(2);
@@ -71,7 +74,7 @@ describe("searchDocuments (API)", () => {
       total: 0,
     });
 
-    const result = await searchDocuments(mockDb, { q: "nonexistent" });
+    const result = await searchDocuments(mockCtx, { q: "nonexistent" });
 
     expect(result.items).toHaveLength(0);
     expect(result.total).toBe(0);

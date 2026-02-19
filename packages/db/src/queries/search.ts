@@ -1,4 +1,5 @@
 import type { DocumentLocation, DocumentType } from "@focus-reader/shared";
+import type { UserScopedDb } from "../scoped-db.js";
 
 export interface SearchResult {
   documentId: string;
@@ -20,7 +21,7 @@ export function sanitizeFtsQuery(query: string): string {
 }
 
 export async function searchDocuments(
-  db: D1Database,
+  ctx: UserScopedDb,
   query: string,
   options?: { limit?: number; offset?: number; location?: DocumentLocation; type?: DocumentType; tagId?: string }
 ): Promise<{ results: SearchResult[]; total: number }> {
@@ -32,9 +33,9 @@ export async function searchDocuments(
   const limit = options?.limit ?? 20;
   const offset = options?.offset ?? 0;
 
-  const conditions: string[] = ["d.deleted_at IS NULL"];
-  const bindings: unknown[] = [sanitized];
-  let paramIdx = 2;
+  const conditions: string[] = ["d.deleted_at IS NULL", "d.user_id = ?2"];
+  const bindings: unknown[] = [sanitized, ctx.userId];
+  let paramIdx = 3;
 
   if (options?.location) {
     conditions.push(`d.location = ?${paramIdx}`);
@@ -57,7 +58,7 @@ export async function searchDocuments(
   const where = conditions.join(" AND ");
 
   // Count query
-  const countResult = await db
+  const countResult = await ctx.db
     .prepare(
       `SELECT COUNT(*) as cnt FROM document_fts fts
        INNER JOIN document d ON d.id = fts.doc_id
@@ -69,7 +70,7 @@ export async function searchDocuments(
 
   // Results query with snippet
   bindings.push(limit, offset);
-  const rows = await db
+  const rows = await ctx.db
     .prepare(
       `SELECT fts.doc_id as documentId,
               snippet(document_fts, 3, '<mark>', '</mark>', '…', 40) as snippet,

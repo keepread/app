@@ -4,7 +4,7 @@ import { createRequest, mockDb, setAuthEnabled } from "../setup";
 vi.mock("@focus-reader/api", () => ({
   getPreferences: vi.fn(),
   updatePreferences: vi.fn(),
-  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, method: "cf-access" }),
+  authenticateRequest: vi.fn().mockResolvedValue({ authenticated: true, userId: "test-user-id", method: "cf-access" }),
 }));
 
 import { GET, PATCH } from "@/app/api/preferences/route";
@@ -61,7 +61,7 @@ describe("PATCH /api/preferences", () => {
     const res = await PATCH(req);
 
     expect(res.status).toBe(200);
-    expect(updatePreferences).toHaveBeenCalledWith(mockDb, {
+    expect(updatePreferences).toHaveBeenCalledWith(expect.objectContaining({ db: mockDb, userId: "test-user-id" }), {
       font_family: "mono",
       font_size: 22,
     });

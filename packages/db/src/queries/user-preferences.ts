@@ -1,34 +1,33 @@
 import type { UserPreferences, UpdateUserPreferencesInput } from "@focus-reader/shared";
 import { nowISO } from "@focus-reader/shared";
-
-const DEFAULT_ID = "default";
+import type { UserScopedDb } from "../scoped-db.js";
 
 export async function getUserPreferences(
-  db: D1Database
+  ctx: UserScopedDb
 ): Promise<UserPreferences | null> {
-  const result = await db
+  const result = await ctx.db
     .prepare("SELECT * FROM user_preferences WHERE id = ?1")
-    .bind(DEFAULT_ID)
+    .bind(ctx.userId)
     .first<UserPreferences>();
   return result ?? null;
 }
 
 export async function upsertUserPreferences(
-  db: D1Database,
+  ctx: UserScopedDb,
   updates: UpdateUserPreferencesInput
 ): Promise<UserPreferences> {
-  const existing = await getUserPreferences(db);
+  const existing = await getUserPreferences(ctx);
   const now = nowISO();
 
   if (!existing) {
     // Insert with defaults + overrides
-    await db
+    await ctx.db
       .prepare(
         `INSERT INTO user_preferences (id, schema_version, theme, font_family, font_size, line_height, content_width, shortcut_map_json, view_mode_prefs_json, updated_at)
          VALUES (?1, 1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`
       )
       .bind(
-        DEFAULT_ID,
+        ctx.userId,
         updates.theme ?? "system",
         updates.font_family ?? null,
         updates.font_size ?? null,
@@ -56,9 +55,9 @@ export async function upsertUserPreferences(
     values.push(now);
     paramIdx++;
 
-    values.push(DEFAULT_ID);
+    values.push(ctx.userId);
 
-    await db
+    await ctx.db
       .prepare(
         `UPDATE user_preferences SET ${fields.join(", ")} WHERE id = ?${paramIdx}`
       )
@@ -66,5 +65,5 @@ export async function upsertUserPreferences(
       .run();
   }
 
-  return (await getUserPreferences(db))!;
+  return (await getUserPreferences(ctx))!;
 }
