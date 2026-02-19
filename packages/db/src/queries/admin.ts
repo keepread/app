@@ -56,29 +56,37 @@ export async function getOrCreateSingleUser(
   db: D1Database,
   email: string
 ): Promise<User> {
-  // In single-user mode, find or create the sole user
+  // In single-user mode (no CF Access), find or create the sole user.
+  // This should ONLY be called from the auto-auth fallback (no CF Access configured).
   const existing = await db
     .prepare("SELECT * FROM user LIMIT 1")
     .first<User>();
   if (existing) {
-    // Update email if it changed
-    if (existing.email !== email) {
-      await db
-        .prepare("UPDATE user SET email = ?1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?2")
-        .bind(email, existing.id)
-        .run();
-    }
     return existing;
   }
-  // Create the sole user
+  return createUserByEmail(db, email, true);
+}
+
+export async function createUserByEmail(
+  db: D1Database,
+  email: string,
+  isAdmin = false
+): Promise<User> {
+  // Check if user already exists for this email
+  const existing = await db
+    .prepare("SELECT * FROM user WHERE email = ?1")
+    .bind(email)
+    .first<User>();
+  if (existing) return existing;
+
   const id = crypto.randomUUID();
   const slug = email.split("@")[0].toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 30);
   await db
     .prepare(
       `INSERT INTO user (id, email, slug, is_admin, is_active)
-       VALUES (?1, ?2, ?3, 1, 1)`
+       VALUES (?1, ?2, ?3, ?4, 1)`
     )
-    .bind(id, email, slug)
+    .bind(id, email, slug, isAdmin ? 1 : 0)
     .run();
   return (await db
     .prepare("SELECT * FROM user WHERE id = ?1")

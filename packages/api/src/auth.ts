@@ -12,6 +12,7 @@
 import {
   getUserByEmail,
   getOrCreateSingleUser,
+  createUserByEmail,
   getApiKeyByHashAdmin as adminGetApiKeyByHash,
 } from "@focus-reader/db";
 
@@ -147,12 +148,13 @@ export async function authenticateRequest(
       if (user) {
         return { authenticated: true, userId: user.id, method: "cf-access" };
       }
-      // In single-user mode, auto-create the user from CF Access email
-      if (env.AUTH_MODE !== "multi-user") {
-        const created = await getOrCreateSingleUser(db, result.email);
-        return { authenticated: true, userId: created.id, method: "cf-access" };
-      }
-      return { authenticated: false, error: "No account found for this email" };
+      // User not found — create a new user for this email.
+      // In multi-user mode, this means a new independent user.
+      // In single-user mode with CF Access, this means the owner
+      // added another email to the CF Access policy.
+      // Either way, each email gets its own isolated user row.
+      const created = await createUserByEmail(db, result.email);
+      return { authenticated: true, userId: created.id, method: "cf-access" };
     }
   }
 
