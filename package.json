@@ -21,7 +21,8 @@
   "devDependencies": {
     "tsx": "^4.21.0",
     "turbo": "^2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
