@@ -5,6 +5,9 @@ This guide covers deploying Focus Reader to Cloudflare. Focus Reader supports tw
 - **Single-user mode** (`AUTH_MODE=single-user`, default) — Self-hosted on your own Cloudflare account. A sole user is auto-created and all requests are authenticated automatically. No login page needed.
 - **Multi-user mode** (`AUTH_MODE=multi-user`) — Multiple independent users with row-level data isolation on a shared D1 database. Requires full authentication (session cookie, CF Access JWT, or API key).
 
+## Introduction
+TBD - write what the user needs to have - domain name, email address, decide on authentication mode (single vs. multi-user)
+
 ## 1. What You Are Deploying
 
 Focus Reader has three deployable services:
@@ -28,7 +31,7 @@ Shared data services:
 5. Cloudflare Access / Zero Trust enabled (recommended for single-user mode; required for multi-user mode if not using magic link auth).
 6. Node.js 20+.
 7. `pnpm` 10+.
-8. `wrangler` CLI authenticated to your account (`wrangler login`).
+8. `wrangler` CLI.
 
 ## 3. Clone and Install
 
@@ -42,45 +45,49 @@ pnpm install
 
 Create these resources in your Cloudflare account:
 
-1. D1 database:
+1. Login to your Cloudflare account using `wrangler`:
 ```bash
-wrangler d1 create focus-reader-db
+pnpm wrangler login
+```
+2. D1 database:
+```bash
+pnpm wrangler d1 create focus-reader-db
 ```
 
-2. R2 buckets:
+3. R2 buckets:
 ```bash
-wrangler r2 bucket create focus-reader-storage
-wrangler r2 bucket create focus-reader-cache
+pnpm wrangler r2 bucket create focus-reader-storage
+pnpm wrangler r2 bucket create focus-reader-cache
 ```
 
 Record these values — you will need them in the next step:
 
 1. Cloudflare `account_id` (from your Cloudflare dashboard)
-2. D1 `database_id` (printed by `wrangler d1 create`)
+2. D1 `database_id` (printed by `wrangler d1 create` you ran above)
 3. R2 bucket names (as created above)
 
 ## 5. Update Wrangler Config Files
 
-Update these files with your own Cloudflare values:
+There are 4 config files `wrangler.toml`:
+1. `apps/web/wrangler.toml`
+2. `apps/email-worker/wrangler.toml`
+3. `apps/rss-worker/wrangler.toml`
+4. `packages/db/wrangler.toml`
+
+Update the following files with your own Cloudflare values:
 
 | File                              | Field                     | What to change                                |
 |-----------------------------------|---------------------------|-----------------------------------------------|
 | `apps/web/wrangler.toml`          | `account_id`              | Your Cloudflare account ID                    |
 | `apps/web/wrangler.toml`          | `routes[0].pattern`       | Your domain (e.g. `reader.yourdomain.com`)    |
 | `apps/web/wrangler.toml`          | `EMAIL_DOMAIN` var        | Your email subdomain (e.g. `yourdomain.com`)  |
-| `apps/email-worker/wrangler.toml` | `EMAIL_DOMAIN` var        | Same as above                                 |
-| `apps/email-worker/wrangler.toml` | `COLLAPSE_PLUS_ALIAS` var | `true` or `false`                             |
 | `apps/web/wrangler.toml`          | `AUTH_MODE` var           | `single-user` (default) or `multi-user`       |
+| `apps/web/wrangler.toml`          | R2 `bucket_name` values   | Only if you changed bucket names              |
+| `apps/email-worker/wrangler.toml` | `EMAIL_DOMAIN` var        | Same as above                                 |
+| `apps/email-worker/wrangler.toml` | R2 `bucket_name`          | Only if you changed the storage bucket name   |
+| `apps/email-worker/wrangler.toml` | `COLLAPSE_PLUS_ALIAS` var | `true` or `false`                             |
 | All 4 wrangler.toml files         | `database_id`             | Your D1 database ID                           |
 | All 4 wrangler.toml files         | `database_name`           | Only if you changed it from `focus-reader-db` |
-| `apps/web/wrangler.toml`          | R2 `bucket_name` values   | Only if you changed bucket names              |
-| `apps/email-worker/wrangler.toml` | R2 `bucket_name`          | Only if you changed the storage bucket name   |
-
-The 4 wrangler.toml files are:
-1. `apps/web/wrangler.toml`
-2. `apps/email-worker/wrangler.toml`
-3. `apps/rss-worker/wrangler.toml`
-4. `packages/db/wrangler.toml`
 
 Note: `account_id` is only required in `apps/web/wrangler.toml`. The other workers infer it from your `wrangler login` session.
 
@@ -88,7 +95,7 @@ Note: `account_id` is only required in `apps/web/wrangler.toml`. The other worke
 
 ### 6.1 Web app (`apps/web`)
 
-`EMAIL_DOMAIN` is set as a `[vars]` entry in `wrangler.toml` (updated in step 5).
+Required environment variable is `EMAIL_DOMAIN` and is set under `[vars]` entry in `wrangler.toml` (updated in step 5).
 
 Required secrets (set via Wrangler):
 
@@ -102,13 +109,15 @@ wrangler secret put CF_ACCESS_AUD           # optional in single-user mode
 Notes:
 
 1. `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` enable Cloudflare Access JWT verification.
-2. `OWNER_EMAIL` is used to auto-create the sole user in single-user mode. Required for both modes.
-3. **Single-user mode** (`AUTH_MODE=single-user`, default): If `CF_ACCESS_*` are not set, all requests are automatically authenticated as the sole user (created from `OWNER_EMAIL`). Safe for private deployments behind a VPN or local network.
+2. `OWNER_EMAIL` is used to auto-create the single user in single-user mode. Required for both modes.
+3. **Single-user mode** (`AUTH_MODE=single-user`, default): If `CF_ACCESS_*` are not set, all requests are automatically authenticated as the single user (created from `OWNER_EMAIL`). Safe for private deployments behind a VPN or local network.
 4. **Multi-user mode** (`AUTH_MODE=multi-user`): Full authentication is required on every request. Set up CF Access or implement session-based auth.
 
 ### 6.2 Email worker (`apps/email-worker`)
 
-`EMAIL_DOMAIN` and `COLLAPSE_PLUS_ALIAS` are configured in `wrangler.toml` as vars (updated in step 5). No secrets are required for the email worker.
+Environment variables `EMAIL_DOMAIN` and `COLLAPSE_PLUS_ALIAS` are configured in `wrangler.toml` as `[vars]` (updated in step 5). 
+
+No secrets are required for the email worker.
 
 ### 6.3 Local dev var helper (optional)
 
@@ -148,8 +157,9 @@ Create a Cloudflare Access application for your web domain:
 For multi-tenant SaaS deployments with multiple independent users:
 
 1. Set `AUTH_MODE=multi-user` in `wrangler.toml` vars for all three workers
-2. Set up CF Access or implement magic link authentication (planned feature)
-3. Each user gets their own isolated data — documents, tags, feeds, subscriptions, highlights, collections, and settings are all scoped by `user_id`
+2. Set up CF Access as explained in Option B above
+3. Another option is to implement magic link authentication (not yet implemented)
+4. Each user gets their own isolated data — documents, tags, feeds, subscriptions, highlights, collections, and settings are all scoped by `user_id`
 
 ## 8. Set Up Email Routing (Optional but Recommended)
 
@@ -169,12 +179,12 @@ Example:
 From repo root:
 
 ### 9.1 One-command deployment
-
+Deploy all workers - web, email, rss
 ```bash
 ./scripts/deploy.sh
 ```
 
-Targets:
+Deploy each worker independently:
 
 ```bash
 ./scripts/deploy.sh web
@@ -220,7 +230,7 @@ pnpm --filter focus-reader-extension build
 
 ## 12. Local Development
 
-### 12.1 Set up local environment
+### 12.1 Set up local environment variables and database
 
 ```bash
 # Set up local .dev.vars files (see section 6.3)
@@ -249,12 +259,12 @@ Local dev uses `.wrangler/state/v3` for D1 and R2 persistence. The `initOpenNext
 
 Focus Reader uses D1 migrations in `packages/db/migrations/`:
 
-| Migration | Description |
-|---|---|
-| `0001_initial_schema.sql` | Core tables: document, subscription, feed, tag, highlight, collection, etc. |
-| `0002_fts5_search.sql` | FTS5 full-text search virtual table |
-| `0003_highlight_collection_indexes.sql` | Performance indexes for highlights and collections |
-| `0004_multi_tenancy.sql` | `user` table, `user_id` columns on all primary tables, composite indexes |
+| Migration                               | Description                                                                 |
+|-----------------------------------------|-----------------------------------------------------------------------------|
+| `0001_initial_schema.sql`               | Core tables: document, subscription, feed, tag, highlight, collection, etc. |
+| `0002_fts5_search.sql`                  | FTS5 full-text search virtual table                                         |
+| `0003_highlight_collection_indexes.sql` | Performance indexes for highlights and collections                          |
+| `0004_multi_tenancy.sql`                | `user` table, `user_id` columns on all primary tables, composite indexes    |
 
 The multi-tenancy migration (`0004`) adds a `user` table and a `user_id` column to all primary entity tables (document, tag, feed, subscription, highlight, collection, api_key, feed_token, saved_view, denylist, ingestion_log, ingestion_report_daily). Tables with column-level `UNIQUE` constraints (tag, subscription, feed, denylist) are recreated with `UNIQUE(user_id, ...)` composite constraints.
 
@@ -270,6 +280,12 @@ pnpm install
 pnpm build
 pnpm typecheck
 pnpm test
+
+# Apply D1 migrations to local database and run everything locally
+pnpm db:migrate
+pnpm dev
+
+# Deploy to prod
 ./scripts/deploy.sh
 ```
 
