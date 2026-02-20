@@ -200,6 +200,9 @@ importers:
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
+      kysely-d1:
+        specifier: ^0.4.0
+        version: 0.4.0(kysely@0.28.11)
       lucide-react:
         specifier: ^0.564.0
         version: 0.564.0(react@19.2.4)
@@ -4135,6 +4138,11 @@ packages:
   ky@1.14.3:
     resolution: {integrity: sha512-9zy9lkjac+TR1c2tG+mkNSVlyOpInnWdSMiue4F+kq8TwJSgv6o8jhLRg8Ho6SnZ9wOYUq/yozts9qQCfk7bIw==}
     engines: {node: '>=18'}
+
+  kysely-d1@0.4.0:
+    resolution: {integrity: sha512-wUcVvQNtm30OTfuo7Ad5vYJ1qHqPXOCZc+zWchVKNyuvqY3u8OuGw4gmUx1Ypdx2wRVFLHVQC9I7v0pTmF7Nkw==}
+    peerDependencies:
+      kysely: '*'
 
   kysely@0.28.11:
     resolution: {integrity: sha512-zpGIFg0HuoC893rIjYX1BETkVWdDnzTzF5e0kWXJFg5lE0k1/LfNWBejrcnOFu8Q2Rfq/hTDTU7XLUM8QOrpzg==}
@@ -10017,6 +10025,10 @@ snapshots:
   kleur@4.1.5: {}
 
   ky@1.14.3: {}
+
+  kysely-d1@0.4.0(kysely@0.28.11):
+    dependencies:
+      kysely: 0.28.11
 
   kysely@0.28.11: {}
 

@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { magicLink } from "better-auth/plugins";
+import { D1Dialect } from "kysely-d1";
 import { generateUniqueSlug } from "@focus-reader/db";
 import { getDb, getEnv } from "./bindings";
 
@@ -69,7 +70,10 @@ function createAuth(env: Awaited<ReturnType<typeof getEnv>>, db: D1Database) {
     baseURL: baseUrl,
     basePath: "/api/auth",
     secret: env.AUTH_SECRET,
-    database: db,
+    database: {
+      dialect: new D1Dialect({ database: db }),
+      type: "sqlite",
+    },
     trustedOrigins: [baseUrl],
     rateLimit: {
       enabled: false,
