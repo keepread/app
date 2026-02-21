@@ -20,11 +20,13 @@ import {
   FolderOpen,
   Tag,
   Rss,
+  Loader2,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useSubscriptions } from "@/hooks/use-subscriptions";
+import { useFeeds } from "@/hooks/use-feeds";
 import { useSavedViews } from "@/hooks/use-saved-views";
 import { useCollections } from "@/hooks/use-collections";
 import { useApp } from "@/contexts/app-context";
@@ -32,6 +34,17 @@ import { Button } from "@/components/ui/button";
 import { AddBookmarkDialog } from "@/components/dialogs/add-bookmark-dialog";
 import { CollectionDialog } from "@/components/dialogs/collection-dialog";
 import { UserMenu } from "@/components/layout/user-menu";
+import { apiFetch, ApiClientError } from "@/lib/api-client";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 const NAV_ITEMS = [
   { label: "Inbox", icon: Inbox, path: "/inbox", badge: true },
@@ -48,6 +61,7 @@ export function NavSidebar() {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useApp();
   const { subscriptions } = useSubscriptions();
+  const { mutate: mutateFeeds } = useFeeds();
   const { views } = useSavedViews();
   const { collections, mutate: mutateCollections } = useCollections();
   const [subsOpen, setSubsOpen] = useState(true);
@@ -55,6 +69,33 @@ export function NavSidebar() {
   const [viewsOpen, setViewsOpen] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
+  const [addFeedOpen, setAddFeedOpen] = useState(false);
+  const [addFeedUrl, setAddFeedUrl] = useState("");
+  const [addingFeed, setAddingFeed] = useState(false);
+
+  const handleAddFeed = async () => {
+    const url = addFeedUrl.trim();
+    if (!url) return;
+    setAddingFeed(true);
+    try {
+      await apiFetch("/api/feeds", {
+        method: "POST",
+        body: JSON.stringify({ url }),
+      });
+      await mutateFeeds();
+      setAddFeedUrl("");
+      setAddFeedOpen(false);
+      toast("Feed added");
+    } catch (err) {
+      if (err instanceof ApiClientError && err.code === "DUPLICATE_FEED") {
+        toast.error("This feed is already added");
+      } else {
+        toast.error("Failed to add feed");
+      }
+    } finally {
+      setAddingFeed(false);
+    }
+  };
 
   if (sidebarCollapsed) return null;
 
@@ -106,20 +147,36 @@ export function NavSidebar() {
             const isActive =
               pathname === item.path ||
               pathname.startsWith(item.path + "/");
+            const isFeedsItem = item.path === "/feeds";
             return (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-primary font-semibold"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent"
+              <div key={item.path} className="flex items-center gap-1">
+                <Link
+                  href={item.path}
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-primary font-semibold"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent"
+                  )}
+                >
+                  <item.icon className="size-4 flex-shrink-0" />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+                {isFeedsItem && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setAddFeedOpen(true);
+                    }}
+                    className="mr-1 rounded p-1 text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+                    aria-label="Add feed"
+                    title="Add feed"
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
                 )}
-              >
-                <item.icon className="size-4 flex-shrink-0" />
-                <span className="truncate">{item.label}</span>
-              </Link>
+              </div>
             );
           })}
         </div>
@@ -263,6 +320,41 @@ export function NavSidebar() {
         onOpenChange={setCollectionDialogOpen}
         onSaved={() => mutateCollections()}
       />
+
+      <Dialog open={addFeedOpen} onOpenChange={setAddFeedOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Feed</DialogTitle>
+            <DialogDescription>Add an RSS/Atom feed URL.</DialogDescription>
+          </DialogHeader>
+          <Input
+            placeholder="https://example.com/feed.xml"
+            value={addFeedUrl}
+            onChange={(e) => setAddFeedUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAddFeed();
+            }}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAddFeedOpen(false);
+                setAddFeedUrl("");
+              }}
+              disabled={addingFeed}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAddFeed} disabled={addingFeed || !addFeedUrl.trim()}>
+              {addingFeed && <Loader2 className="size-4 animate-spin" />}
+              Add feed
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </aside>
   );
 }
