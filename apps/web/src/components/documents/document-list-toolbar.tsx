@@ -10,7 +10,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Filter, PanelLeftOpen, PanelRightOpen, LayoutList, LayoutGrid } from "lucide-react";
+import { Check, ChevronDown, Filter, PanelLeftOpen, PanelRightOpen, LayoutList, LayoutGrid } from "lucide-react";
 import { SearchBar } from "@/components/search/search-bar";
 import { useApp } from "@/contexts/app-context";
 import type { DocumentType, ListDocumentsQuery } from "@focus-reader/shared";
@@ -69,22 +69,38 @@ interface DocumentListToolbarProps {
   onSortByChange?: (field: NonNullable<ListDocumentsQuery["sortBy"]>) => void;
   onSortDirChange?: (dir: NonNullable<ListDocumentsQuery["sortDir"]>) => void;
   sortLocked?: boolean;
+  isBulkMode?: boolean;
+  selectedCount?: number;
+  allVisibleSelected?: boolean;
+  isBulkDeleting?: boolean;
+  onToggleBulkMode?: () => void;
+  onToggleSelectAllVisible?: () => void;
+  onClearSelection?: () => void;
+  onDeleteSelected?: () => void;
 }
 
-export function DocumentListToolbar({ 
-  title, 
-  total, 
-  onSearch, 
-  isSearchActive, 
-  onTypeFilter, 
-  selectedType, 
-  viewMode, 
+export function DocumentListToolbar({
+  title,
+  total,
+  onSearch,
+  isSearchActive,
+  onTypeFilter,
+  selectedType,
+  viewMode,
   onViewModeChange,
   sortBy = "saved_at",
   sortDir = "desc",
   onSortByChange,
   onSortDirChange,
   sortLocked = false,
+  isBulkMode = false,
+  selectedCount = 0,
+  allVisibleSelected = false,
+  isBulkDeleting = false,
+  onToggleBulkMode,
+  onToggleSelectAllVisible,
+  onClearSelection,
+  onDeleteSelected,
 }: DocumentListToolbarProps) {
   const { sidebarCollapsed, toggleSidebar, rightPanelVisible, toggleRightPanel } = useApp();
   const typeLabel = TYPE_OPTIONS.find((o) => o.value === (selectedType ?? null))?.label ?? "All Types";
@@ -99,7 +115,69 @@ export function DocumentListToolbar({
             <PanelLeftOpen className="size-4" />
           </Button>
         )}
-        <h2 className="text-sm font-semibold">{title}</h2>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-sm font-semibold">
+              {title}
+              <ChevronDown className="size-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {onToggleBulkMode && (
+              <DropdownMenuItem onClick={onToggleBulkMode}>
+                {isBulkMode ? "Exit selection mode" : "Select documents"}
+              </DropdownMenuItem>
+            )}
+            {onDeleteSelected && isBulkMode && (
+              <DropdownMenuItem
+                onClick={onDeleteSelected}
+                disabled={selectedCount === 0 || isBulkDeleting}
+                className="text-destructive"
+              >
+                Delete selected ({selectedCount})
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {isBulkMode && onToggleSelectAllVisible && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-muted-foreground"
+            onClick={onToggleSelectAllVisible}
+            disabled={isBulkDeleting || total === 0}
+          >
+            {allVisibleSelected ? "Clear all" : "Select all"}
+          </Button>
+        )}
+        {isBulkMode && (
+          <>
+            <span className="text-xs text-muted-foreground">{selectedCount} selected</span>
+            {onClearSelection && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={onClearSelection}
+                disabled={isBulkDeleting || selectedCount === 0}
+              >
+                Clear
+              </Button>
+            )}
+            {onToggleBulkMode && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1 px-2 text-xs"
+                onClick={onToggleBulkMode}
+                disabled={isBulkDeleting}
+              >
+                <Check className="size-3" />
+                Done
+              </Button>
+            )}
+          </>
+        )}
       </div>
       <div className="flex items-center gap-2">
         {onSearch && <SearchBar onSearch={onSearch} />}

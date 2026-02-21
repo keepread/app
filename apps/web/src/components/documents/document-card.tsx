@@ -22,20 +22,26 @@ const TYPE_ICONS = {
 interface DocumentCardProps {
   document: DocumentWithTags;
   isSelected: boolean;
+  showBulkSelect: boolean;
+  isBulkSelected: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  onToggleBulkSelect: () => void;
   onMutate: () => void;
 }
 
 export function DocumentCard({
   document: doc,
   isSelected,
+  showBulkSelect,
+  isBulkSelected,
   onClick,
   onDoubleClick,
   onMouseEnter,
   onMouseLeave,
+  onToggleBulkSelect,
   onMutate,
 }: DocumentCardProps) {
   const isRead = doc.is_read === 1;
@@ -62,6 +68,20 @@ export function DocumentCard({
         isSelected ? "ring-2 ring-primary border-primary" : "hover:bg-accent/50"
       )}
     >
+      {showBulkSelect && (
+        <div className="absolute left-2 top-2 z-20">
+          <input
+            type="checkbox"
+            checked={isBulkSelected}
+            onChange={onToggleBulkSelect}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="size-4 cursor-pointer accent-primary"
+            aria-label={`Select ${doc.title}`}
+          />
+        </div>
+      )}
+
       {/* Image area */}
       <div className="relative aspect-[16/9] bg-muted overflow-hidden">
         <div className="flex size-full items-center justify-center">
@@ -122,7 +142,7 @@ export function DocumentCard({
 
       {/* Indicators */}
       {!isRead && (
-        <div className="absolute top-2 left-2 size-2 rounded-full bg-primary" />
+        <div className={cn("absolute top-2 size-2 rounded-full bg-primary", showBulkSelect ? "left-8" : "left-2")} />
       )}
       {isStarred && (
         <Star className="absolute top-2 right-2 size-3.5 text-amber-400 fill-amber-400 drop-shadow" />

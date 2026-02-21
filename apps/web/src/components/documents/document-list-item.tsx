@@ -22,10 +22,13 @@ const TYPE_ICONS = {
 interface DocumentListItemProps {
   document: DocumentWithTags;
   isSelected: boolean;
+  showBulkSelect: boolean;
+  isBulkSelected: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  onToggleBulkSelect: () => void;
   onMutate: () => void;
   snippet?: string;
 }
@@ -33,10 +36,13 @@ interface DocumentListItemProps {
 export function DocumentListItem({
   document: doc,
   isSelected,
+  showBulkSelect,
+  isBulkSelected,
   onClick,
   onDoubleClick,
   onMouseEnter,
   onMouseLeave,
+  onToggleBulkSelect,
   onMutate,
   snippet,
 }: DocumentListItemProps) {
@@ -64,6 +70,20 @@ export function DocumentListItem({
         isSelected ? "bg-accent/50 border-l-primary" : "border-l-transparent hover:bg-accent/50"
       )}
     >
+      {showBulkSelect && (
+        <div className="w-5 flex-shrink-0 pt-1">
+          <input
+            type="checkbox"
+            checked={isBulkSelected}
+            onChange={onToggleBulkSelect}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="size-4 cursor-pointer accent-primary"
+            aria-label={`Select ${doc.title}`}
+          />
+        </div>
+      )}
+
       {/* Unread dot */}
       <div className="w-2 flex-shrink-0 pt-2">
         {!isRead && <div className="size-2 rounded-full bg-primary" />}

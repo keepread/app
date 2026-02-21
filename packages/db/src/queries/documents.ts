@@ -195,66 +195,80 @@ export async function getDocumentByUrl(
   return result ?? null;
 }
 
-export async function listDocuments(
+function buildDocumentFilters(
   ctx: UserScopedDb,
-  query: ListDocumentsQuery
-): Promise<{ items: Document[]; total: number; nextCursor?: string }> {
-  const conditions: string[] = ["d.deleted_at IS NULL", "d.user_id = ?1"];
+  query: ListDocumentsQuery,
+  alias = "d",
+  startParamIdx = 1
+): { conditions: string[]; bindings: unknown[]; nextParamIdx: number } {
+  const conditions: string[] = [`${alias}.deleted_at IS NULL`, `${alias}.user_id = ?${startParamIdx}`];
   const bindings: unknown[] = [ctx.userId];
-  let paramIdx = 2;
+  let paramIdx = startParamIdx + 1;
 
   if (query.location) {
-    conditions.push(`d.location = ?${paramIdx}`);
+    conditions.push(`${alias}.location = ?${paramIdx}`);
     bindings.push(query.location);
     paramIdx++;
   }
   if (query.status === "read") {
-    conditions.push("d.is_read = 1");
+    conditions.push(`${alias}.is_read = 1`);
   } else if (query.status === "unread") {
-    conditions.push("d.is_read = 0");
+    conditions.push(`${alias}.is_read = 0`);
   }
   if (query.isStarred) {
-    conditions.push("d.is_starred = 1");
+    conditions.push(`${alias}.is_starred = 1`);
   }
   if (query.subscriptionId) {
-    conditions.push(`d.source_id = ?${paramIdx}`);
+    conditions.push(`${alias}.source_id = ?${paramIdx}`);
     bindings.push(query.subscriptionId);
     paramIdx++;
   }
   if (query.feedId) {
-    conditions.push(`d.source_id = ?${paramIdx}`);
+    conditions.push(`${alias}.source_id = ?${paramIdx}`);
     bindings.push(query.feedId);
     paramIdx++;
   }
   if (query.type) {
-    conditions.push(`d.type = ?${paramIdx}`);
+    conditions.push(`${alias}.type = ?${paramIdx}`);
     bindings.push(query.type);
     paramIdx++;
   }
   if (query.tagId) {
     conditions.push(
-      `EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id AND dt.tag_id = ?${paramIdx})`
+      `EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = ${alias}.id AND dt.tag_id = ?${paramIdx})`
     );
     bindings.push(query.tagId);
     paramIdx++;
   }
   if (query.search) {
     conditions.push(
-      `d.id IN (SELECT doc_id FROM document_fts WHERE document_fts MATCH ?${paramIdx})`
+      `${alias}.id IN (SELECT doc_id FROM document_fts WHERE document_fts MATCH ?${paramIdx})`
     );
     bindings.push(sanitizeFtsQuery(query.search));
     paramIdx++;
   }
   if (query.savedAfter) {
-    conditions.push(`d.saved_at >= ?${paramIdx}`);
+    conditions.push(`${alias}.saved_at >= ?${paramIdx}`);
     bindings.push(query.savedAfter);
     paramIdx++;
   }
   if (query.savedBefore) {
-    conditions.push(`d.saved_at <= ?${paramIdx}`);
+    conditions.push(`${alias}.saved_at <= ?${paramIdx}`);
     bindings.push(query.savedBefore);
     paramIdx++;
   }
+
+  return { conditions, bindings, nextParamIdx: paramIdx };
+}
+
+export async function listDocuments(
+  ctx: UserScopedDb,
+  query: ListDocumentsQuery
+): Promise<{ items: Document[]; total: number; nextCursor?: string }> {
+  const base = buildDocumentFilters(ctx, query, "d", 1);
+  const conditions = base.conditions;
+  const bindings = base.bindings;
+  let paramIdx = base.nextParamIdx;
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
@@ -298,6 +312,36 @@ export async function listDocuments(
   const nextCursor = hasMore ? (items[items.length - 1] as any)[sortBy] : undefined;
 
   return { items, total, nextCursor };
+}
+
+export async function countDocumentsByQuery(
+  ctx: UserScopedDb,
+  query: ListDocumentsQuery
+): Promise<number> {
+  const base = buildDocumentFilters(ctx, query, "d", 1);
+  const where = base.conditions.length > 0
+    ? `WHERE ${base.conditions.join(" AND ")}`
+    : "";
+  const result = await ctx.db
+    .prepare(`SELECT COUNT(*) as cnt FROM document d ${where}`)
+    .bind(...base.bindings)
+    .first<{ cnt: number }>();
+  return result?.cnt ?? 0;
+}
+
+export async function listDocumentIdsByQuery(
+  ctx: UserScopedDb,
+  query: ListDocumentsQuery
+): Promise<string[]> {
+  const base = buildDocumentFilters(ctx, query, "d", 1);
+  const where = base.conditions.length > 0
+    ? `WHERE ${base.conditions.join(" AND ")}`
+    : "";
+  const rows = await ctx.db
+    .prepare(`SELECT d.id FROM document d ${where}`)
+    .bind(...base.bindings)
+    .all<{ id: string }>();
+  return rows.results.map((r) => r.id);
 }
 
 export async function getDocumentWithTags(
@@ -443,4 +487,42 @@ export async function batchUpdateDocuments(
     )
     .bind(...values, ...ids)
     .run();
+}
+
+export async function softDeleteDocumentsByIds(
+  ctx: UserScopedDb,
+  ids: string[]
+): Promise<number> {
+  if (ids.length === 0) return 0;
+
+  const now = nowISO();
+  let deletedCount = 0;
+  const chunkSize = 200;
+
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    const idParams = chunk.map((_, idx) => `?${idx + 3}`).join(", ");
+
+    const updateResult = await ctx.db
+      .prepare(
+        `UPDATE document
+         SET deleted_at = ?1, updated_at = ?1
+         WHERE user_id = ?2 AND deleted_at IS NULL AND id IN (${idParams})`
+      )
+      .bind(now, ctx.userId, ...chunk)
+      .run();
+
+    const changes = Number((updateResult as { meta?: { changes?: number } }).meta?.changes ?? 0);
+    deletedCount += Number.isFinite(changes) ? changes : 0;
+
+    for (const id of chunk) {
+      try {
+        await deindexDocument(ctx.db, id);
+      } catch {
+        // FTS table may not exist in some environments; soft-delete still succeeds
+      }
+    }
+  }
+
+  return deletedCount;
 }

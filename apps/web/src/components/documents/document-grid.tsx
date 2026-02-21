@@ -6,18 +6,24 @@ import { DocumentCard } from "./document-card";
 interface DocumentGridProps {
   documents: DocumentWithTags[];
   selectedId: string | null;
+  showBulkSelect: boolean;
+  selectedBulkIds: Set<string>;
   onSelect: (id: string) => void;
   onOpen: (id: string) => void;
   onHover: (id: string | null) => void;
+  onToggleBulkSelect: (id: string) => void;
   onMutate: () => void;
 }
 
 export function DocumentGrid({
   documents,
   selectedId,
+  showBulkSelect,
+  selectedBulkIds,
   onSelect,
   onOpen,
   onHover,
+  onToggleBulkSelect,
   onMutate,
 }: DocumentGridProps) {
   return (
@@ -27,10 +33,13 @@ export function DocumentGrid({
           key={doc.id}
           document={doc}
           isSelected={doc.id === selectedId}
+          showBulkSelect={showBulkSelect}
+          isBulkSelected={selectedBulkIds.has(doc.id)}
           onClick={() => onSelect(doc.id)}
           onDoubleClick={() => onOpen(doc.id)}
           onMouseEnter={() => onHover(doc.id)}
           onMouseLeave={() => onHover(null)}
+          onToggleBulkSelect={() => onToggleBulkSelect(doc.id)}
           onMutate={onMutate}
         />
       ))}

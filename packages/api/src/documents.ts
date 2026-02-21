@@ -15,6 +15,9 @@ import {
   createDocument,
   getDocumentByUrl,
   createPdfMeta,
+  countDocumentsByQuery,
+  listDocumentIdsByQuery,
+  softDeleteDocumentsByIds,
 } from "@focus-reader/db";
 import { extractArticle, extractMetadata, extractPdfMetadata } from "@focus-reader/parser";
 import { tagDocument } from "./tags.js";
@@ -61,6 +64,42 @@ export async function removeDocument(
   id: string
 ): Promise<void> {
   await softDeleteDocument(ctx, id);
+}
+
+export interface BulkDeleteSelectedInput {
+  scope: "selected";
+  ids: string[];
+}
+
+export interface BulkDeleteFilteredInput {
+  scope: "filtered";
+  query: ListDocumentsQuery;
+}
+
+export type BulkDeleteDocumentsInput =
+  | BulkDeleteSelectedInput
+  | BulkDeleteFilteredInput;
+
+export async function previewBulkDeleteDocuments(
+  ctx: UserScopedDb,
+  query: ListDocumentsQuery
+): Promise<number> {
+  return countDocumentsByQuery(ctx, query);
+}
+
+export async function bulkDeleteDocuments(
+  ctx: UserScopedDb,
+  input: BulkDeleteDocumentsInput
+): Promise<number> {
+  if (input.scope === "selected") {
+    if (input.ids.length > 500) {
+      throw new Error("Too many IDs in selected scope");
+    }
+    return softDeleteDocumentsByIds(ctx, input.ids);
+  }
+
+  const ids = await listDocumentIdsByQuery(ctx, input.query);
+  return softDeleteDocumentsByIds(ctx, ids);
 }
 
 export async function createBookmark(

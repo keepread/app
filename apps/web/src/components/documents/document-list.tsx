@@ -13,6 +13,8 @@ import { DocumentGrid } from "./document-grid";
 import { EmptyState } from "./empty-state";
 import { Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { apiFetch } from "@/lib/api-client";
+import { toast } from "sonner";
 
 const DEFAULT_SORT_BY: NonNullable<ListDocumentsQuery["sortBy"]> = "saved_at";
 const DEFAULT_SORT_DIR: NonNullable<ListDocumentsQuery["sortDir"]> = "desc";
@@ -87,6 +89,9 @@ export function DocumentList({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<DocumentType | null>(null);
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [selectedBulkIds, setSelectedBulkIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window !== "undefined") {
       return (localStorage.getItem("focus-view-mode") as ViewMode) || "list";
@@ -181,11 +186,37 @@ export function DocumentList({
     () => (isSearchActive ? searchResults : documents),
     [isSearchActive, searchResults, documents]
   );
-
+  const displayDocIds = useMemo(
+    () => displayDocuments.map((doc) => doc.id),
+    [displayDocuments]
+  );
+  const allVisibleSelected = useMemo(
+    () => displayDocIds.length > 0 && displayDocIds.every((id) => selectedBulkIds.has(id)),
+    [displayDocIds, selectedBulkIds]
+  );
   // Sync document IDs to app context for keyboard navigation
   useEffect(() => {
     setDocumentIds(displayDocuments.map((d) => d.id));
   }, [displayDocuments, setDocumentIds]);
+
+  // Keep bulk selections only for currently visible list items.
+  useEffect(() => {
+    const visible = new Set(displayDocIds);
+    setSelectedBulkIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (visible.has(id)) next.add(id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [displayDocIds]);
+
+  // Avoid carrying selection mode between different routes/views.
+  useEffect(() => {
+    setIsBulkMode(false);
+    setSelectedBulkIds(new Set());
+  }, [pathname]);
 
   // Ensure list view always has a valid active selection when not in reading mode.
   useEffect(() => {
@@ -249,6 +280,67 @@ export function DocumentList({
   const handleSearch = useCallback((q: string) => {
     setSearchQuery(q);
   }, []);
+
+  const toggleBulkSelect = useCallback((id: string) => {
+    setSelectedBulkIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearBulkSelection = useCallback(() => {
+    setSelectedBulkIds(new Set());
+  }, []);
+
+  const toggleSelectAllVisible = useCallback(() => {
+    setSelectedBulkIds((prev) => {
+      const next = new Set(prev);
+      const everySelected = displayDocIds.length > 0 && displayDocIds.every((id) => next.has(id));
+      if (everySelected) {
+        for (const id of displayDocIds) next.delete(id);
+      } else {
+        for (const id of displayDocIds) next.add(id);
+      }
+      return next;
+    });
+  }, [displayDocIds]);
+
+  const toggleBulkMode = useCallback(() => {
+    setIsBulkMode((prev) => !prev);
+    setSelectedBulkIds(new Set());
+  }, []);
+
+  const deleteSelected = useCallback(async () => {
+    const ids = Array.from(selectedBulkIds);
+    if (ids.length === 0) return;
+    const confirmed = window.confirm(`Delete ${ids.length} selected documents? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setIsBulkDeleting(true);
+    try {
+      const result = await apiFetch<{ deletedCount: number }>("/api/documents/bulk-delete", {
+        method: "POST",
+        body: JSON.stringify({
+          scope: "selected",
+          ids,
+        }),
+      });
+      toast(`${result.deletedCount} documents deleted`);
+      setSelectedBulkIds(new Set());
+      setHoveredDocumentId(null);
+      await mutate();
+    } catch {
+      toast.error("Failed to delete selected documents");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  }, [mutate, selectedBulkIds, setHoveredDocumentId]);
+
   const displayTotal = isSearchActive ? searchTotal : total;
   const displayIsLoading = isSearchActive ? searchIsLoading : isLoading;
 
@@ -266,6 +358,14 @@ export function DocumentList({
     onSortByChange: sortLocked ? undefined : handleSortByChange,
     onSortDirChange: sortLocked ? undefined : handleSortDirChange,
     sortLocked,
+    isBulkMode,
+    selectedCount: selectedBulkIds.size,
+    allVisibleSelected,
+    isBulkDeleting,
+    onToggleBulkMode: toggleBulkMode,
+    onToggleSelectAllVisible: toggleSelectAllVisible,
+    onClearSelection: clearBulkSelection,
+    onDeleteSelected: deleteSelected,
   };
 
   if (displayIsLoading && displayDocuments.length === 0) {
@@ -309,9 +409,14 @@ export function DocumentList({
           <DocumentGrid
             documents={displayDocuments}
             selectedId={selectedId}
-            onSelect={selectDocument}
-            onOpen={openDocument}
+            showBulkSelect={isBulkMode}
+            selectedBulkIds={selectedBulkIds}
+            onSelect={(id) => (isBulkMode ? toggleBulkSelect(id) : selectDocument(id))}
+            onOpen={(id) => {
+              if (!isBulkMode) openDocument(id);
+            }}
             onHover={setHoveredDocumentId}
+            onToggleBulkSelect={toggleBulkSelect}
             onMutate={() => mutate()}
           />
         ) : (
@@ -320,10 +425,15 @@ export function DocumentList({
               key={doc.id}
               document={doc}
               isSelected={doc.id === selectedId}
-              onClick={() => selectDocument(doc.id)}
-              onDoubleClick={() => openDocument(doc.id)}
+              showBulkSelect={isBulkMode}
+              isBulkSelected={selectedBulkIds.has(doc.id)}
+              onClick={() => (isBulkMode ? toggleBulkSelect(doc.id) : selectDocument(doc.id))}
+              onDoubleClick={() => {
+                if (!isBulkMode) openDocument(doc.id);
+              }}
               onMouseEnter={() => setHoveredDocumentId(doc.id)}
               onMouseLeave={() => setHoveredDocumentId(null)}
+              onToggleBulkSelect={() => toggleBulkSelect(doc.id)}
               onMutate={() => mutate()}
               snippet={isSearchActive ? (doc as any).snippet : undefined}
             />
