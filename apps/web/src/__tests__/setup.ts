@@ -13,7 +13,12 @@ import { NextRequest } from "next/server";
 // ---------------------------------------------------------------------------
 // Default mock user returned by unbounded .prepare().first() calls
 // (used by getOrCreateSingleUser in single-user auth mode)
-const mockUserRow = { id: "test-user-id", email: "owner@localhost", slug: "owner" };
+const mockUserRow = {
+  id: "test-user-id",
+  email: "owner@localhost",
+  slug: "owner",
+  onboarding_completed_at: null,
+};
 
 export function createMockDb(): D1Database {
   return {

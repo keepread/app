@@ -1,5 +1,43 @@
 import { describe, it, expect } from "vitest";
-import { slugToDisplayName, emailToSubscriptionKey } from "../slug.js";
+import {
+  normalizeSlugInput,
+  slugToDisplayName,
+  emailToSubscriptionKey,
+} from "../slug.js";
+
+describe("normalizeSlugInput", () => {
+  it("trims whitespace", () => {
+    expect(normalizeSlugInput("  alice  ")).toBe("alice");
+  });
+
+  it("lowercases input", () => {
+    expect(normalizeSlugInput("Alice")).toBe("alice");
+  });
+
+  it("replaces spaces with hyphens", () => {
+    expect(normalizeSlugInput("Owner Team")).toBe("owner-team");
+  });
+
+  it("collapses multiple separators into one hyphen", () => {
+    expect(normalizeSlugInput("foo  bar")).toBe("foo-bar");
+  });
+
+  it("strips leading and trailing hyphens", () => {
+    expect(normalizeSlugInput("-foo-")).toBe("foo");
+  });
+
+  it("replaces non-alphanumeric characters with hyphens", () => {
+    expect(normalizeSlugInput("hello_world!")).toBe("hello-world");
+  });
+
+  it("returns empty string for all-symbol input", () => {
+    expect(normalizeSlugInput("---")).toBe("");
+  });
+
+  it("returns empty string for whitespace-only input", () => {
+    expect(normalizeSlugInput("   ")).toBe("");
+  });
+});
 
 describe("slugToDisplayName", () => {
   it("converts hyphenated slug", () => {

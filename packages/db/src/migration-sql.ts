@@ -431,3 +431,12 @@ export const ADD_LANG_SQL = `ALTER TABLE document ADD COLUMN lang TEXT;`;
 
 // Auto-generated from migrations/0007_cover_image_cache.sql
 export const ADD_COVER_IMAGE_CACHE_SQL = `ALTER TABLE document ADD COLUMN cover_image_r2_key TEXT;`;
+
+// Auto-generated from migrations/0008_user_onboarding.sql
+export const USER_ONBOARDING_SQL = `
+ALTER TABLE user ADD COLUMN onboarding_completed_at TEXT;
+
+UPDATE user
+SET onboarding_completed_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+WHERE onboarding_completed_at IS NULL;
+`;

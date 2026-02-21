@@ -1,31 +1,22 @@
-"use client";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { resolveServerAuthState } from "@/lib/server-auth";
+import { ReaderLayoutClient } from "./reader-layout-client";
 
-import { Suspense } from "react";
-import { SWRConfig } from "swr";
-import { AppProvider } from "@/contexts/app-context";
-import { AppShell } from "@/components/layout/app-shell";
-import { apiFetch } from "@/lib/api-client";
-import { UserProvider } from "@/lib/user-context";
-
-export default function ReaderLayout({
+export default async function ReaderLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <SWRConfig
-      value={{
-        fetcher: (url: string) => apiFetch(url),
-        revalidateOnFocus: false,
-      }}
-    >
-      <UserProvider>
-        <AppProvider>
-          <Suspense>
-            <AppShell>{children}</AppShell>
-          </Suspense>
-        </AppProvider>
-      </UserProvider>
-    </SWRConfig>
-  );
+  const authState = await resolveServerAuthState(new Headers(await headers()));
+  if (authState.authMode === "multi-user") {
+    if (!authState.authenticated) {
+      redirect("/login");
+    }
+    if (authState.needsOnboarding) {
+      redirect("/onboarding");
+    }
+  }
+
+  return <ReaderLayoutClient>{children}</ReaderLayoutClient>;
 }

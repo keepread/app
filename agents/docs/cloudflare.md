@@ -1,5 +1,7 @@
 # Cloudflare & Local Development
 
+For production rollout steps of the multi-user login-first onboarding release, see `agents/docs/multi-user-onboarding-rollout.md`.
+
 ## Bindings
 
 | Binding         | Type        | Used By                            |

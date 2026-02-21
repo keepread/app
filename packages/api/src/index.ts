@@ -10,6 +10,7 @@ export * from "./saved-views.js";
 export * from "./highlights.js";
 export * from "./collections.js";
 export * from "./user-preferences.js";
+export * from "./user-profile.js";
 export * from "./export.js";
 export * from "./feed-polling.js";
 export * from "./extraction-quality.js";

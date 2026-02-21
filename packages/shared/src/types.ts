@@ -23,6 +23,7 @@ export interface User {
   email: string;
   email_verified: number;
   slug: string;
+  onboarding_completed_at: string | null;
   name: string | null;
   avatar_url: string | null;
   is_admin: number;

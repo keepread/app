@@ -11,7 +11,7 @@
 
 Focus Reader's URL ingestion pipeline depends on `packages/parser/src/metadata.ts` to extract page metadata (title, author, description, image, date, etc.). The current implementation queries only 1–2 sources per field — primarily Open Graph meta tags and a single HTML fallback. Many sites provide richer structured data via JSON-LD, Twitter Cards, Microdata (`itemprop`), and `<time>` elements that we don't extract.
 
-A reference implementation (metascraper, at `/Users/george/work/keepread/references/metascraper`) demonstrates a plugin-based approach with 5–10 fallback sources per field, achieving 95%+ extraction accuracy. However, metascraper depends on cheerio, re2 (native binary), lodash, chrono-node, and got — all incompatible with or too heavy for Cloudflare Workers.
+A reference implementation (metascraper, at `../references/metascraper`) demonstrates a plugin-based approach with 5–10 fallback sources per field, achieving 95%+ extraction accuracy. However, metascraper depends on cheerio, re2 (native binary), lodash, chrono-node, and got — all incompatible with or too heavy for Cloudflare Workers.
 
 **Decision:** Port metascraper's extraction rules into the existing linkedom-based `extractMetadata()` function. Zero new dependencies. Full Workers compatibility.
 
@@ -104,7 +104,7 @@ Key behaviors to match from metascraper:
 - Decode HTML entities in JSON-LD string values
 - Handle `image` as string, object (`image.url`), or array (`image[0].url` or `image[0]`)
 
-Reference: `references/metascraper/packages/metascraper-helpers/src/index.js` — `$jsonld()` helper function.
+Reference: `../references/metascraper/packages/metascraper-helpers/src/index.js` — `$jsonld()` helper function.
 
 #### Step 2: Expand `PageMetadata` interface
 
@@ -270,7 +270,7 @@ Test cases to add:
 9. **No metadata at all** — Bare `<html><body>Hello</body></html>`. Verify all fields null.
 10. **Priority ordering** — HTML with OG, Twitter, AND JSON-LD. Verify OG wins (highest priority).
 
-Reference test fixtures: `references/metascraper/packages/metascraper-title/test/` and similar test directories in each metascraper package contain real-world HTML from major publishers.
+Reference test fixtures: `../references/metascraper/packages/metascraper-title/test/` and similar test directories in each metascraper package contain real-world HTML from major publishers.
 
 ---
 
@@ -352,8 +352,8 @@ Test cases:
 **Goal:** Port vendor-specific extraction for URLs users commonly save. Only implement if usage data shows frequent saves from these sources.
 
 Candidates:
-- **YouTube** — Extract video title, channel name, thumbnail from URL patterns. Reference: `references/metascraper/packages/metascraper-youtube/`
-- **Twitter/X** — Extract tweet text, author handle. Reference: `references/metascraper/packages/metascraper-x/`
+- **YouTube** — Extract video title, channel name, thumbnail from URL patterns. Reference: `../references/metascraper/packages/metascraper-youtube/`
+- **Twitter/X** — Extract tweet text, author handle. Reference: `../references/metascraper/packages/metascraper-x/`
 - **GitHub** — Extract repo description, stars, README excerpt from API.
 
 Implementation pattern (from metascraper):
@@ -418,7 +418,7 @@ Additionally, manually test with real URLs that exercise each extraction source:
 
 ## 7. Reference Material
 
-The metascraper reference code is at `/Users/george/work/keepread/references/metascraper`. Key files to consult during implementation:
+The metascraper reference code is at `../references/metascraper`. Key files to consult during implementation:
 
 | What                              | Where                                                              |
 |-----------------------------------|--------------------------------------------------------------------|

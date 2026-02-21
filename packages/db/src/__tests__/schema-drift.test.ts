@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { env } from "cloudflare:test";
-import { INITIAL_SCHEMA_SQL, MULTI_TENANCY_SQL, AUTH_HYBRID_SQL } from "../migration-sql.js";
+import { INITIAL_SCHEMA_SQL, MULTI_TENANCY_SQL, AUTH_HYBRID_SQL, USER_ONBOARDING_SQL } from "../migration-sql.js";
 
 /**
  * Schema/type drift test.
@@ -15,7 +15,7 @@ import { INITIAL_SCHEMA_SQL, MULTI_TENANCY_SQL, AUTH_HYBRID_SQL } from "../migra
 // Map of table name -> expected column names from TypeScript interfaces
 const EXPECTED_COLUMNS: Record<string, string[]> = {
   user: [
-    "id", "email", "email_verified", "slug", "name", "avatar_url",
+    "id", "email", "email_verified", "slug", "onboarding_completed_at", "name", "avatar_url",
     "is_admin", "is_active", "created_at", "updated_at",
   ],
   document: [
@@ -95,7 +95,14 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
 };
 
 async function applyMigration(db: D1Database) {
-  const allSql = INITIAL_SCHEMA_SQL + "\n" + MULTI_TENANCY_SQL + "\n" + AUTH_HYBRID_SQL;
+  const allSql =
+    INITIAL_SCHEMA_SQL +
+    "\n" +
+    MULTI_TENANCY_SQL +
+    "\n" +
+    AUTH_HYBRID_SQL +
+    "\n" +
+    USER_ONBOARDING_SQL;
   const statements = allSql
     .split(";")
     .map((s) => s.trim())

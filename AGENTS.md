@@ -61,6 +61,7 @@ Read these when working on specific areas:
 - [Web App Architecture](agents/docs/web-app.md) — layout patterns, API routes, auth, data fetching, features
 - [Email Worker Pipeline](agents/docs/email-worker.md) — 17-step ingestion pipeline, retry logic, postal-mime pitfalls
 - [Cloudflare & Local Development](agents/docs/cloudflare.md) — bindings, env vars, shared D1/R2 state, migrations
+- [Multi-User Onboarding Rollout](agents/docs/multi-user-onboarding-rollout.md) — DB-first deployment runbook for login-first + onboarding flow
 
 ## Specifications
 

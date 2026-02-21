@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const verifyUrl = new URL("/api/auth/magic-link/verify", request.url);
   verifyUrl.searchParams.set("token", token);
   verifyUrl.searchParams.set("callbackURL", "/inbox");
-  verifyUrl.searchParams.set("newUserCallbackURL", "/inbox");
+  verifyUrl.searchParams.set("newUserCallbackURL", "/onboarding");
   verifyUrl.searchParams.set("errorCallbackURL", "/login?error=invalid_or_expired");
   return NextResponse.redirect(verifyUrl, { status: 302 });
 }

@@ -1,24 +1,19 @@
-import { Suspense } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { resolveServerAuthState } from "@/lib/server-auth";
-import { LoginForm } from "./login-form";
+import { OnboardingForm } from "./onboarding-form";
 
-export default async function LoginPage() {
+export default async function OnboardingPage() {
   const authState = await resolveServerAuthState(new Headers(await headers()));
   if (authState.authMode !== "multi-user") {
     redirect("/inbox");
   }
-  if (authState.authenticated) {
-    if (authState.needsOnboarding) {
-      redirect("/onboarding");
-    }
+  if (!authState.authenticated) {
+    redirect("/login");
+  }
+  if (!authState.needsOnboarding) {
     redirect("/inbox");
   }
 
-  return (
-    <Suspense fallback={null}>
-      <LoginForm />
-    </Suspense>
-  );
+  return <OnboardingForm initialSlug={authState.user?.slug ?? ""} />;
 }

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       body: {
         email,
         callbackURL: "/inbox",
-        newUserCallbackURL: "/inbox",
+        newUserCallbackURL: "/onboarding",
         errorCallbackURL: "/login?error=invalid_or_expired",
       },
       headers: request.headers,

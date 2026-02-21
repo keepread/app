@@ -13,6 +13,7 @@ interface AuthMeUser {
   id: string;
   email: string;
   slug: string;
+  onboarding_completed_at: string | null;
   name: string | null;
   avatar_url: string | null;
 }
@@ -20,6 +21,7 @@ interface AuthMeUser {
 interface AuthMeResponse {
   authenticated: boolean;
   authMode: "single-user" | "multi-user";
+  needsOnboarding?: boolean;
   method?: "session" | "cf-access" | "api-key" | "single-user";
   user?: AuthMeUser;
 }
@@ -55,9 +57,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isLoading || !data) return;
 
-    if (data.authMode === "multi-user" && !data.authenticated) {
-      if (pathname !== "/login" && pathname !== "/verify") {
-        router.replace("/login");
+    if (data.authMode === "multi-user") {
+      if (!data.authenticated) {
+        if (pathname !== "/login" && pathname !== "/verify") {
+          router.replace("/login");
+        }
+        return;
+      }
+
+      if (data.needsOnboarding && pathname !== "/onboarding") {
+        router.replace("/onboarding");
       }
     }
   }, [data, isLoading, pathname, router]);
