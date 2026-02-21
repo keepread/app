@@ -6,11 +6,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Filter, PanelLeftOpen, PanelRightOpen, LayoutList, LayoutGrid } from "lucide-react";
 import { SearchBar } from "@/components/search/search-bar";
 import { useApp } from "@/contexts/app-context";
-import type { DocumentType } from "@focus-reader/shared";
+import type { DocumentType, ListDocumentsQuery } from "@focus-reader/shared";
 
 const TYPE_OPTIONS: { label: string; value: DocumentType | null }[] = [
   { label: "All Types", value: null },
@@ -20,6 +23,35 @@ const TYPE_OPTIONS: { label: string; value: DocumentType | null }[] = [
   { label: "Bookmarks", value: "bookmark" },
   { label: "PDFs", value: "pdf" },
 ];
+
+type SortField = NonNullable<ListDocumentsQuery["sortBy"]>;
+type SortDirection = NonNullable<ListDocumentsQuery["sortDir"]>;
+
+const SORT_FIELDS: { value: SortField; label: string }[] = [
+  { value: "saved_at", label: "Date saved" },
+  { value: "published_at", label: "Date published" },
+  { value: "title", label: "Title" },
+  { value: "reading_time_minutes", label: "Reading time" },
+];
+
+const SORT_DIRECTION_LABELS: Record<SortField, Record<SortDirection, string>> = {
+  saved_at: {
+    desc: "Recent → Old",
+    asc: "Old → Recent",
+  },
+  published_at: {
+    desc: "Recent → Old",
+    asc: "Old → Recent",
+  },
+  title: {
+    desc: "Z → A",
+    asc: "A → Z",
+  },
+  reading_time_minutes: {
+    desc: "Long → Short",
+    asc: "Short → Long",
+  },
+};
 
 export type ViewMode = "list" | "grid";
 
@@ -32,11 +64,32 @@ interface DocumentListToolbarProps {
   selectedType?: DocumentType | null;
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
+  sortBy?: ListDocumentsQuery["sortBy"];
+  sortDir?: ListDocumentsQuery["sortDir"];
+  onSortByChange?: (field: NonNullable<ListDocumentsQuery["sortBy"]>) => void;
+  onSortDirChange?: (dir: NonNullable<ListDocumentsQuery["sortDir"]>) => void;
+  sortLocked?: boolean;
 }
 
-export function DocumentListToolbar({ title, total, onSearch, isSearchActive, onTypeFilter, selectedType, viewMode, onViewModeChange }: DocumentListToolbarProps) {
+export function DocumentListToolbar({ 
+  title, 
+  total, 
+  onSearch, 
+  isSearchActive, 
+  onTypeFilter, 
+  selectedType, 
+  viewMode, 
+  onViewModeChange,
+  sortBy = "saved_at",
+  sortDir = "desc",
+  onSortByChange,
+  onSortDirChange,
+  sortLocked = false,
+}: DocumentListToolbarProps) {
   const { sidebarCollapsed, toggleSidebar, rightPanelVisible, toggleRightPanel } = useApp();
   const typeLabel = TYPE_OPTIONS.find((o) => o.value === (selectedType ?? null))?.label ?? "All Types";
+  const canChangeSort = !sortLocked && !!onSortByChange && !!onSortDirChange;
+  const sortDirectionLabels = SORT_DIRECTION_LABELS[sortBy];
 
   return (
     <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
@@ -74,16 +127,44 @@ export function DocumentListToolbar({ title, total, onSearch, isSearchActive, on
         {!isSearchActive && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground">
-                Date saved
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-xs text-muted-foreground"
+                disabled={!canChangeSort}
+              >
+                {SORT_FIELDS.find((f) => f.value === sortBy)?.label || "Sort"}
                 <ChevronDown className="size-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>Date saved</DropdownMenuItem>
-              <DropdownMenuItem>Date published</DropdownMenuItem>
-              <DropdownMenuItem>Title A-Z</DropdownMenuItem>
-              <DropdownMenuItem>Reading time</DropdownMenuItem>
+              <DropdownMenuLabel className="text-xs text-muted-foreground font-medium">Sort by</DropdownMenuLabel>
+              {SORT_FIELDS.map((field) => (
+                <DropdownMenuCheckboxItem
+                  key={field.value}
+                  checked={sortBy === field.value}
+                  disabled={!canChangeSort}
+                  onCheckedChange={() => onSortByChange?.(field.value)}
+                >
+                  {field.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs text-muted-foreground font-medium">Order by</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={sortDir === "desc"}
+                disabled={!canChangeSort}
+                onCheckedChange={() => onSortDirChange?.("desc")}
+              >
+                {sortDirectionLabels.desc}
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={sortDir === "asc"}
+                disabled={!canChangeSort}
+                onCheckedChange={() => onSortDirChange?.("asc")}
+              >
+                {sortDirectionLabels.asc}
+              </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}

@@ -14,6 +14,33 @@ import { EmptyState } from "./empty-state";
 import { Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const DEFAULT_SORT_BY: NonNullable<ListDocumentsQuery["sortBy"]> = "saved_at";
+const DEFAULT_SORT_DIR: NonNullable<ListDocumentsQuery["sortDir"]> = "desc";
+const ALLOWED_SORT_FIELDS = new Set<NonNullable<ListDocumentsQuery["sortBy"]>>([
+  "saved_at",
+  "published_at",
+  "title",
+  "reading_time_minutes",
+]);
+const ALLOWED_SORT_DIRECTIONS = new Set<NonNullable<ListDocumentsQuery["sortDir"]>>([
+  "asc",
+  "desc",
+]);
+
+function parseStoredSortBy(value: string | null): NonNullable<ListDocumentsQuery["sortBy"]> {
+  if (value && ALLOWED_SORT_FIELDS.has(value as NonNullable<ListDocumentsQuery["sortBy"]>)) {
+    return value as NonNullable<ListDocumentsQuery["sortBy"]>;
+  }
+  return DEFAULT_SORT_BY;
+}
+
+function parseStoredSortDir(value: string | null): NonNullable<ListDocumentsQuery["sortDir"]> {
+  if (value && ALLOWED_SORT_DIRECTIONS.has(value as NonNullable<ListDocumentsQuery["sortDir"]>)) {
+    return value as NonNullable<ListDocumentsQuery["sortDir"]>;
+  }
+  return DEFAULT_SORT_DIR;
+}
+
 interface DocumentListProps {
   location?: DocumentLocation;
   tagId?: string;
@@ -72,6 +99,34 @@ export function DocumentList({
     localStorage.setItem("focus-view-mode", mode);
   }, []);
 
+  const [sortBy, setSortBy] = useState<ListDocumentsQuery["sortBy"]>(() => {
+    if (typeof window !== "undefined") {
+      return parseStoredSortBy(localStorage.getItem("focus-sort-by"));
+    }
+    return DEFAULT_SORT_BY;
+  });
+
+  const [sortDir, setSortDir] = useState<ListDocumentsQuery["sortDir"]>(() => {
+    if (typeof window !== "undefined") {
+      return parseStoredSortDir(localStorage.getItem("focus-sort-dir"));
+    }
+    return DEFAULT_SORT_DIR;
+  });
+
+  const handleSortByChange = useCallback((field: NonNullable<ListDocumentsQuery["sortBy"]>) => {
+    setSortBy(field);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("focus-sort-by", field);
+    }
+  }, []);
+
+  const handleSortDirChange = useCallback((dir: NonNullable<ListDocumentsQuery["sortDir"]>) => {
+    setSortDir(dir);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("focus-sort-dir", dir);
+    }
+  }, []);
+
   const query: ListDocumentsQuery = {
     location,
     tagId,
@@ -82,9 +137,13 @@ export function DocumentList({
     status,
     savedAfter,
     savedBefore,
-    sortBy: sortByProp ?? "saved_at",
-    sortDir: sortDirProp ?? "desc",
+    sortBy: sortByProp ?? sortBy ?? DEFAULT_SORT_BY,
+    sortDir: sortDirProp ?? sortDir ?? DEFAULT_SORT_DIR,
   };
+
+  const sortLocked = sortByProp !== undefined || sortDirProp !== undefined;
+  const effectiveSortBy = query.sortBy ?? DEFAULT_SORT_BY;
+  const effectiveSortDir = query.sortDir ?? DEFAULT_SORT_DIR;
 
   const { documents, total, isLoading, isLoadingMore, hasMore, loadMore, mutate } =
     useDocuments(query);
@@ -202,6 +261,11 @@ export function DocumentList({
     selectedType: typeFilter,
     viewMode,
     onViewModeChange: handleViewModeChange,
+    sortBy: effectiveSortBy,
+    sortDir: effectiveSortDir,
+    onSortByChange: sortLocked ? undefined : handleSortByChange,
+    onSortDirChange: sortLocked ? undefined : handleSortDirChange,
+    sortLocked,
   };
 
   if (displayIsLoading && displayDocuments.length === 0) {
