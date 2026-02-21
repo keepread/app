@@ -71,11 +71,15 @@ interface DocumentListToolbarProps {
   sortLocked?: boolean;
   isBulkMode?: boolean;
   selectedCount?: number;
+  selectedLabel?: string;
   allVisibleSelected?: boolean;
+  allMatchingSelected?: boolean;
+  matchingCount?: number;
   isBulkDeleting?: boolean;
   isBulkUpdating?: boolean;
   onToggleBulkMode?: () => void;
   onToggleSelectAllVisible?: () => void;
+  onToggleSelectAllMatching?: () => void;
   onClearSelection?: () => void;
   onDeleteSelected?: () => void;
   onMoveSelectedToLater?: () => void;
@@ -98,11 +102,15 @@ export function DocumentListToolbar({
   sortLocked = false,
   isBulkMode = false,
   selectedCount = 0,
+  selectedLabel = "selected",
   allVisibleSelected = false,
+  allMatchingSelected = false,
+  matchingCount = 0,
   isBulkDeleting = false,
   isBulkUpdating = false,
   onToggleBulkMode,
   onToggleSelectAllVisible,
+  onToggleSelectAllMatching,
   onClearSelection,
   onDeleteSelected,
   onMoveSelectedToLater,
@@ -174,9 +182,20 @@ export function DocumentListToolbar({
             {allVisibleSelected ? "Clear all" : "Select all"}
           </Button>
         )}
+        {isBulkMode && onToggleSelectAllMatching && matchingCount > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-muted-foreground"
+            onClick={onToggleSelectAllMatching}
+            disabled={isBulkDeleting || isBulkUpdating}
+          >
+            {allMatchingSelected ? "Use visible only" : `Select all matching (${matchingCount})`}
+          </Button>
+        )}
         {isBulkMode && (
           <>
-            <span className="text-xs text-muted-foreground">{selectedCount} selected</span>
+            <span className="text-xs text-muted-foreground">{selectedCount} {selectedLabel}</span>
             {onClearSelection && (
               <Button
                 variant="ghost"

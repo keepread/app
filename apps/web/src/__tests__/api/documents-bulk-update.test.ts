@@ -20,6 +20,7 @@ describe("PATCH /api/documents/bulk-update", () => {
 
     const req = createRequest("PATCH", "/api/documents/bulk-update", {
       body: {
+        scope: "selected",
         ids: ["a", "b"],
         location: "later",
       },
@@ -31,13 +32,39 @@ describe("PATCH /api/documents/bulk-update", () => {
     expect(body.updatedCount).toBe(2);
     expect(bulkMoveSelectedDocuments).toHaveBeenCalledWith(
       expect.objectContaining({ db: mockDb, userId: "test-user-id" }),
-      { ids: ["a", "b"], location: "later" }
+      { scope: "selected", ids: ["a", "b"], location: "later" }
+    );
+  });
+
+  it("moves filtered documents to archive", async () => {
+    vi.mocked(bulkMoveSelectedDocuments).mockResolvedValue(12 as never);
+
+    const req = createRequest("PATCH", "/api/documents/bulk-update", {
+      body: {
+        scope: "filtered",
+        filters: { location: "inbox", type: "rss" },
+        location: "archive",
+      },
+    });
+    const res = await bulkUpdatePATCH(req);
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { updatedCount: number };
+    expect(body.updatedCount).toBe(12);
+    expect(bulkMoveSelectedDocuments).toHaveBeenCalledWith(
+      expect.objectContaining({ db: mockDb, userId: "test-user-id" }),
+      expect.objectContaining({
+        scope: "filtered",
+        query: expect.objectContaining({ location: "inbox", type: "rss" }),
+        location: "archive",
+      })
     );
   });
 
   it("returns 400 for empty ids", async () => {
     const req = createRequest("PATCH", "/api/documents/bulk-update", {
       body: {
+        scope: "selected",
         ids: [],
         location: "archive",
       },
@@ -52,6 +79,7 @@ describe("PATCH /api/documents/bulk-update", () => {
   it("returns 400 for invalid location", async () => {
     const req = createRequest("PATCH", "/api/documents/bulk-update", {
       body: {
+        scope: "selected",
         ids: ["a"],
         location: "trash",
       },

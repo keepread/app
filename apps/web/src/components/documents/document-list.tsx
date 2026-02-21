@@ -93,6 +93,7 @@ export function DocumentList({
   const [typeFilter, setTypeFilter] = useState<DocumentType | null>(null);
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [selectedBulkIds, setSelectedBulkIds] = useState<Set<string>>(new Set());
+  const [isSelectAllMatching, setIsSelectAllMatching] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -168,6 +169,8 @@ export function DocumentList({
   } = useSearch(searchQuery, { location, tagId });
 
   const isSearchActive = searchQuery.trim().length >= 2;
+  const displayTotal = isSearchActive ? searchTotal : total;
+  const displayIsLoading = isSearchActive ? searchIsLoading : isLoading;
 
   // Infinite scroll observer
   useEffect(() => {
@@ -194,8 +197,15 @@ export function DocumentList({
     [displayDocuments]
   );
   const allVisibleSelected = useMemo(
-    () => displayDocIds.length > 0 && displayDocIds.every((id) => selectedBulkIds.has(id)),
-    [displayDocIds, selectedBulkIds]
+    () =>
+      isSelectAllMatching ||
+      (displayDocIds.length > 0 && displayDocIds.every((id) => selectedBulkIds.has(id))),
+    [displayDocIds, isSelectAllMatching, selectedBulkIds]
+  );
+  const bulkSelectedCount = isSelectAllMatching ? displayTotal : selectedBulkIds.size;
+  const visibleBulkSelectedIds = useMemo(
+    () => (isSelectAllMatching ? new Set(displayDocIds) : selectedBulkIds),
+    [displayDocIds, isSelectAllMatching, selectedBulkIds]
   );
   // Sync document IDs to app context for keyboard navigation
   useEffect(() => {
@@ -219,6 +229,7 @@ export function DocumentList({
   useEffect(() => {
     setIsBulkMode(false);
     setSelectedBulkIds(new Set());
+    setIsSelectAllMatching(false);
   }, [pathname]);
 
   // Ensure list view always has a valid active selection when not in reading mode.
@@ -285,6 +296,13 @@ export function DocumentList({
   }, []);
 
   const toggleBulkSelect = useCallback((id: string) => {
+    if (isSelectAllMatching) {
+      const base = new Set(displayDocIds);
+      base.delete(id);
+      setIsSelectAllMatching(false);
+      setSelectedBulkIds(base);
+      return;
+    }
     setSelectedBulkIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -294,13 +312,19 @@ export function DocumentList({
       }
       return next;
     });
-  }, []);
+  }, [displayDocIds, isSelectAllMatching]);
 
   const clearBulkSelection = useCallback(() => {
     setSelectedBulkIds(new Set());
+    setIsSelectAllMatching(false);
   }, []);
 
   const toggleSelectAllVisible = useCallback(() => {
+    if (isSelectAllMatching) {
+      setIsSelectAllMatching(false);
+      setSelectedBulkIds(new Set(displayDocIds));
+      return;
+    }
     setSelectedBulkIds((prev) => {
       const next = new Set(prev);
       const everySelected = displayDocIds.length > 0 && displayDocIds.every((id) => next.has(id));
@@ -311,17 +335,44 @@ export function DocumentList({
       }
       return next;
     });
-  }, [displayDocIds]);
+  }, [displayDocIds, isSelectAllMatching]);
+
+  const toggleSelectAllMatching = useCallback(() => {
+    if (isSelectAllMatching) {
+      setIsSelectAllMatching(false);
+      setSelectedBulkIds(new Set());
+      return;
+    }
+    setIsSelectAllMatching(true);
+    setSelectedBulkIds(new Set());
+  }, [isSelectAllMatching]);
 
   const toggleBulkMode = useCallback(() => {
     setIsBulkMode((prev) => !prev);
     setSelectedBulkIds(new Set());
+    setIsSelectAllMatching(false);
   }, []);
+
+  const bulkFilters = useMemo<Record<string, unknown>>(
+    () => ({
+      location: query.location,
+      status: query.status,
+      tagId: query.tagId,
+      subscriptionId: query.subscriptionId,
+      feedId: query.feedId,
+      type: query.type,
+      isStarred: query.isStarred,
+      savedAfter: query.savedAfter,
+      savedBefore: query.savedBefore,
+    }),
+    [query.feedId, query.isStarred, query.location, query.savedAfter, query.savedBefore, query.status, query.subscriptionId, query.tagId, query.type]
+  );
 
   const deleteSelected = useCallback(async () => {
     const ids = Array.from(selectedBulkIds);
-    if (ids.length === 0) return;
-    const confirmed = window.confirm(`Delete ${ids.length} selected documents? This cannot be undone.`);
+    const selectionCount = isSelectAllMatching ? displayTotal : ids.length;
+    if (selectionCount === 0) return;
+    const confirmed = window.confirm(`Delete ${selectionCount} selected documents? This cannot be undone.`);
     if (!confirmed) return;
 
     setIsBulkDeleting(true);
@@ -329,12 +380,14 @@ export function DocumentList({
       const result = await apiFetch<{ deletedCount: number }>("/api/documents/bulk-delete", {
         method: "POST",
         body: JSON.stringify({
-          scope: "selected",
-          ids,
+          ...(isSelectAllMatching
+            ? { scope: "filtered", filters: bulkFilters }
+            : { scope: "selected", ids }),
         }),
       });
       toast(`${result.deletedCount} documents deleted`);
       setSelectedBulkIds(new Set());
+      setIsSelectAllMatching(false);
       setHoveredDocumentId(null);
       await invalidateDocumentLists();
       mutateDocumentList();
@@ -343,24 +396,28 @@ export function DocumentList({
     } finally {
       setIsBulkDeleting(false);
     }
-  }, [mutateDocumentList, selectedBulkIds, setHoveredDocumentId]);
+  }, [bulkFilters, displayTotal, isSelectAllMatching, mutateDocumentList, selectedBulkIds, setHoveredDocumentId]);
 
   const moveSelected = useCallback(
     async (targetLocation: DocumentLocation) => {
       const ids = Array.from(selectedBulkIds);
-      if (ids.length === 0) return;
+      const selectionCount = isSelectAllMatching ? displayTotal : ids.length;
+      if (selectionCount === 0) return;
 
       setIsBulkUpdating(true);
       try {
         const result = await apiFetch<{ updatedCount: number }>("/api/documents/bulk-update", {
           method: "PATCH",
           body: JSON.stringify({
-            ids,
+            ...(isSelectAllMatching
+              ? { scope: "filtered", filters: bulkFilters }
+              : { scope: "selected", ids }),
             location: targetLocation,
           }),
         });
         toast(`${result.updatedCount} documents moved to ${targetLocation}`);
         setSelectedBulkIds(new Set());
+        setIsSelectAllMatching(false);
         setHoveredDocumentId(null);
         await invalidateDocumentLists();
         mutateDocumentList();
@@ -370,11 +427,8 @@ export function DocumentList({
         setIsBulkUpdating(false);
       }
     },
-    [mutateDocumentList, selectedBulkIds, setHoveredDocumentId]
+    [bulkFilters, displayTotal, isSelectAllMatching, mutateDocumentList, selectedBulkIds, setHoveredDocumentId]
   );
-
-  const displayTotal = isSearchActive ? searchTotal : total;
-  const displayIsLoading = isSearchActive ? searchIsLoading : isLoading;
 
   const toolbarProps = {
     title,
@@ -391,12 +445,16 @@ export function DocumentList({
     onSortDirChange: sortLocked ? undefined : handleSortDirChange,
     sortLocked,
     isBulkMode,
-    selectedCount: selectedBulkIds.size,
+    selectedCount: bulkSelectedCount,
+    selectedLabel: isSelectAllMatching ? "matching" : "selected",
     allVisibleSelected,
+    allMatchingSelected: isSelectAllMatching,
+    matchingCount: !isSearchActive ? displayTotal : 0,
     isBulkDeleting,
     isBulkUpdating,
     onToggleBulkMode: toggleBulkMode,
     onToggleSelectAllVisible: toggleSelectAllVisible,
+    onToggleSelectAllMatching: isSearchActive ? undefined : toggleSelectAllMatching,
     onClearSelection: clearBulkSelection,
     onDeleteSelected: deleteSelected,
     onMoveSelectedToLater: () => moveSelected("later"),
@@ -445,7 +503,7 @@ export function DocumentList({
             documents={displayDocuments}
             selectedId={selectedId}
             showBulkSelect={isBulkMode}
-            selectedBulkIds={selectedBulkIds}
+            selectedBulkIds={visibleBulkSelectedIds}
             onSelect={(id) => (isBulkMode ? toggleBulkSelect(id) : selectDocument(id))}
             onOpen={(id) => {
               if (!isBulkMode) openDocument(id);
@@ -461,7 +519,7 @@ export function DocumentList({
               document={doc}
               isSelected={doc.id === selectedId}
               showBulkSelect={isBulkMode}
-              isBulkSelected={selectedBulkIds.has(doc.id)}
+              isBulkSelected={visibleBulkSelectedIds.has(doc.id)}
               onClick={() => (isBulkMode ? toggleBulkSelect(doc.id) : selectDocument(doc.id))}
               onDoubleClick={() => {
                 if (!isBulkMode) openDocument(doc.id);

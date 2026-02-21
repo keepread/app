@@ -83,9 +83,20 @@ export type BulkDeleteDocumentsInput =
   | BulkDeleteFilteredInput;
 
 export interface BulkMoveSelectedDocumentsInput {
+  scope: "selected";
   ids: string[];
   location: DocumentLocation;
 }
+
+export interface BulkMoveFilteredDocumentsInput {
+  scope: "filtered";
+  query: ListDocumentsQuery;
+  location: DocumentLocation;
+}
+
+export type BulkMoveDocumentsInput =
+  | BulkMoveSelectedDocumentsInput
+  | BulkMoveFilteredDocumentsInput;
 
 export async function previewBulkDeleteDocuments(
   ctx: UserScopedDb,
@@ -111,14 +122,19 @@ export async function bulkDeleteDocuments(
 
 export async function bulkMoveSelectedDocuments(
   ctx: UserScopedDb,
-  input: BulkMoveSelectedDocumentsInput
+  input: BulkMoveDocumentsInput
 ): Promise<number> {
-  if (input.ids.length === 0) return 0;
-  if (input.ids.length > 5000) {
-    throw new Error("Too many IDs in selected scope");
+  if (input.scope === "selected") {
+    if (input.ids.length === 0) return 0;
+    if (input.ids.length > 5000) {
+      throw new Error("Too many IDs in selected scope");
+    }
+
+    return batchUpdateDocuments(ctx, input.ids, { location: input.location });
   }
 
-  return batchUpdateDocuments(ctx, input.ids, { location: input.location });
+  const ids = await listDocumentIdsByQuery(ctx, input.query);
+  return batchUpdateDocuments(ctx, ids, { location: input.location });
 }
 
 export async function createBookmark(
