@@ -49,6 +49,7 @@ export interface Document {
   reading_time_minutes: number;
   cover_image_url: string | null;
   cover_image_r2_key: string | null;
+  favicon_url: string | null;
   html_content: string | null;
   markdown_content: string | null;
   plain_text_content: string | null;
@@ -294,6 +295,7 @@ export interface CreateDocumentInput {
   word_count?: number;
   reading_time_minutes?: number;
   cover_image_url?: string | null;
+  favicon_url?: string | null;
   html_content?: string | null;
   markdown_content?: string | null;
   plain_text_content?: string | null;

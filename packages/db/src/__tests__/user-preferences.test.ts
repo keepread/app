@@ -4,11 +4,11 @@ import {
   getUserPreferences,
   upsertUserPreferences,
 } from "../queries/user-preferences.js";
-import { INITIAL_SCHEMA_SQL, FTS5_MIGRATION_SQL, INDEXES_MIGRATION_SQL, MULTI_TENANCY_SQL, AUTH_HYBRID_SQL } from "../migration-sql.js";
+import { INITIAL_SCHEMA_SQL, FTS5_MIGRATION_SQL, INDEXES_MIGRATION_SQL, MULTI_TENANCY_SQL, AUTH_HYBRID_SQL, FAVICON_URL_SQL } from "../migration-sql.js";
 import { scopeDb } from "../scoped-db.js";
 
 async function applyMigration(db: D1Database) {
-  const allSql = INITIAL_SCHEMA_SQL + "\n" + FTS5_MIGRATION_SQL + "\n" + INDEXES_MIGRATION_SQL + "\n" + MULTI_TENANCY_SQL + "\n" + AUTH_HYBRID_SQL;
+  const allSql = INITIAL_SCHEMA_SQL + "\n" + FTS5_MIGRATION_SQL + "\n" + INDEXES_MIGRATION_SQL + "\n" + MULTI_TENANCY_SQL + "\n" + AUTH_HYBRID_SQL + "\n" + FAVICON_URL_SQL;
   const statements = allSql
     .split(";")
     .map((s) => s.trim())

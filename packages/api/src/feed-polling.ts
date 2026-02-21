@@ -91,6 +91,7 @@ async function processItem(
     let excerpt = item.excerpt;
     let siteName = feed.title || null;
     let coverImageUrl = item.coverImageUrl;
+    let faviconUrl: string | null = null;
     let lang: string | null = null;
 
     let readabilitySucceeded: boolean | undefined;
@@ -123,6 +124,7 @@ async function processItem(
         // Supplement with metadata extraction
         const meta = extractMetadata(result.html, item.url);
         coverImageUrl = coverImageUrl || meta.ogImage;
+        faviconUrl = meta.favicon || null;
         lang = meta.lang;
       } catch {
         // Fall through to default path
@@ -163,6 +165,7 @@ async function processItem(
       word_count: wordCount,
       reading_time_minutes: readingTime,
       cover_image_url: coverImageUrl,
+      favicon_url: faviconUrl,
       lang,
       origin_type: "feed",
       source_id: feed.id,

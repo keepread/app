@@ -90,6 +90,14 @@ export function DocumentListItem({
           </p>
         ) : null}
         <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+          {doc.favicon_url && (
+            <img
+              src={doc.favicon_url}
+              alt=""
+              className="size-3.5 rounded-sm flex-shrink-0"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          )}
           {doc.site_name && <span>{doc.site_name}</span>}
           {doc.author && (
             <>

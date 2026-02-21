@@ -14,6 +14,7 @@ import {
   FTS5_MIGRATION_SQL,
   MULTI_TENANCY_SQL,
   AUTH_HYBRID_SQL,
+  FAVICON_URL_SQL,
 } from "../migration-sql.js";
 
 async function applyMigration(db: D1Database) {
@@ -22,6 +23,7 @@ async function applyMigration(db: D1Database) {
     FTS5_MIGRATION_SQL,
     MULTI_TENANCY_SQL,
     AUTH_HYBRID_SQL,
+    FAVICON_URL_SQL,
   ].join("\n");
 
   const statements = allSql

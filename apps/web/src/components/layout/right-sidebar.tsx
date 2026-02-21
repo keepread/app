@@ -129,9 +129,19 @@ export function RightSidebar() {
                   {doc.title}
                 </h2>
                 {doc.url && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {extractDomain(doc.url)}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {doc.favicon_url && (
+                      <img
+                        src={doc.favicon_url}
+                        alt=""
+                        className="size-3.5 rounded-sm flex-shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {extractDomain(doc.url)}
+                    </p>
+                  </div>
                 )}
               </div>
 

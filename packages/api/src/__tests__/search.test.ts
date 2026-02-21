@@ -42,6 +42,7 @@ describe("searchDocuments (API)", () => {
       reading_time_minutes: 1,
       cover_image_url: null,
       cover_image_r2_key: null,
+      favicon_url: null,
       html_content: null,
       markdown_content: null,
       plain_text_content: null,

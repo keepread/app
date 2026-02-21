@@ -20,13 +20,13 @@ export async function createDocument(
   const stmt = ctx.db.prepare(`
     INSERT INTO document (
       id, user_id, type, url, title, author, author_url, site_name, excerpt,
-      word_count, reading_time_minutes, cover_image_url,
+      word_count, reading_time_minutes, cover_image_url, favicon_url,
       html_content, markdown_content, plain_text_content,
       location, is_read, is_starred, reading_progress,
       saved_at, published_at, lang, updated_at, source_id, origin_type
     ) VALUES (
       ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
-      ?10, ?11, ?12,
+      ?10, ?11, ?12, ?22,
       ?13, ?14, ?15,
       ?16, 0, 0, 0.0,
       ?17, ?18, ?19, ?17, ?20, ?21
@@ -54,7 +54,8 @@ export async function createDocument(
       input.published_at ?? null,
       input.lang ?? null,
       input.source_id ?? null,
-      input.origin_type
+      input.origin_type,
+      input.favicon_url ?? null
     )
     .run();
 

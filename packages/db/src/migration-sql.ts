@@ -440,3 +440,6 @@ UPDATE user
 SET onboarding_completed_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
 WHERE onboarding_completed_at IS NULL;
 `;
+
+// Auto-generated from migrations/0009_favicon_url.sql
+export const FAVICON_URL_SQL = `ALTER TABLE document ADD COLUMN favicon_url TEXT;`;
