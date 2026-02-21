@@ -87,6 +87,7 @@ vi.mock("@/lib/bindings", () => ({
     ...envOverrides,
   })),
   getR2: vi.fn(async () => mockR2),
+  getExtractionQueue: vi.fn(async () => null),
 }));
 
 // ---------------------------------------------------------------------------

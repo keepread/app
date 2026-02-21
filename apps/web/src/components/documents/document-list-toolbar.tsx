@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Filter, PanelLeftOpen, PanelRightOpen } from "lucide-react";
+import { ChevronDown, Filter, PanelLeftOpen, PanelRightOpen, LayoutList, LayoutGrid } from "lucide-react";
 import { SearchBar } from "@/components/search/search-bar";
 import { useApp } from "@/contexts/app-context";
 import type { DocumentType } from "@focus-reader/shared";
@@ -21,6 +21,8 @@ const TYPE_OPTIONS: { label: string; value: DocumentType | null }[] = [
   { label: "PDFs", value: "pdf" },
 ];
 
+export type ViewMode = "list" | "grid";
+
 interface DocumentListToolbarProps {
   title: string;
   total: number;
@@ -28,9 +30,11 @@ interface DocumentListToolbarProps {
   isSearchActive?: boolean;
   onTypeFilter?: (type: DocumentType | null) => void;
   selectedType?: DocumentType | null;
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
 }
 
-export function DocumentListToolbar({ title, total, onSearch, isSearchActive, onTypeFilter, selectedType }: DocumentListToolbarProps) {
+export function DocumentListToolbar({ title, total, onSearch, isSearchActive, onTypeFilter, selectedType, viewMode, onViewModeChange }: DocumentListToolbarProps) {
   const { sidebarCollapsed, toggleSidebar, rightPanelVisible, toggleRightPanel } = useApp();
   const typeLabel = TYPE_OPTIONS.find((o) => o.value === (selectedType ?? null))?.label ?? "All Types";
 
@@ -82,6 +86,26 @@ export function DocumentListToolbar({ title, total, onSearch, isSearchActive, on
               <DropdownMenuItem>Reading time</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        )}
+        {onViewModeChange && (
+          <div className="flex border rounded-md">
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="icon"
+              className="size-7 rounded-r-none"
+              onClick={() => onViewModeChange("list")}
+            >
+              <LayoutList className="size-3.5" />
+            </Button>
+            <Button
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              size="icon"
+              className="size-7 rounded-l-none"
+              onClick={() => onViewModeChange("grid")}
+            >
+              <LayoutGrid className="size-3.5" />
+            </Button>
+          </div>
         )}
         {!rightPanelVisible && (
           <Button variant="ghost" size="icon" className="size-7" onClick={toggleRightPanel}>

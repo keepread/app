@@ -47,6 +47,7 @@ export interface Document {
   word_count: number;
   reading_time_minutes: number;
   cover_image_url: string | null;
+  cover_image_r2_key: string | null;
   html_content: string | null;
   markdown_content: string | null;
   plain_text_content: string | null;
@@ -57,6 +58,7 @@ export interface Document {
   last_read_at: string | null;
   saved_at: string;
   published_at: string | null;
+  lang: string | null;
   updated_at: string;
   deleted_at: string | null;
   source_id: string | null;
@@ -298,6 +300,7 @@ export interface CreateDocumentInput {
   source_id?: string | null;
   origin_type: OriginType;
   published_at?: string | null;
+  lang?: string | null;
 }
 
 export interface CreateEmailMetaInput {
@@ -562,4 +565,19 @@ export interface UpdateTagInput {
   name?: string;
   color?: string | null;
   description?: string | null;
+}
+
+// --- Enrichment types ---
+
+export type EnrichmentSource = "manual_url" | "rss_full_content";
+
+export interface ExtractionEnrichmentJob {
+  job_id: string;
+  user_id: string;
+  document_id: string;
+  url: string;
+  source: EnrichmentSource;
+  attempt: number;
+  enqueued_at: string;
+  job_type?: "enrichment" | "image_cache";
 }

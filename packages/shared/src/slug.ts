@@ -15,3 +15,27 @@ export function emailToSubscriptionKey(
   }
   return localPart;
 }
+
+export function parseToAddressRoute(
+  toAddress: string,
+  emailDomain: string,
+  authMode: string
+): { userSlug: string; aliasTag: string | null } {
+  const [localPart, domain] = toAddress.toLowerCase().split("@");
+  if (authMode === "multi-user") {
+    const lastPlus = localPart.lastIndexOf("+");
+    if (lastPlus !== -1) {
+      return {
+        userSlug: localPart.slice(lastPlus + 1),
+        aliasTag: localPart.slice(0, lastPlus) || null,
+      };
+    }
+    return { userSlug: localPart, aliasTag: null };
+  }
+  // single-user: slug = SLD of domain (e.g. "annjose" from "annjose.com")
+  const parts = domain.split(".");
+  return {
+    userSlug: parts[parts.length - 2] ?? parts[0],
+    aliasTag: null,
+  };
+}

@@ -29,3 +29,7 @@ bucket_name = "focus-reader-storage"
 [[r2_buckets]]
 binding = "NEXT_INC_CACHE_R2_BUCKET"
 bucket_name = "focus-reader-cache"
+
+[[queues.producers]]
+queue = "focus-reader-extraction-queue"
+binding = "EXTRACTION_QUEUE"

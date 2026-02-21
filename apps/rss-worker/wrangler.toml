@@ -18,3 +18,17 @@ binding = "FOCUS_DB"
 database_name = "focus-reader-db"
 database_id = "b4a813e6-ea46-4e4a-8985-512073565630"
 migrations_dir = "../../packages/db/migrations"
+
+[[r2_buckets]]
+binding = "FOCUS_STORAGE"
+bucket_name = "focus-reader-storage"
+
+[[queues.producers]]
+queue = "focus-reader-extraction-queue"
+binding = "EXTRACTION_QUEUE"
+
+[[queues.consumers]]
+queue = "focus-reader-extraction-queue"
+max_batch_size = 5
+max_retries = 3
+dead_letter_queue = "focus-reader-extraction-dlq"

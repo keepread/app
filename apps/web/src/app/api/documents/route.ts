@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import { getDocuments, createBookmark, DuplicateUrlError } from "@focus-reader/api";
+import type { EnrichmentIntent } from "@focus-reader/api";
 import type { ListDocumentsQuery, DocumentLocation, DocumentType, SortField, SortDirection } from "@focus-reader/shared";
 import { scopeDb } from "@focus-reader/db";
-import { getDb } from "@/lib/bindings";
+import { getDb, getExtractionQueue } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
 import { withCors, handlePreflight } from "@/lib/cors";
@@ -58,7 +59,51 @@ export async function POST(request: NextRequest) {
         return withCors(jsonError("URL is required", "MISSING_URL", 400), origin);
       }
 
-      const doc = await createBookmark(ctx, url, { type, html, tagIds });
+      const queue = await getExtractionQueue();
+      const onLowQuality = queue
+        ? async (intent: EnrichmentIntent) => {
+            try {
+              await queue.send({
+                job_id: crypto.randomUUID(),
+                user_id: intent.userId,
+                document_id: intent.documentId,
+                url: intent.url,
+                source: intent.source,
+                attempt: 1,
+                enqueued_at: new Date().toISOString(),
+              });
+              console.log(JSON.stringify({
+                event: "ENRICHMENT_QUEUED",
+                document_id: intent.documentId,
+                source: intent.source,
+                score: intent.score,
+              }));
+            } catch (err) {
+              console.warn("Enrichment enqueue failed (non-fatal):", err);
+            }
+          }
+        : undefined;
+
+      const doc = await createBookmark(ctx, url, { type, html, tagIds, onLowQuality });
+
+      // Enqueue image cache job if cover image exists
+      if (doc.cover_image_url && queue) {
+        try {
+          await queue.send({
+            job_id: crypto.randomUUID(),
+            user_id: userId,
+            document_id: doc.id,
+            url: doc.cover_image_url,
+            source: "manual_url",
+            attempt: 1,
+            enqueued_at: new Date().toISOString(),
+            job_type: "image_cache",
+          });
+        } catch {
+          // Non-fatal: image caching failure doesn't affect save
+        }
+      }
+
       return withCors(json(doc, 201), origin);
     } catch (err) {
       if (err instanceof DuplicateUrlError) {

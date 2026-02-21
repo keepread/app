@@ -14,7 +14,7 @@ import type { Env } from "../index.js";
 // --- Embedded EML fixtures (workerd can't read from filesystem) ---
 
 const SIMPLE_NEWSLETTER_EML = `From: Morning Brew <newsletter@morningbrew.com>
-To: morning-brew@read.example.com
+To: morning-brew+testuser@read.example.com
 Subject: Daily Digest - Feb 13
 Date: Thu, 13 Feb 2026 08:00:00 -0500
 Message-ID: <msg001@morningbrew.com>
@@ -50,7 +50,7 @@ Content-Type: text/html; charset="UTF-8"
 `;
 
 const CONFIRMATION_EML = `From: noreply@newsletter.example.com
-To: test-sub@read.example.com
+To: test-sub+testuser@read.example.com
 Subject: Please confirm your subscription
 Date: Thu, 13 Feb 2026 09:00:00 -0500
 Message-ID: <confirm001@newsletter.example.com>
@@ -79,7 +79,7 @@ Content-Type: text/html; charset="UTF-8"
 `;
 
 const EMPTY_BODY_EML = `From: sender@example.com
-To: test@read.example.com
+To: test+testuser@read.example.com
 Subject: Empty email
 Date: Thu, 13 Feb 2026 12:00:00 -0500
 Message-ID: <empty001@example.com>
@@ -93,7 +93,7 @@ const TINY_PNG_B64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
 const CID_IMAGE_EML = `From: Design Weekly <newsletter@designweekly.com>
-To: design-weekly@read.example.com
+To: design-weekly+testuser@read.example.com
 Subject: This Week in Design
 Date: Thu, 13 Feb 2026 10:00:00 -0500
 Message-ID: <design001@designweekly.com>
@@ -148,7 +148,7 @@ function createMockMessage(
 
   return {
     from: overrides?.from ?? fromMatch?.[1] ?? "unknown@example.com",
-    to: overrides?.to ?? toMatch?.[1] ?? "test@read.example.com",
+    to: overrides?.to ?? toMatch?.[1] ?? "test+testuser@read.example.com",
     raw: new ReadableStream({
       start(controller) {
         controller.enqueue(bytes);
@@ -230,22 +230,22 @@ function getEnv(): Env {
     FOCUS_DB: env.FOCUS_DB,
     FOCUS_STORAGE: env.FOCUS_STORAGE,
     EMAIL_DOMAIN: "read.example.com",
-    COLLAPSE_PLUS_ALIAS: "false",
+    AUTH_MODE: "multi-user",
   };
 }
 
 /**
- * Get a UserScopedDb context for the auto-created owner user.
- * The email worker creates this user via getOrCreateSingleUser on first email.
+ * Get a UserScopedDb context for the test user.
+ * For multi-user mode, creates a user with slug "testuser".
  * For test setup (pre-creating subscriptions/tags), we resolve the user first.
  */
 async function getTestCtx(): Promise<UserScopedDb> {
-  // Ensure the owner user exists (same logic as resolveUserId in the worker)
-  let user = await env.FOCUS_DB.prepare("SELECT id FROM user LIMIT 1").first<{ id: string }>();
+  // Ensure the test user exists
+  let user = await env.FOCUS_DB.prepare("SELECT id FROM user WHERE slug = ?1").bind("testuser").first<{ id: string }>();
   if (!user) {
     const id = crypto.randomUUID();
-    await env.FOCUS_DB.prepare("INSERT INTO user (id, email, slug, is_admin) VALUES (?1, ?2, ?3, 1)")
-      .bind(id, "owner@localhost", "owner")
+    await env.FOCUS_DB.prepare("INSERT INTO user (id, email, slug, is_admin, is_active) VALUES (?1, ?2, ?3, 1, 1)")
+      .bind(id, "test@example.com", "testuser")
       .run();
     user = { id };
   }
@@ -265,6 +265,12 @@ describe("email worker", () => {
   beforeEach(async () => {
     await resetDatabase(env.FOCUS_DB);
     await clearR2(env.FOCUS_STORAGE);
+
+    // Create the test user for multi-user mode routing
+    const id = crypto.randomUUID();
+    await env.FOCUS_DB.prepare("INSERT INTO user (id, email, slug, is_admin, is_active) VALUES (?1, ?2, ?3, 1, 1)")
+      .bind(id, "test@example.com", "testuser")
+      .run();
   });
 
   describe("happy path end-to-end", () => {
@@ -311,7 +317,7 @@ describe("email worker", () => {
       const ctx = await getTestCtx();
       const sub = await getSubscriptionByEmail(
         ctx,
-        "morning-brew@read.example.com"
+        "morning-brew+testuser@read.example.com"
       );
       expect(sub).not.toBeNull();
       expect(sub!.display_name).toBe("Morning Brew");
@@ -523,7 +529,7 @@ describe("email worker", () => {
       const ctx = await getTestCtx();
       const before = await getSubscriptionByEmail(
         ctx,
-        "morning-brew@read.example.com"
+        "morning-brew+testuser@read.example.com"
       );
       expect(before).toBeNull();
 
@@ -531,7 +537,7 @@ describe("email worker", () => {
 
       const after = await getSubscriptionByEmail(
         ctx,
-        "morning-brew@read.example.com"
+        "morning-brew+testuser@read.example.com"
       );
       expect(after).not.toBeNull();
       expect(after!.display_name).toBe("Morning Brew");
@@ -544,7 +550,7 @@ describe("email worker", () => {
       // Pre-create a subscription
       const ctx = await getTestCtx();
       const sub = await createSubscription(ctx, {
-        pseudo_email: "morning-brew@read.example.com",
+        pseudo_email: "morning-brew+testuser@read.example.com",
         display_name: "My Morning Brew",
         sender_address: "newsletter@morningbrew.com",
       });
@@ -578,7 +584,7 @@ describe("email worker", () => {
       // Pre-create subscription with tags
       const ctx = await getTestCtx();
       const sub = await createSubscription(ctx, {
-        pseudo_email: "morning-brew@read.example.com",
+        pseudo_email: "morning-brew+testuser@read.example.com",
         display_name: "Morning Brew",
       });
 
@@ -604,7 +610,7 @@ describe("email worker", () => {
         "SELECT id FROM document ORDER BY saved_at DESC LIMIT 1"
       ).first<{ id: string }>();
 
-      // Document should have both tags
+      // Document should have both subscription tags plus the alias tag "morning-brew"
       const docTags = await env.FOCUS_DB.prepare(
         "SELECT tag_id FROM document_tags WHERE document_id = ?1"
       )
@@ -612,9 +618,18 @@ describe("email worker", () => {
         .all<{ tag_id: string }>();
 
       const tagIds = docTags.results.map((r) => r.tag_id).sort();
-      expect(tagIds).toHaveLength(2);
+      expect(tagIds).toHaveLength(3); // 2 from subscription + 1 from alias tag
       expect(tagIds).toContain(tag1.id);
       expect(tagIds).toContain(tag2.id);
+
+      // Verify the alias tag was created and applied
+      const aliasTag = await env.FOCUS_DB.prepare(
+        'SELECT id FROM tag WHERE name = ?1'
+      )
+        .bind('morning-brew')
+        .first<{ id: string }>();
+      expect(aliasTag).not.toBeNull();
+      expect(tagIds).toContain(aliasTag!.id);
     });
   });
 });

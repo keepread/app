@@ -7,6 +7,8 @@ import {
   evaluateAutoTagRules,
 } from "@focus-reader/shared";
 import type { Feed, AutoTagRule } from "@focus-reader/shared";
+import { scoreExtraction, shouldEnrich } from "./extraction-quality.js";
+import type { EnrichmentIntent } from "./extraction-quality.js";
 import type { UserScopedDb } from "@focus-reader/db";
 import {
   getAllFeedsDueForPoll,
@@ -28,6 +30,7 @@ import {
   sanitizeHtml,
   htmlToMarkdown,
   extractArticle,
+  extractMetadata,
 } from "@focus-reader/parser";
 import type { FeedItem } from "@focus-reader/parser";
 
@@ -64,7 +67,9 @@ async function withRetry<T>(
 async function processItem(
   ctx: UserScopedDb,
   feed: Feed,
-  item: FeedItem
+  item: FeedItem,
+  onLowQuality?: (intent: EnrichmentIntent) => void | Promise<void>,
+  onCoverImage?: (userId: string, documentId: string) => void | Promise<void>
 ): Promise<boolean> {
   if (!item.url) return false;
 
@@ -86,10 +91,12 @@ async function processItem(
     let excerpt = item.excerpt;
     let siteName = feed.title || null;
     let coverImageUrl = item.coverImageUrl;
+    let lang: string | null = null;
 
+    let readabilitySucceeded: boolean | undefined;
     if (feed.fetch_full_content === 1) {
       try {
-        const article = await withRetry(MAX_RETRY_ATTEMPTS, async () => {
+        const result = await withRetry(MAX_RETRY_ATTEMPTS, async () => {
           const resp = await fetch(item.url, {
             headers: { "User-Agent": "FocusReader/1.0" },
             redirect: "follow",
@@ -98,19 +105,25 @@ async function processItem(
             throw new Error(`HTTP ${resp.status}`);
           }
           const html = await resp.text();
-          return extractArticle(html, item.url);
+          return { article: extractArticle(html, item.url), html };
         });
 
-        if (article.title && article.htmlContent) {
-          title = article.title;
-          author = article.author || author;
-          htmlContent = article.htmlContent;
-          markdownContent = article.markdownContent;
-          wordCount = article.wordCount;
-          readingTime = article.readingTimeMinutes;
-          excerpt = article.excerpt || excerpt;
-          siteName = article.siteName || siteName;
+        if (result.article.title && result.article.htmlContent) {
+          title = result.article.title;
+          author = result.article.author || author;
+          htmlContent = result.article.htmlContent;
+          markdownContent = result.article.markdownContent;
+          wordCount = result.article.wordCount;
+          readingTime = result.article.readingTimeMinutes;
+          excerpt = result.article.excerpt || excerpt;
+          siteName = result.article.siteName || siteName;
+          readabilitySucceeded = result.article.readabilitySucceeded;
         }
+
+        // Supplement with metadata extraction
+        const meta = extractMetadata(result.html, item.url);
+        coverImageUrl = coverImageUrl || meta.ogImage;
+        lang = meta.lang;
       } catch {
         // Fall through to default path
       }
@@ -150,11 +163,43 @@ async function processItem(
       word_count: wordCount,
       reading_time_minutes: readingTime,
       cover_image_url: coverImageUrl,
+      lang,
       origin_type: "feed",
       source_id: feed.id,
       published_at: item.publishedAt,
       location: "inbox",
     });
+
+    // Enqueue image caching for documents that already have a cover URL
+    if (onCoverImage && coverImageUrl) {
+      await onCoverImage(ctx.userId, documentId);
+    }
+
+    // Check extraction quality for enrichment
+    if (onLowQuality && feed.fetch_full_content === 1) {
+      const score = scoreExtraction({
+        title: title || null,
+        url: normalized,
+        htmlContent,
+        plainTextContent: plainText,
+        author: author || null,
+        siteName,
+        publishedDate: item.publishedAt || null,
+        coverImageUrl: coverImageUrl || null,
+        excerpt: excerpt || null,
+        wordCount,
+        readabilitySucceeded,
+      });
+      if (shouldEnrich(score, { hasUrl: true })) {
+        await onLowQuality({
+          documentId,
+          userId: ctx.userId,
+          url: normalized,
+          source: "rss_full_content",
+          score,
+        });
+      }
+    }
 
     // Evaluate feed auto-tag rules
     if (feed.auto_tag_rules) {
@@ -203,13 +248,15 @@ async function processItem(
 
 async function processFeed(
   ctx: UserScopedDb,
-  feed: Feed
+  feed: Feed,
+  onLowQuality?: (intent: EnrichmentIntent) => void | Promise<void>,
+  onCoverImage?: (userId: string, documentId: string) => void | Promise<void>
 ): Promise<number> {
   const parsedFeed = await fetchFeed(feed.feed_url);
   let newItems = 0;
 
   for (const item of parsedFeed.items) {
-    const created = await processItem(ctx, feed, item);
+    const created = await processItem(ctx, feed, item, onLowQuality, onCoverImage);
     if (created) newItems++;
   }
 
@@ -219,7 +266,9 @@ async function processFeed(
 
 export async function pollSingleFeed(
   ctx: UserScopedDb,
-  feedId: string
+  feedId: string,
+  onLowQuality?: (intent: EnrichmentIntent) => void | Promise<void>,
+  onCoverImage?: (userId: string, documentId: string) => void | Promise<void>
 ): Promise<PollResult> {
   const feed = await getFeed(ctx, feedId);
   if (!feed) {
@@ -227,7 +276,7 @@ export async function pollSingleFeed(
   }
 
   try {
-    const newItems = await processFeed(ctx, feed);
+    const newItems = await processFeed(ctx, feed, onLowQuality, onCoverImage);
     return { feedId, success: true, newItems };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -254,7 +303,9 @@ export async function pollSingleFeed(
 
 export async function pollDueFeeds(
   db: D1Database,
-  maxFeeds = MAX_FEEDS_PER_RUN
+  maxFeeds = MAX_FEEDS_PER_RUN,
+  onLowQuality?: (intent: EnrichmentIntent) => void | Promise<void>,
+  onCoverImage?: (userId: string, documentId: string) => void | Promise<void>
 ): Promise<PollResult[]> {
   // Use admin query to get all feeds due for poll across all users
   const feeds = await getAllFeedsDueForPoll(db);
@@ -264,7 +315,7 @@ export async function pollDueFeeds(
     batch.map((feed) => {
       // Create a user-scoped context for each feed's owner
       const ctx = scopeDb(db, feed.user_id);
-      return pollSingleFeed(ctx, feed.id);
+      return pollSingleFeed(ctx, feed.id, onLowQuality, onCoverImage);
     })
   );
 

@@ -61,12 +61,13 @@ export function DocumentListItem({
       </div>
 
       {/* Thumbnail */}
-      <div className="flex size-14 flex-shrink-0 items-center justify-center rounded bg-muted overflow-hidden">
+      <div className="flex w-20 h-14 flex-shrink-0 items-center justify-center rounded-md bg-muted overflow-hidden">
         {doc.cover_image_url ? (
           <img
-            src={doc.cover_image_url}
+            src={`/api/covers/${doc.id}`}
             alt=""
             className="size-full object-cover"
+            loading="lazy"
           />
         ) : (
           <TypeIcon className="size-5 text-muted-foreground" />

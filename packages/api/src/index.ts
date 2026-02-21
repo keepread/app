@@ -12,3 +12,7 @@ export * from "./collections.js";
 export * from "./user-preferences.js";
 export * from "./export.js";
 export * from "./feed-polling.js";
+export * from "./extraction-quality.js";
+export * from "./browser-rendering-client.js";
+export * from "./enrichment-consumer.js";
+export * from "./image-cache.js";

@@ -23,13 +23,13 @@ export async function createDocument(
       word_count, reading_time_minutes, cover_image_url,
       html_content, markdown_content, plain_text_content,
       location, is_read, is_starred, reading_progress,
-      saved_at, published_at, updated_at, source_id, origin_type
+      saved_at, published_at, lang, updated_at, source_id, origin_type
     ) VALUES (
       ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
       ?10, ?11, ?12,
       ?13, ?14, ?15,
       ?16, 0, 0, 0.0,
-      ?17, ?18, ?17, ?19, ?20
+      ?17, ?18, ?19, ?17, ?20, ?21
     )
   `);
   await stmt
@@ -52,6 +52,7 @@ export async function createDocument(
       input.location ?? "inbox",
       now,
       input.published_at ?? null,
+      input.lang ?? null,
       input.source_id ?? null,
       input.origin_type
     )
@@ -116,6 +117,70 @@ export async function updateDocument(
     )
     .bind(...values)
     .run();
+}
+
+export interface EnrichDocumentInput {
+  title?: string;
+  html_content?: string | null;
+  markdown_content?: string | null;
+  plain_text_content?: string | null;
+  excerpt?: string | null;
+  author?: string | null;
+  site_name?: string | null;
+  cover_image_url?: string | null;
+  cover_image_r2_key?: string | null;
+  word_count?: number;
+  reading_time_minutes?: number;
+  lang?: string | null;
+}
+
+export async function enrichDocument(
+  ctx: UserScopedDb,
+  id: string,
+  updates: EnrichDocumentInput
+): Promise<void> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined) {
+      fields.push(`${key} = ?${paramIndex}`);
+      values.push(value);
+      paramIndex++;
+    }
+  }
+
+  if (fields.length === 0) return;
+
+  fields.push(`updated_at = ?${paramIndex}`);
+  values.push(nowISO());
+  paramIndex++;
+
+  values.push(id, ctx.userId);
+
+  await ctx.db
+    .prepare(
+      `UPDATE document SET ${fields.join(", ")} WHERE id = ?${paramIndex} AND user_id = ?${paramIndex + 1}`
+    )
+    .bind(...values)
+    .run();
+
+  // Reindex FTS if text fields changed
+  if (updates.title !== undefined || updates.author !== undefined || updates.plain_text_content !== undefined) {
+    try {
+      await deindexDocument(ctx.db, id);
+      const doc = await ctx.db
+        .prepare("SELECT id, title, author, plain_text_content FROM document WHERE id = ?1 AND user_id = ?2")
+        .bind(id, ctx.userId)
+        .first<{ id: string; title: string; author: string | null; plain_text_content: string | null }>();
+      if (doc) {
+        await indexDocument(ctx.db, doc);
+      }
+    } catch {
+      // FTS reindex failure is non-fatal
+    }
+  }
 }
 
 export async function getDocumentByUrl(
@@ -326,6 +391,25 @@ export async function getDocumentCount(
     .bind(...bindings)
     .first<{ cnt: number }>();
   return result?.cnt ?? 0;
+}
+
+export interface DocumentCoverInfo {
+  id: string;
+  cover_image_url: string | null;
+  cover_image_r2_key: string | null;
+}
+
+export async function getDocumentCoverInfo(
+  ctx: UserScopedDb,
+  id: string
+): Promise<DocumentCoverInfo | null> {
+  const result = await ctx.db
+    .prepare(
+      "SELECT id, cover_image_url, cover_image_r2_key FROM document WHERE id = ?1 AND user_id = ?2 AND deleted_at IS NULL"
+    )
+    .bind(id, ctx.userId)
+    .first<DocumentCoverInfo>();
+  return result ?? null;
 }
 
 export async function batchUpdateDocuments(

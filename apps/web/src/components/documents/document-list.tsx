@@ -8,6 +8,8 @@ import { useSearch } from "@/hooks/use-search";
 import { useApp } from "@/contexts/app-context";
 import { DocumentListItem } from "./document-list-item";
 import { DocumentListToolbar } from "./document-list-toolbar";
+import type { ViewMode } from "./document-list-toolbar";
+import { DocumentGrid } from "./document-grid";
 import { EmptyState } from "./empty-state";
 import { Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,6 +52,17 @@ export function DocumentList({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<DocumentType | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("focus-view-mode") as ViewMode) || "list";
+    }
+    return "list";
+  });
+
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("focus-view-mode", mode);
+  }, []);
 
   const query: ListDocumentsQuery = {
     location,
@@ -132,20 +145,24 @@ export function DocumentList({
   const displayTotal = isSearchActive ? searchTotal : total;
   const displayIsLoading = isSearchActive ? searchIsLoading : isLoading;
 
+  const toolbarProps = {
+    title,
+    total: displayTotal,
+    onSearch: handleSearch,
+    isSearchActive,
+    onTypeFilter: setTypeFilter,
+    selectedType: typeFilter,
+    viewMode,
+    onViewModeChange: handleViewModeChange,
+  };
+
   if (displayIsLoading && displayDocuments.length === 0) {
     return (
       <div className="flex-1 overflow-y-auto">
-        <DocumentListToolbar
-          title={title}
-          total={0}
-          onSearch={handleSearch}
-          isSearchActive={isSearchActive}
-          onTypeFilter={setTypeFilter}
-          selectedType={typeFilter}
-        />
+        <DocumentListToolbar {...toolbarProps} total={0} />
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="flex gap-3 px-4 py-3 border-b">
-            <Skeleton className="size-14 rounded" />
+            <Skeleton className="w-20 h-14 rounded-md" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-3 w-full" />
@@ -160,14 +177,7 @@ export function DocumentList({
   if (displayDocuments.length === 0) {
     return (
       <div className="flex-1 flex flex-col">
-        <DocumentListToolbar
-          title={title}
-          total={0}
-          onSearch={handleSearch}
-          isSearchActive={isSearchActive}
-          onTypeFilter={setTypeFilter}
-          selectedType={typeFilter}
-        />
+        <DocumentListToolbar {...toolbarProps} total={0} />
         {isSearchActive ? (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
             No results for &ldquo;{searchQuery}&rdquo;
@@ -181,26 +191,29 @@ export function DocumentList({
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
-      <DocumentListToolbar
-        title={title}
-        total={displayTotal}
-        onSearch={handleSearch}
-        isSearchActive={isSearchActive}
-        onTypeFilter={setTypeFilter}
-        selectedType={typeFilter}
-      />
+      <DocumentListToolbar {...toolbarProps} />
       <div className="flex-1 overflow-y-auto">
-        {displayDocuments.map((doc) => (
-          <DocumentListItem
-            key={doc.id}
-            document={doc}
-            isSelected={doc.id === selectedId}
-            onClick={() => selectDocument(doc.id)}
-            onDoubleClick={() => openDocument(doc.id)}
+        {viewMode === "grid" ? (
+          <DocumentGrid
+            documents={displayDocuments}
+            selectedId={selectedId}
+            onSelect={selectDocument}
+            onOpen={openDocument}
             onMutate={() => mutate()}
-            snippet={isSearchActive ? (doc as any).snippet : undefined}
           />
-        ))}
+        ) : (
+          displayDocuments.map((doc) => (
+            <DocumentListItem
+              key={doc.id}
+              document={doc}
+              isSelected={doc.id === selectedId}
+              onClick={() => selectDocument(doc.id)}
+              onDoubleClick={() => openDocument(doc.id)}
+              onMutate={() => mutate()}
+              snippet={isSearchActive ? (doc as any).snippet : undefined}
+            />
+          ))
+        )}
         {/* Infinite scroll sentinel (only for non-search) */}
         {!isSearchActive && (
           <>

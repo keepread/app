@@ -107,6 +107,21 @@ export function RightSidebar() {
         </TabsList>
         <TabsContent value="info" className="flex-1 overflow-y-auto">
           {doc ? (
+            <div className="space-y-0">
+              {/* Cover image */}
+              {doc.cover_image_url && (
+                <div className="w-full aspect-[16/9] bg-muted overflow-hidden">
+                  <img
+                    src={`/api/covers/${doc.id}`}
+                    alt=""
+                    className="size-full object-cover"
+                    onError={(e) => {
+                      const parent = (e.target as HTMLElement).parentElement;
+                      if (parent) parent.style.display = "none";
+                    }}
+                  />
+                </div>
+              )}
             <div className="p-4 space-y-6">
               {/* Title */}
               <div>
@@ -210,6 +225,7 @@ export function RightSidebar() {
                   />
                 </dl>
               </div>
+            </div>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center px-4">

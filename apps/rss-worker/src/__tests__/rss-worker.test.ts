@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { env, fetchMock } from "cloudflare:test";
 import { INITIAL_SCHEMA_SQL, FTS5_MIGRATION_SQL, MULTI_TENANCY_SQL, AUTH_HYBRID_SQL } from "@focus-reader/db/migration-sql";
-import { createFeed, createTag, addTagToFeed, scopeDb } from "@focus-reader/db";
+import { createFeed, createTag, addTagToFeed, scopeDb, createDocument } from "@focus-reader/db";
 import type { UserScopedDb } from "@focus-reader/db";
+import type { ExtractionEnrichmentJob } from "@focus-reader/shared";
 import worker from "../index.js";
 import type { Env } from "../index.js";
 
@@ -421,6 +422,146 @@ describe("rss worker", () => {
       "SELECT COUNT(*) as cnt FROM document WHERE type = 'rss'"
     ).first<{ cnt: number }>();
     expect(countAfter!.cnt).toBe(2);
+  });
+
+  // --- queue handler tests ---
+
+  describe("queue handler", () => {
+    function makeMessage(job: ExtractionEnrichmentJob) {
+      return {
+        body: job,
+        ack: vi.fn(),
+        retry: vi.fn(),
+        id: crypto.randomUUID(),
+        timestamp: new Date(),
+        attempts: 1,
+      };
+    }
+
+    function makeBatch(messages: ReturnType<typeof makeMessage>[]) {
+      return {
+        messages,
+        queue: "extraction-queue",
+        ackAll: vi.fn(),
+        retryAll: vi.fn(),
+      } as unknown as MessageBatch<ExtractionEnrichmentJob>;
+    }
+
+    const enrichmentJob: ExtractionEnrichmentJob = {
+      job_id: "job-1",
+      user_id: TEST_USER_ID,
+      document_id: "doc-enrichment-1",
+      url: "https://example.com/article",
+      source: "manual_url",
+      attempt: 1,
+      enqueued_at: new Date().toISOString(),
+    };
+
+    it("acks enrichment job immediately when browser rendering is disabled", async () => {
+      const msg = makeMessage(enrichmentJob);
+      const testEnv = getEnv(); // no BROWSER_RENDERING_ENABLED
+
+      await worker.queue(makeBatch([msg]), testEnv, fakeCtx);
+
+      expect(msg.ack).toHaveBeenCalledOnce();
+      expect(msg.retry).not.toHaveBeenCalled();
+    });
+
+    it("acks image_cache job on success (document not found is non-fatal)", async () => {
+      const cacheJob: ExtractionEnrichmentJob = {
+        job_id: "job-cache-1",
+        user_id: TEST_USER_ID,
+        document_id: "doc-no-cover",
+        url: "",
+        source: "manual_url",
+        attempt: 1,
+        enqueued_at: new Date().toISOString(),
+        job_type: "image_cache",
+      };
+      const msg = makeMessage(cacheJob);
+      const testEnv = getEnv();
+
+      // cacheDocumentCoverImage will return skipped for a missing doc — non-fatal
+      await worker.queue(makeBatch([msg]), testEnv, fakeCtx);
+
+      expect(msg.ack).toHaveBeenCalledOnce();
+      expect(msg.retry).not.toHaveBeenCalled();
+    });
+
+    it("acks enrichment job when browser rendering returns good HTML (applied)", async () => {
+      const ctx = getCtx();
+      // Create a low-quality document for enrichment
+      await createDocument(ctx, {
+        id: enrichmentJob.document_id,
+        type: "article",
+        url: "https://example.com/article",
+        title: "Untitled",
+        origin_type: "manual",
+      });
+
+      const RENDERED_HTML =
+        "<html><head><title>Real Article</title></head><body>" +
+        "<h1>Real Article Title</h1>" +
+        "<p>" + "This is a well-written article with enough content. ".repeat(30) + "</p>" +
+        "</body></html>";
+
+      fetchMock
+        .get("https://api.cloudflare.com")
+        .intercept({ path: /\/browser-rendering\/content/, method: "POST" })
+        .reply(
+          200,
+          JSON.stringify({ success: true, result: RENDERED_HTML, errors: [] }),
+          { headers: { "Content-Type": "application/json" } }
+        );
+
+      const msg = makeMessage(enrichmentJob);
+      const testEnv: Env = {
+        ...getEnv(),
+        BROWSER_RENDERING_ENABLED: "true",
+        BROWSER_RENDERING_ACCOUNT_ID: "test-account",
+        BROWSER_RENDERING_API_TOKEN: "test-token",
+        BROWSER_RENDERING_TIMEOUT_MS: "5000",
+      };
+
+      await worker.queue(makeBatch([msg]), testEnv, fakeCtx);
+
+      expect(msg.ack).toHaveBeenCalledOnce();
+      expect(msg.retry).not.toHaveBeenCalled();
+    });
+
+    it("retries enrichment job when browser rendering returns a 5xx error", async () => {
+      fetchMock
+        .get("https://api.cloudflare.com")
+        .intercept({ path: /\/browser-rendering\/content/, method: "POST" })
+        .reply(503, "Service Unavailable");
+
+      const msg = makeMessage({
+        ...enrichmentJob,
+        document_id: "doc-retry-test",
+      });
+
+      // Create document so we get past the document_missing guard
+      const ctx = getCtx();
+      await createDocument(ctx, {
+        id: "doc-retry-test",
+        type: "article",
+        url: "https://example.com/article",
+        title: "Untitled",
+        origin_type: "manual",
+      });
+
+      const testEnv: Env = {
+        ...getEnv(),
+        BROWSER_RENDERING_ENABLED: "true",
+        BROWSER_RENDERING_ACCOUNT_ID: "test-account",
+        BROWSER_RENDERING_API_TOKEN: "test-token",
+      };
+
+      await worker.queue(makeBatch([msg]), testEnv, fakeCtx);
+
+      expect(msg.retry).toHaveBeenCalledOnce();
+      expect(msg.ack).not.toHaveBeenCalled();
+    });
   });
 
   it("skips inactive and recently-fetched feeds", async () => {

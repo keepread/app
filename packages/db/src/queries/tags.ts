@@ -22,6 +22,17 @@ export async function createTag(
     .first<Tag>())!;
 }
 
+export async function getTagByName(
+  ctx: UserScopedDb,
+  name: string
+): Promise<Tag | null> {
+  const result = await ctx.db
+    .prepare("SELECT * FROM tag WHERE user_id = ?1 AND name = ?2")
+    .bind(ctx.userId, name)
+    .first<Tag>();
+  return result ?? null;
+}
+
 export async function getTagsForSubscription(
   ctx: UserScopedDb,
   subscriptionId: string
