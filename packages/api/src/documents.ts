@@ -114,12 +114,11 @@ export async function bulkMoveSelectedDocuments(
   input: BulkMoveSelectedDocumentsInput
 ): Promise<number> {
   if (input.ids.length === 0) return 0;
-  if (input.ids.length > 500) {
+  if (input.ids.length > 5000) {
     throw new Error("Too many IDs in selected scope");
   }
 
-  await batchUpdateDocuments(ctx, input.ids, { location: input.location });
-  return input.ids.length;
+  return batchUpdateDocuments(ctx, input.ids, { location: input.location });
 }
 
 export async function createBookmark(

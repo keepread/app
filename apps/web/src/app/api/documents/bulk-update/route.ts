@@ -38,6 +38,7 @@ export async function PATCH(request: NextRequest) {
       if (error instanceof Error && error.message.includes("Too many IDs")) {
         return jsonError(error.message, "TOO_MANY_IDS", 400);
       }
+      console.error("Bulk update failed", error);
       return jsonError("Failed to bulk update documents", "UPDATE_ERROR", 500);
     }
   });

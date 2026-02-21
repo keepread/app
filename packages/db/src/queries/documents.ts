@@ -461,32 +461,51 @@ export async function batchUpdateDocuments(
   ctx: UserScopedDb,
   ids: string[],
   updates: Partial<Pick<Document, "location" | "is_read" | "is_starred">>
-): Promise<void> {
-  if (ids.length === 0) return;
+): Promise<number> {
+  if (ids.length === 0) return 0;
   const now = nowISO();
-  const fields: string[] = ["updated_at = ?1"];
-  const values: unknown[] = [now];
-  let paramIdx = 2;
+  const updateEntries = Object.entries(updates);
+  if (updateEntries.length === 0) return 0;
+  let updatedCount = 0;
 
-  for (const [key, value] of Object.entries(updates)) {
-    fields.push(`${key} = ?${paramIdx}`);
-    values.push(value);
+  // Cloudflare D1 limits numbered placeholders to ?1..?100.
+  // Reserve placeholders for: updated_at + each update field + user_id.
+  const reservedParams = 2 + updateEntries.length;
+  const maxIdsPerChunk = Math.max(1, 100 - reservedParams);
+
+  for (let i = 0; i < ids.length; i += maxIdsPerChunk) {
+    const chunk = ids.slice(i, i + maxIdsPerChunk);
+    const fields: string[] = ["updated_at = ?1"];
+    const values: unknown[] = [now];
+    let paramIdx = 2;
+
+    for (const [key, value] of updateEntries) {
+      fields.push(`${key} = ?${paramIdx}`);
+      values.push(value);
+      paramIdx++;
+    }
+
+    // user_id param
+    values.push(ctx.userId);
+    const userIdParam = paramIdx;
     paramIdx++;
+
+    const placeholders = chunk.map((_, idx) => `?${paramIdx + idx}`).join(", ");
+
+    const result = await ctx.db
+      .prepare(
+        `UPDATE document
+         SET ${fields.join(", ")}
+         WHERE user_id = ?${userIdParam} AND deleted_at IS NULL AND id IN (${placeholders})`
+      )
+      .bind(...values, ...chunk)
+      .run();
+
+    const changes = Number((result as { meta?: { changes?: number } }).meta?.changes ?? 0);
+    updatedCount += Number.isFinite(changes) ? changes : 0;
   }
 
-  // user_id param
-  values.push(ctx.userId);
-  const userIdParam = paramIdx;
-  paramIdx++;
-
-  const placeholders = ids.map((_, i) => `?${paramIdx + i}`).join(", ");
-
-  await ctx.db
-    .prepare(
-      `UPDATE document SET ${fields.join(", ")} WHERE user_id = ?${userIdParam} AND id IN (${placeholders})`
-    )
-    .bind(...values, ...ids)
-    .run();
+  return updatedCount;
 }
 
 export async function softDeleteDocumentsByIds(
@@ -497,10 +516,12 @@ export async function softDeleteDocumentsByIds(
 
   const now = nowISO();
   let deletedCount = 0;
-  const chunkSize = 200;
+  // Cloudflare D1 limits numbered placeholders to ?1..?100.
+  // Query reserves ?1 for timestamp and ?2 for user_id.
+  const maxIdsPerChunk = 98;
 
-  for (let i = 0; i < ids.length; i += chunkSize) {
-    const chunk = ids.slice(i, i + chunkSize);
+  for (let i = 0; i < ids.length; i += maxIdsPerChunk) {
+    const chunk = ids.slice(i, i + maxIdsPerChunk);
     const idParams = chunk.map((_, idx) => `?${idx + 3}`).join(", ");
 
     const updateResult = await ctx.db
