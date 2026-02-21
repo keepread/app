@@ -31,6 +31,7 @@ import { useApp } from "@/contexts/app-context";
 import { Button } from "@/components/ui/button";
 import { AddBookmarkDialog } from "@/components/dialogs/add-bookmark-dialog";
 import { CollectionDialog } from "@/components/dialogs/collection-dialog";
+import { UserMenu } from "@/components/layout/user-menu";
 
 const NAV_ITEMS = [
   { label: "Inbox", icon: Inbox, path: "/inbox", badge: true },
@@ -247,6 +248,7 @@ export function NavSidebar() {
 
       {/* Footer */}
       <div className="border-t px-2 py-2 space-y-0.5">
+        <UserMenu />
         <Link
           href="/settings"
           className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
