@@ -1,5 +1,5 @@
 import { parseHTML } from "linkedom";
-import { normalizeUrl } from "@focus-reader/shared";
+import { normalizeUrl, extractDomain } from "@focus-reader/shared";
 
 export interface PageMetadata {
   title: string | null;
@@ -206,13 +206,13 @@ export function extractMetadata(html: string, url: string): PageMetadata {
     document.querySelector('[rel="author"]')?.textContent?.trim() ||
     null;
 
-  // Site name: JSON-LD publisher → OG → itemprop → application-name
+  // Site name: JSON-LD publisher → OG → itemprop → application-name → domain
   const siteName =
     (jsonLd ? jsonLdNestedString(jsonLd, "publisher.name") || jsonLdString(jsonLd.publisher) : null) ||
     getMeta("og:site_name") ||
     document.querySelector('[itemprop="publisher"] [itemprop="name"]')?.textContent?.trim() ||
     getMeta("application-name") ||
-    null;
+    extractDomain(url);
 
   // Image: JSON-LD → OG variants → Twitter → itemprop
   const rawImage =
@@ -227,7 +227,7 @@ export function extractMetadata(html: string, url: string): PageMetadata {
     null;
   const ogImage = resolveUrl(rawImage, url) || findHeroImage(document, url);
 
-  // Favicon: apple-touch-icon → icon → shortcut icon
+  // Favicon: apple-touch-icon → icon → shortcut icon → /favicon.ico
   const favicon =
     resolveUrl(
       document.querySelector("link[rel='apple-touch-icon']")?.getAttribute("href"),
@@ -241,7 +241,7 @@ export function extractMetadata(html: string, url: string): PageMetadata {
       document.querySelector("link[rel='shortcut icon']")?.getAttribute("href"),
       url
     ) ||
-    null;
+    (() => { try { return new URL("/favicon.ico", url).href; } catch { return null; } })();
 
   // Canonical URL: link[rel=canonical] → og:url, then normalize (strips tracking params)
   const rawCanonical =

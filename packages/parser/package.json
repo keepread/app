@@ -16,6 +16,7 @@
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "check-metadata": "tsx src/check-metadata.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {

@@ -312,8 +312,8 @@ describe("extractMetadata", () => {
     expect(result.author).toBe("JSON-LD Author");
   });
 
-  // 17. No metadata at all
-  it("returns all null fields for bare HTML", () => {
+  // 17. No metadata at all — siteName falls back to domain, favicon to /favicon.ico
+  it("returns defaults for bare HTML", () => {
     const result = extractMetadata(
       "<!DOCTYPE html><html><body>Hello</body></html>",
       BASE_URL
@@ -322,13 +322,29 @@ describe("extractMetadata", () => {
     expect(result.title).toBeNull();
     expect(result.description).toBeNull();
     expect(result.author).toBeNull();
-    expect(result.siteName).toBeNull();
+    expect(result.siteName).toBe("example.com");
     expect(result.ogImage).toBeNull();
-    expect(result.favicon).toBeNull();
+    expect(result.favicon).toBe("https://example.com/favicon.ico");
     expect(result.canonicalUrl).toBeNull();
     expect(result.publishedDate).toBeNull();
     expect(result.lang).toBeNull();
     expect(result.feedUrl).toBeNull();
+  });
+
+  it("falls back to domain for siteName when no meta tags", () => {
+    const result = extractMetadata(
+      "<!DOCTYPE html><html><body>Hello</body></html>",
+      "https://www.blog.example.com/post/1"
+    );
+    expect(result.siteName).toBe("blog.example.com");
+  });
+
+  it("falls back to /favicon.ico when no link tag present", () => {
+    const result = extractMetadata(
+      "<!DOCTYPE html><html><body>Hello</body></html>",
+      "https://www.example.com/article"
+    );
+    expect(result.favicon).toBe("https://www.example.com/favicon.ico");
   });
 
   // Additional edge cases
