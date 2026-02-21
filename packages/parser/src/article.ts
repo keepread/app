@@ -13,6 +13,7 @@ export interface ExtractedArticle {
   wordCount: number;
   readingTimeMinutes: number;
   siteName: string | null;
+  readabilitySucceeded: boolean;
 }
 
 export function extractArticle(html: string, url: string): ExtractedArticle {
@@ -29,6 +30,7 @@ export function extractArticle(html: string, url: string): ExtractedArticle {
   let rawHtml: string;
   let excerpt: string | null;
   let siteName: string | null;
+  let readabilitySucceeded: boolean;
 
   if (article) {
     title = article.title || "";
@@ -36,6 +38,7 @@ export function extractArticle(html: string, url: string): ExtractedArticle {
     rawHtml = article.content || "";
     excerpt = article.excerpt || null;
     siteName = article.siteName || null;
+    readabilitySucceeded = true;
   } else {
     // Fallback: Readability couldn't extract — use the raw HTML body
     title = extractTitleFromHtml(html);
@@ -43,6 +46,7 @@ export function extractArticle(html: string, url: string): ExtractedArticle {
     rawHtml = html;
     excerpt = null;
     siteName = null;
+    readabilitySucceeded = false;
   }
 
   const htmlContent = sanitizeHtml(rawHtml);
@@ -59,6 +63,7 @@ export function extractArticle(html: string, url: string): ExtractedArticle {
     wordCount,
     readingTimeMinutes,
     siteName,
+    readabilitySucceeded,
   };
 }
 

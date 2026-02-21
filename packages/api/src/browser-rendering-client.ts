@@ -45,7 +45,12 @@ export async function fetchRenderedHtml(
       );
     }
 
-    const html = await response.text();
+    const body = await response.json<{ success: boolean; result?: string; errors?: { message: string }[] }>();
+    if (!body.success) {
+      const errMsg = body.errors?.[0]?.message ?? "Browser rendering API error";
+      throw new BrowserRenderingError(errMsg, false);
+    }
+    const html = body.result;
     if (!html) {
       throw new BrowserRenderingError("Empty rendering result", false);
     }

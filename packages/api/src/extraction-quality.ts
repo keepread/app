@@ -9,6 +9,8 @@ export interface ExtractionScoreInput {
   coverImageUrl: string | null;
   excerpt: string | null;
   wordCount: number;
+  /** False when Readability failed and htmlContent is raw page HTML (JS-shell bias guard) */
+  readabilitySucceeded?: boolean;
 }
 
 export interface EnrichmentIntent {
@@ -28,12 +30,17 @@ export function scoreExtraction(input: ExtractionScoreInput): number {
   }
 
   // Content availability/size: 0-35
-  if (input.htmlContent) {
+  // Only trust htmlContent length when Readability succeeded; fallback raw HTML
+  // is a full JS-shell page and size does not reflect readable content quality.
+  if (input.htmlContent && input.readabilitySucceeded !== false) {
     const len = input.htmlContent.length;
     if (len > 2000) score += 35;
     else if (len > 500) score += 25;
     else if (len > 100) score += 15;
     else score += 5;
+  } else if (input.htmlContent && input.readabilitySucceeded === false) {
+    // Readability failed — award minimal points just for having some content
+    score += 5;
   }
 
   // Metadata completeness: 0-30 (6 points each)

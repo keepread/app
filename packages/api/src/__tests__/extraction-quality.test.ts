@@ -83,6 +83,48 @@ describe("shouldEnrich", () => {
   });
 });
 
+describe("scoreExtraction — readabilitySucceeded flag", () => {
+  it("awards full content points when readabilitySucceeded is true", () => {
+    const score = scoreExtraction({
+      ...bareBookmark,
+      htmlContent: "<p>".padEnd(3000, "x"),
+      readabilitySucceeded: true,
+    });
+    expect(score).toBeGreaterThanOrEqual(35);
+  });
+
+  it("does not award large-HTML points when readabilitySucceeded is false (JS-shell bias guard)", () => {
+    // Simulate a JS-shell page: large raw HTML, no readable content
+    const jsShellScore = scoreExtraction({
+      title: "My Site",
+      url: "https://example.com",
+      // 10 KB of raw page HTML (scripts, divs, etc.) — Readability failed
+      htmlContent: "<div>".padEnd(10000, " "),
+      readabilitySucceeded: false,
+      plainTextContent: null,
+      author: null,
+      siteName: null,
+      publishedDate: null,
+      coverImageUrl: null,
+      excerpt: null,
+      wordCount: 0,
+    });
+    // Without the flag guard this would score 35 (content size) + 15 (title) = 50+
+    // which is dangerously close to the 55 threshold. With the guard it scores much lower.
+    expect(jsShellScore).toBeLessThan(55);
+  });
+
+  it("treats missing readabilitySucceeded as truthy (backwards compatibility)", () => {
+    // Callers that don't set the flag should get the original scoring behaviour
+    const score = scoreExtraction({
+      ...bareBookmark,
+      htmlContent: "<p>".padEnd(3000, "x"),
+      // readabilitySucceeded deliberately omitted
+    });
+    expect(score).toBeGreaterThanOrEqual(35);
+  });
+});
+
 describe("isImprovement", () => {
   it("returns true when new score exceeds old by 10+", () => {
     expect(isImprovement(40, 55, true, true)).toBe(true);

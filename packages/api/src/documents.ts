@@ -101,8 +101,10 @@ export async function createBookmark(
   const type = options?.type ?? "bookmark";
   const tagIds = options?.tagIds ?? [];
 
-  const emitQuality = (doc: Document) => {
+  const emitQuality = async (doc: Document, articleReadabilitySucceeded?: boolean) => {
     if (!options?.onLowQuality || !doc.url) return;
+    // Skip enrichment when the caller already supplied the HTML (e.g. browser extension)
+    if (options.html) return;
     const score = scoreExtraction({
       title: doc.title,
       url: doc.url,
@@ -114,9 +116,10 @@ export async function createBookmark(
       coverImageUrl: doc.cover_image_url,
       excerpt: doc.excerpt,
       wordCount: doc.word_count,
+      readabilitySucceeded: articleReadabilitySucceeded,
     });
     if (shouldEnrich(score, { hasUrl: true })) {
-      options.onLowQuality({
+      await options.onLowQuality({
         documentId: doc.id,
         userId: ctx.userId,
         url: normalized,
@@ -150,7 +153,7 @@ export async function createBookmark(
         origin_type: "manual",
       });
       for (const tagId of tagIds) await tagDocument(ctx, doc.id, tagId);
-      emitQuality(doc);
+      await emitQuality(doc, article.readabilitySucceeded);
       return doc;
     }
 
@@ -169,7 +172,7 @@ export async function createBookmark(
       origin_type: "manual",
     });
     for (const tagId of tagIds) await tagDocument(ctx, doc.id, tagId);
-    emitQuality(doc);
+    await emitQuality(doc);
     return doc;
   }
 
@@ -181,7 +184,7 @@ export async function createBookmark(
     origin_type: "manual",
   });
   for (const tagId of tagIds) await tagDocument(ctx, doc.id, tagId);
-  emitQuality(doc);
+  await emitQuality(doc);
   return doc;
 }
 

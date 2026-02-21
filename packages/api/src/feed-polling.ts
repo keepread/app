@@ -92,6 +92,7 @@ async function processItem(
     let coverImageUrl = item.coverImageUrl;
     let lang: string | null = null;
 
+    let readabilitySucceeded: boolean | undefined;
     if (feed.fetch_full_content === 1) {
       try {
         const result = await withRetry(MAX_RETRY_ATTEMPTS, async () => {
@@ -115,6 +116,7 @@ async function processItem(
           readingTime = result.article.readingTimeMinutes;
           excerpt = result.article.excerpt || excerpt;
           siteName = result.article.siteName || siteName;
+          readabilitySucceeded = result.article.readabilitySucceeded;
         }
 
         // Supplement with metadata extraction
@@ -180,9 +182,10 @@ async function processItem(
         coverImageUrl: coverImageUrl || null,
         excerpt: excerpt || null,
         wordCount,
+        readabilitySucceeded,
       });
       if (shouldEnrich(score, { hasUrl: true })) {
-        onLowQuality({
+        await onLowQuality({
           documentId,
           userId: ctx.userId,
           url: normalized,
