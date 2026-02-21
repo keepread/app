@@ -45,7 +45,6 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* Theme */}
       <section className="space-y-3">
         <h2 className="text-sm font-medium">Theme</h2>
         <RadioGroup
@@ -65,11 +64,9 @@ export default function SettingsPage() {
         </RadioGroup>
       </section>
 
-      {/* Reading Preferences */}
       <section className="space-y-4">
         <h2 className="text-sm font-medium">Reading</h2>
 
-        {/* Font family */}
         <div>
           <label className="text-xs text-muted-foreground">Font Family</label>
           <div className="flex flex-wrap gap-2 mt-1">
@@ -90,7 +87,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Font size */}
         <div className="flex items-center justify-between">
           <div>
             <label className="text-xs text-muted-foreground">Font Size</label>
@@ -122,7 +118,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Line height */}
         <div className="flex items-center justify-between">
           <div>
             <label className="text-xs text-muted-foreground">Line Height</label>
@@ -154,7 +149,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Content width */}
         <div className="flex items-center justify-between">
           <div>
             <label className="text-xs text-muted-foreground">Content Width</label>
@@ -196,7 +190,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Preview */}
         <div
           className="rounded-lg border p-4"
           style={{
@@ -212,14 +205,6 @@ export default function SettingsPage() {
             your reading preferences.
           </p>
         </div>
-      </section>
-
-      {/* Account */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium">Account</h2>
-        <p className="text-sm text-muted-foreground">
-          Single-user mode. Authentication will be added in a future update.
-        </p>
       </section>
     </div>
   );
