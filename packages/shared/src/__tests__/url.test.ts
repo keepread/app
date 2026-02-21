@@ -16,9 +16,9 @@ describe("normalizeUrl", () => {
     ).toBe("https://example.com/page");
   });
 
-  it("removes www. prefix", () => {
+  it("preserves www. prefix", () => {
     expect(normalizeUrl("https://www.example.com/page")).toBe(
-      "https://example.com/page"
+      "https://www.example.com/page"
     );
   });
 

@@ -30,11 +30,6 @@ export function normalizeUrl(url: string): string {
     return url;
   }
 
-  // Remove www. prefix
-  if (parsed.hostname.startsWith("www.")) {
-    parsed.hostname = parsed.hostname.slice(4);
-  }
-
   // Remove tracking params
   for (const param of [...parsed.searchParams.keys()]) {
     if (TRACKING_PARAMS.has(param.toLowerCase())) {
