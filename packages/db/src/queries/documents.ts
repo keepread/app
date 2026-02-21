@@ -393,6 +393,25 @@ export async function getDocumentCount(
   return result?.cnt ?? 0;
 }
 
+export interface DocumentCoverInfo {
+  id: string;
+  cover_image_url: string | null;
+  cover_image_r2_key: string | null;
+}
+
+export async function getDocumentCoverInfo(
+  ctx: UserScopedDb,
+  id: string
+): Promise<DocumentCoverInfo | null> {
+  const result = await ctx.db
+    .prepare(
+      "SELECT id, cover_image_url, cover_image_r2_key FROM document WHERE id = ?1 AND user_id = ?2 AND deleted_at IS NULL"
+    )
+    .bind(id, ctx.userId)
+    .first<DocumentCoverInfo>();
+  return result ?? null;
+}
+
 export async function batchUpdateDocuments(
   ctx: UserScopedDb,
   ids: string[],

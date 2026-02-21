@@ -46,7 +46,30 @@ export default {
         }
       : undefined;
 
-    const results = await pollDueFeeds(db, undefined, onLowQuality);
+    const onCoverImage = queue
+      ? async (userId: string, documentId: string) => {
+          try {
+            await queue.send({
+              job_id: crypto.randomUUID(),
+              user_id: userId,
+              document_id: documentId,
+              url: "",
+              source: "rss_full_content",
+              attempt: 1,
+              enqueued_at: new Date().toISOString(),
+              job_type: "image_cache",
+            });
+            console.log(JSON.stringify({
+              event: "IMAGE_CACHE_QUEUED",
+              document_id: documentId,
+            }));
+          } catch (err) {
+            console.warn("Image cache enqueue failed (non-fatal):", err);
+          }
+        }
+      : undefined;
+
+    const results = await pollDueFeeds(db, undefined, onLowQuality, onCoverImage);
 
     const processed = results.filter((r) => r.success).length;
     const errors = results.length - processed;

@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { getDocumentDetail } from "@focus-reader/api";
-import { scopeDb } from "@focus-reader/db";
+import { getDocumentCoverInfo, enrichDocument, scopeDb } from "@focus-reader/db";
 import { getDb, getR2 } from "@/lib/bindings";
 import { jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
@@ -14,7 +13,7 @@ export async function GET(
       const db = await getDb();
       const ctx = scopeDb(db, userId);
       const { id } = await params;
-      const doc = await getDocumentDetail(ctx, id);
+      const doc = await getDocumentCoverInfo(ctx, id);
       if (!doc) {
         return jsonError("Document not found", "NOT_FOUND", 404);
       }
@@ -31,6 +30,9 @@ export async function GET(
             },
           });
         }
+        // R2 object missing despite key being set — clear the stale key so
+        // subsequent cacheDocumentCoverImage calls can re-cache it
+        await enrichDocument(ctx, id, { cover_image_r2_key: null });
       }
 
       // Fall back to proxying external URL

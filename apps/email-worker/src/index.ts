@@ -12,6 +12,7 @@ import {
   scopeDb,
   getUserBySlug,
   createDocument,
+  enrichDocument,
   getDocument,
   createEmailMeta,
   getEmailMetaByMessageId,
@@ -261,6 +262,16 @@ async function processEmail(
     }
   }
 
+  // Pick the first image CID attachment as the cover (already in R2)
+  const coverR2Key = (() => {
+    for (const cidAtt of cidAttachments) {
+      if (cidAtt.contentType.startsWith("image/") && cidMap.has(cidAtt.contentId)) {
+        return cidMap.get(cidAtt.contentId)!;
+      }
+    }
+    return null;
+  })();
+
   // Step 9: Rewrite CID URLs
   const finalHtml =
     sanitizedHtml && cidMap.size > 0
@@ -306,6 +317,11 @@ async function processEmail(
       source_id: subscription.id,
       published_at: parsed.date || null,
     });
+
+    // Set cover image from the first inline CID image (already in R2)
+    if (coverR2Key) {
+      await enrichDocument(ctx, documentId, { cover_image_r2_key: coverR2Key });
+    }
   }
 
   // Step 14: Create EmailMeta (child entity — uses raw db)

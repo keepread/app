@@ -68,7 +68,8 @@ async function processItem(
   ctx: UserScopedDb,
   feed: Feed,
   item: FeedItem,
-  onLowQuality?: (intent: EnrichmentIntent) => void | Promise<void>
+  onLowQuality?: (intent: EnrichmentIntent) => void | Promise<void>,
+  onCoverImage?: (userId: string, documentId: string) => void | Promise<void>
 ): Promise<boolean> {
   if (!item.url) return false;
 
@@ -169,6 +170,11 @@ async function processItem(
       location: "inbox",
     });
 
+    // Enqueue image caching for documents that already have a cover URL
+    if (onCoverImage && coverImageUrl) {
+      await onCoverImage(ctx.userId, documentId);
+    }
+
     // Check extraction quality for enrichment
     if (onLowQuality && feed.fetch_full_content === 1) {
       const score = scoreExtraction({
@@ -243,13 +249,14 @@ async function processItem(
 async function processFeed(
   ctx: UserScopedDb,
   feed: Feed,
-  onLowQuality?: (intent: EnrichmentIntent) => void | Promise<void>
+  onLowQuality?: (intent: EnrichmentIntent) => void | Promise<void>,
+  onCoverImage?: (userId: string, documentId: string) => void | Promise<void>
 ): Promise<number> {
   const parsedFeed = await fetchFeed(feed.feed_url);
   let newItems = 0;
 
   for (const item of parsedFeed.items) {
-    const created = await processItem(ctx, feed, item, onLowQuality);
+    const created = await processItem(ctx, feed, item, onLowQuality, onCoverImage);
     if (created) newItems++;
   }
 
@@ -260,7 +267,8 @@ async function processFeed(
 export async function pollSingleFeed(
   ctx: UserScopedDb,
   feedId: string,
-  onLowQuality?: (intent: EnrichmentIntent) => void | Promise<void>
+  onLowQuality?: (intent: EnrichmentIntent) => void | Promise<void>,
+  onCoverImage?: (userId: string, documentId: string) => void | Promise<void>
 ): Promise<PollResult> {
   const feed = await getFeed(ctx, feedId);
   if (!feed) {
@@ -268,7 +276,7 @@ export async function pollSingleFeed(
   }
 
   try {
-    const newItems = await processFeed(ctx, feed, onLowQuality);
+    const newItems = await processFeed(ctx, feed, onLowQuality, onCoverImage);
     return { feedId, success: true, newItems };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -296,7 +304,8 @@ export async function pollSingleFeed(
 export async function pollDueFeeds(
   db: D1Database,
   maxFeeds = MAX_FEEDS_PER_RUN,
-  onLowQuality?: (intent: EnrichmentIntent) => void | Promise<void>
+  onLowQuality?: (intent: EnrichmentIntent) => void | Promise<void>,
+  onCoverImage?: (userId: string, documentId: string) => void | Promise<void>
 ): Promise<PollResult[]> {
   // Use admin query to get all feeds due for poll across all users
   const feeds = await getAllFeedsDueForPoll(db);
@@ -306,7 +315,7 @@ export async function pollDueFeeds(
     batch.map((feed) => {
       // Create a user-scoped context for each feed's owner
       const ctx = scopeDb(db, feed.user_id);
-      return pollSingleFeed(ctx, feed.id, onLowQuality);
+      return pollSingleFeed(ctx, feed.id, onLowQuality, onCoverImage);
     })
   );
 
