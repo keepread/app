@@ -114,6 +114,9 @@ async function processItem(
           author = result.article.author || author;
           htmlContent = result.article.htmlContent;
           markdownContent = result.article.markdownContent;
+          plainText = markdownContent
+            ? markdownContent.replace(/[#*_`\[\]()>~-]/g, "").trim()
+            : null;
           wordCount = result.article.wordCount;
           readingTime = result.article.readingTimeMinutes;
           excerpt = result.article.excerpt || excerpt;

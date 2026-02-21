@@ -4,6 +4,7 @@ import { scopeDb } from "@focus-reader/db";
 import { getDb } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
+import { createFeedPollingQueueCallbacks } from "@/lib/feed-polling-queue";
 
 export async function POST(
   request: NextRequest,
@@ -14,7 +15,8 @@ export async function POST(
       const db = await getDb();
       const ctx = scopeDb(db, userId);
       const { id } = await params;
-      const result = await pollSingleFeed(ctx, id);
+      const { onLowQuality, onCoverImage } = await createFeedPollingQueueCallbacks();
+      const result = await pollSingleFeed(ctx, id, onLowQuality, onCoverImage);
       if (result.error === "Feed not found") {
         return jsonError("Feed not found", "NOT_FOUND", 404);
       }

@@ -30,7 +30,7 @@ export async function createFeed(
       input.description ?? null,
       input.icon_url ?? null,
       input.fetch_interval_minutes ?? 60,
-      input.fetch_full_content ?? 0,
+      input.fetch_full_content ?? 1,
       input.auto_tag_rules ?? null,
       now
     )

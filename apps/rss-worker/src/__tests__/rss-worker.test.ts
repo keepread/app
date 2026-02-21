@@ -139,6 +139,7 @@ describe("rss worker", () => {
     const feed = await createFeed(ctx, {
       feed_url: "https://testblog.example.com/feed.xml",
       title: "Test Blog",
+      fetch_full_content: 0,
     });
 
     // Mock the feed fetch
@@ -186,11 +187,64 @@ describe("rss worker", () => {
     expect(logs.results).toHaveLength(2);
   });
 
+  it("stores plain text when full-content extraction succeeds", async () => {
+    const ctx = getCtx();
+    const feed = await createFeed(ctx, {
+      feed_url: "https://testblog.example.com/feed.xml",
+      title: "Test Blog",
+      fetch_full_content: 1,
+    });
+
+    const FULL_CONTENT_HTML = `<!doctype html>
+<html>
+  <head><title>Rendered Post</title></head>
+  <body>
+    <article>
+      <h1>Rendered Post</h1>
+      <p>${"This is extracted full article content. ".repeat(24)}</p>
+    </article>
+  </body>
+</html>`;
+
+    fetchMock
+      .get("https://testblog.example.com")
+      .intercept({ path: "/feed.xml" })
+      .reply(200, RSS_FIXTURE, {
+        headers: { "Content-Type": "application/rss+xml" },
+      });
+    fetchMock
+      .get("https://testblog.example.com")
+      .intercept({ path: "/post-1" })
+      .reply(200, FULL_CONTENT_HTML, {
+        headers: { "Content-Type": "text/html" },
+      });
+    fetchMock
+      .get("https://testblog.example.com")
+      .intercept({ path: "/post-2" })
+      .reply(200, FULL_CONTENT_HTML, {
+        headers: { "Content-Type": "text/html" },
+      });
+
+    const testEnv = getEnv();
+    await worker.scheduled(fakeController, testEnv, fakeCtx);
+
+    const doc = await env.FOCUS_DB.prepare(
+      "SELECT plain_text_content FROM document WHERE source_id = ?1 ORDER BY saved_at ASC LIMIT 1"
+    )
+      .bind(feed.id)
+      .first<{ plain_text_content: string | null }>();
+
+    expect(doc).not.toBeNull();
+    expect(doc!.plain_text_content).not.toBeNull();
+    expect(doc!.plain_text_content).toContain("This is extracted full article content.");
+  });
+
   it("deduplicates items across multiple runs", async () => {
     const ctx = getCtx();
     const feed = await createFeed(ctx, {
       feed_url: "https://testblog.example.com/feed.xml",
       title: "Test Blog",
+      fetch_full_content: 0,
     });
 
     // Mock for first run
@@ -233,6 +287,7 @@ describe("rss worker", () => {
     const feed = await createFeed(ctx, {
       feed_url: "https://testblog.example.com/feed.xml",
       title: "Test Blog",
+      fetch_full_content: 0,
     });
 
     // Mock a 500 error
@@ -266,6 +321,7 @@ describe("rss worker", () => {
     const feed = await createFeed(ctx, {
       feed_url: "https://testblog.example.com/feed.xml",
       title: "Test Blog",
+      fetch_full_content: 0,
     });
     await env.FOCUS_DB.prepare(
       "UPDATE feed SET error_count = 4 WHERE id = ?1"
@@ -297,6 +353,7 @@ describe("rss worker", () => {
     const feed = await createFeed(ctx, {
       feed_url: "https://testblog.example.com/feed.xml",
       title: "Test Blog",
+      fetch_full_content: 0,
     });
 
     const tag1 = await createTag(ctx, { name: "tech" });
@@ -338,6 +395,7 @@ describe("rss worker", () => {
     const feed = await createFeed(ctx, {
       feed_url: "https://emptyblog.example.com/feed.xml",
       title: "Empty Blog",
+      fetch_full_content: 0,
     });
 
     fetchMock
@@ -371,6 +429,7 @@ describe("rss worker", () => {
     const feed = await createFeed(ctx, {
       feed_url: "https://testblog.example.com/feed.xml",
       title: "Test Blog",
+      fetch_full_content: 0,
     });
 
     // First run: items with clean URLs
@@ -570,6 +629,7 @@ describe("rss worker", () => {
     const inactiveFeed = await createFeed(ctx, {
       feed_url: "https://inactive.example.com/feed.xml",
       title: "Inactive Feed",
+      fetch_full_content: 0,
     });
     await env.FOCUS_DB.prepare(
       "UPDATE feed SET is_active = 0 WHERE id = ?1"
@@ -581,6 +641,7 @@ describe("rss worker", () => {
     const recentFeed = await createFeed(ctx, {
       feed_url: "https://recent.example.com/feed.xml",
       title: "Recent Feed",
+      fetch_full_content: 0,
     });
     await env.FOCUS_DB.prepare(
       "UPDATE feed SET last_fetched_at = datetime('now') WHERE id = ?1"

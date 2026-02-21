@@ -4,6 +4,7 @@ import { scopeDb } from "@focus-reader/db";
 import { getDb } from "@/lib/bindings";
 import { json, jsonError } from "@/lib/api-helpers";
 import { withAuth } from "@/lib/auth-middleware";
+import { createFeedPollingQueueCallbacks } from "@/lib/feed-polling-queue";
 
 export async function GET(request: NextRequest) {
   return withAuth(request, async (userId) => {
@@ -34,7 +35,8 @@ export async function POST(request: NextRequest) {
 
       // Fetch articles immediately so the user doesn't wait for the next cron run
       try {
-        await pollSingleFeed(ctx, feed.id);
+        const { onLowQuality, onCoverImage } = await createFeedPollingQueueCallbacks();
+        await pollSingleFeed(ctx, feed.id, onLowQuality, onCoverImage);
       } catch {
         // Polling failure shouldn't prevent feed creation
       }
