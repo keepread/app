@@ -114,6 +114,7 @@ export async function createBookmark(
         html_content: article.htmlContent,
         markdown_content: article.markdownContent,
         published_at: meta.publishedDate,
+        lang: meta.lang,
         origin_type: "manual",
       });
       for (const tagId of tagIds) await tagDocument(ctx, doc.id, tagId);
@@ -131,6 +132,7 @@ export async function createBookmark(
       site_name: meta.siteName,
       cover_image_url: meta.ogImage,
       published_at: meta.publishedDate,
+      lang: meta.lang,
       origin_type: "manual",
     });
     for (const tagId of tagIds) await tagDocument(ctx, doc.id, tagId);

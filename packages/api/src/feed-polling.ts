@@ -28,6 +28,7 @@ import {
   sanitizeHtml,
   htmlToMarkdown,
   extractArticle,
+  extractMetadata,
 } from "@focus-reader/parser";
 import type { FeedItem } from "@focus-reader/parser";
 
@@ -86,10 +87,11 @@ async function processItem(
     let excerpt = item.excerpt;
     let siteName = feed.title || null;
     let coverImageUrl = item.coverImageUrl;
+    let lang: string | null = null;
 
     if (feed.fetch_full_content === 1) {
       try {
-        const article = await withRetry(MAX_RETRY_ATTEMPTS, async () => {
+        const result = await withRetry(MAX_RETRY_ATTEMPTS, async () => {
           const resp = await fetch(item.url, {
             headers: { "User-Agent": "FocusReader/1.0" },
             redirect: "follow",
@@ -98,19 +100,24 @@ async function processItem(
             throw new Error(`HTTP ${resp.status}`);
           }
           const html = await resp.text();
-          return extractArticle(html, item.url);
+          return { article: extractArticle(html, item.url), html };
         });
 
-        if (article.title && article.htmlContent) {
-          title = article.title;
-          author = article.author || author;
-          htmlContent = article.htmlContent;
-          markdownContent = article.markdownContent;
-          wordCount = article.wordCount;
-          readingTime = article.readingTimeMinutes;
-          excerpt = article.excerpt || excerpt;
-          siteName = article.siteName || siteName;
+        if (result.article.title && result.article.htmlContent) {
+          title = result.article.title;
+          author = result.article.author || author;
+          htmlContent = result.article.htmlContent;
+          markdownContent = result.article.markdownContent;
+          wordCount = result.article.wordCount;
+          readingTime = result.article.readingTimeMinutes;
+          excerpt = result.article.excerpt || excerpt;
+          siteName = result.article.siteName || siteName;
         }
+
+        // Supplement with metadata extraction
+        const meta = extractMetadata(result.html, item.url);
+        coverImageUrl = coverImageUrl || meta.ogImage;
+        lang = meta.lang;
       } catch {
         // Fall through to default path
       }
@@ -150,6 +157,7 @@ async function processItem(
       word_count: wordCount,
       reading_time_minutes: readingTime,
       cover_image_url: coverImageUrl,
+      lang,
       origin_type: "feed",
       source_id: feed.id,
       published_at: item.publishedAt,

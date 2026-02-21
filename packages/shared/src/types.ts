@@ -57,6 +57,7 @@ export interface Document {
   last_read_at: string | null;
   saved_at: string;
   published_at: string | null;
+  lang: string | null;
   updated_at: string;
   deleted_at: string | null;
   source_id: string | null;
@@ -298,6 +299,7 @@ export interface CreateDocumentInput {
   source_id?: string | null;
   origin_type: OriginType;
   published_at?: string | null;
+  lang?: string | null;
 }
 
 export interface CreateEmailMetaInput {

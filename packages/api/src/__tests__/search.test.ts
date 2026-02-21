@@ -51,6 +51,7 @@ describe("searchDocuments (API)", () => {
       last_read_at: null,
       saved_at: "2025-01-01T00:00:00.000Z",
       published_at: null,
+      lang: null,
       updated_at: "2025-01-01T00:00:00.000Z",
       deleted_at: null,
       source_id: null,

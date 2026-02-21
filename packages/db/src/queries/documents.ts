@@ -23,13 +23,13 @@ export async function createDocument(
       word_count, reading_time_minutes, cover_image_url,
       html_content, markdown_content, plain_text_content,
       location, is_read, is_starred, reading_progress,
-      saved_at, published_at, updated_at, source_id, origin_type
+      saved_at, published_at, lang, updated_at, source_id, origin_type
     ) VALUES (
       ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
       ?10, ?11, ?12,
       ?13, ?14, ?15,
       ?16, 0, 0, 0.0,
-      ?17, ?18, ?17, ?19, ?20
+      ?17, ?18, ?19, ?17, ?20, ?21
     )
   `);
   await stmt
@@ -52,6 +52,7 @@ export async function createDocument(
       input.location ?? "inbox",
       now,
       input.published_at ?? null,
+      input.lang ?? null,
       input.source_id ?? null,
       input.origin_type
     )

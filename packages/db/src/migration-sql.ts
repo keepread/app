@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS document (
   last_read_at TEXT,
   saved_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   published_at TEXT,
+  lang TEXT,
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   deleted_at TEXT,
   source_id TEXT,
@@ -423,3 +424,6 @@ CREATE TABLE IF NOT EXISTS verification (
 );
 CREATE INDEX IF NOT EXISTS idx_verification_expires_at ON verification(expires_at);
 `;
+
+// Auto-generated from migrations/0006_add_lang.sql
+export const ADD_LANG_SQL = `ALTER TABLE document ADD COLUMN lang TEXT;`;

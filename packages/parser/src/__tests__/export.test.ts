@@ -30,6 +30,7 @@ const mockDoc: Document = {
   origin_type: "manual",
   saved_at: "2026-02-15T10:00:00.000Z",
   published_at: "2026-02-10T08:00:00.000Z",
+  lang: null,
   updated_at: "2026-02-15T10:00:00.000Z",
   deleted_at: null,
   source_id: null,
