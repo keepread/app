@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
+import { invalidateDocumentLists } from "@/lib/documents-cache";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
@@ -67,6 +68,7 @@ export function FeedInfoPanel({ feed, onMutate }: FeedInfoPanelProps) {
         method: "POST",
       });
       onMutate();
+      await invalidateDocumentLists();
       toast("Feed refresh started");
     } catch {
       toast.error("Failed to refresh feed");

@@ -18,6 +18,7 @@ import { Trash2, Check, Pencil, Tag, X, Upload, Download, AlertCircle, ChevronDo
 import { toast } from "sonner";
 import type { AutoTagRule } from "@focus-reader/shared";
 import { AutoTagEditor } from "@/components/settings/auto-tag-editor";
+import { invalidateDocumentLists } from "@/lib/documents-cache";
 
 export default function FeedsSettingsPage() {
   const { feeds, isLoading, mutate } = useFeeds();
@@ -42,6 +43,7 @@ export default function FeedsSettingsPage() {
         body: JSON.stringify({ url }),
       });
       mutate();
+      await invalidateDocumentLists();
       setAddUrl("");
       toast("Feed added, fetching articles...");
     } catch {
@@ -56,6 +58,7 @@ export default function FeedsSettingsPage() {
     try {
       await apiFetch("/api/feeds/poll", { method: "POST" });
       mutate();
+      await invalidateDocumentLists();
       toast("Feeds refreshed");
     } catch {
       toast.error("Failed to refresh feeds");
@@ -69,6 +72,7 @@ export default function FeedsSettingsPage() {
     try {
       await apiFetch(`/api/feeds/${id}/poll`, { method: "POST" });
       mutate();
+      await invalidateDocumentLists();
       toast("Feed refreshed");
     } catch {
       toast.error("Failed to refresh feed");
@@ -147,6 +151,7 @@ export default function FeedsSettingsPage() {
       if (!res.ok) throw new Error();
       const result = (await res.json()) as { imported: number; skipped: number };
       mutate();
+      await invalidateDocumentLists();
       toast(`Imported ${result.imported} feeds (${result.skipped} skipped)`);
     } catch {
       toast.error("Failed to import OPML");

@@ -15,6 +15,7 @@ import { Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch } from "@/lib/api-client";
 import { toast } from "sonner";
+import { invalidateDocumentLists } from "@/lib/documents-cache";
 
 const DEFAULT_SORT_BY: NonNullable<ListDocumentsQuery["sortBy"]> = "saved_at";
 const DEFAULT_SORT_DIR: NonNullable<ListDocumentsQuery["sortDir"]> = "desc";
@@ -84,6 +85,7 @@ export function DocumentList({
     setDocumentIds,
     setCurrentDocumentIndex,
     registerListMutate,
+    mutateDocumentList,
   } = useApp();
   const selectedId = urlSelectedId || selectedDocumentId;
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -334,13 +336,14 @@ export function DocumentList({
       toast(`${result.deletedCount} documents deleted`);
       setSelectedBulkIds(new Set());
       setHoveredDocumentId(null);
-      await mutate();
+      await invalidateDocumentLists();
+      mutateDocumentList();
     } catch {
       toast.error("Failed to delete selected documents");
     } finally {
       setIsBulkDeleting(false);
     }
-  }, [mutate, selectedBulkIds, setHoveredDocumentId]);
+  }, [mutateDocumentList, selectedBulkIds, setHoveredDocumentId]);
 
   const moveSelected = useCallback(
     async (targetLocation: DocumentLocation) => {
@@ -359,14 +362,15 @@ export function DocumentList({
         toast(`${result.updatedCount} documents moved to ${targetLocation}`);
         setSelectedBulkIds(new Set());
         setHoveredDocumentId(null);
-        await mutate();
+        await invalidateDocumentLists();
+        mutateDocumentList();
       } catch {
         toast.error(`Failed to move selected documents to ${targetLocation}`);
       } finally {
         setIsBulkUpdating(false);
       }
     },
-    [mutate, selectedBulkIds, setHoveredDocumentId]
+    [mutateDocumentList, selectedBulkIds, setHoveredDocumentId]
   );
 
   const displayTotal = isSearchActive ? searchTotal : total;

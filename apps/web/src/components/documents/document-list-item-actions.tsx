@@ -4,6 +4,7 @@ import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import type { DocumentWithTags } from "@focus-reader/shared";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
+import { invalidateDocumentLists } from "@/lib/documents-cache";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +69,7 @@ export const DocumentListItemActions = forwardRef<
         body: JSON.stringify({ is_starred: newVal }),
       });
       onMutate();
+      await invalidateDocumentLists();
       toast(newVal ? "Starred" : "Unstarred");
     },
     [doc.id, isStarred, onMutate]
@@ -82,6 +84,7 @@ export const DocumentListItemActions = forwardRef<
         body: JSON.stringify({ is_read: newVal }),
       });
       onMutate();
+      await invalidateDocumentLists();
       toast(newVal ? "Marked as read" : "Marked as unread");
     },
     [doc.id, isRead, onMutate]
@@ -95,6 +98,7 @@ export const DocumentListItemActions = forwardRef<
         body: JSON.stringify({ location }),
       });
       onMutate();
+      await invalidateDocumentLists();
       toast(`Moved to ${location}`);
     },
     [doc.id, onMutate]
@@ -103,6 +107,7 @@ export const DocumentListItemActions = forwardRef<
   const deleteDocument = useCallback(async () => {
     await apiFetch(`/api/documents/${doc.id}`, { method: "DELETE" });
     onMutate();
+    await invalidateDocumentLists();
     toast("Document deleted");
   }, [doc.id, onMutate]);
 

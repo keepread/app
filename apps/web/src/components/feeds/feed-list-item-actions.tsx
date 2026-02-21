@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { FeedEditDialog } from "./feed-edit-dialog";
+import { invalidateDocumentLists } from "@/lib/documents-cache";
 
 interface FeedListItemActionsProps {
   feed: FeedWithStats;
@@ -60,6 +61,7 @@ export const FeedListItemActions = forwardRef<
           method: "POST",
         });
         onMutate();
+        await invalidateDocumentLists();
         toast("Feed refresh started");
       } catch {
         toast.error("Failed to refresh feed");

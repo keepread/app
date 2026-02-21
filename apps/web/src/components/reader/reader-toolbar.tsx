@@ -43,6 +43,7 @@ import {
 import { useApp } from "@/contexts/app-context";
 import { AddToCollectionDialog } from "@/components/dialogs/add-to-collection-dialog";
 import { ReaderPreferencesPopover } from "./reader-preferences-popover";
+import { invalidateDocumentLists } from "@/lib/documents-cache";
 
 interface ReaderToolbarProps {
   documentId: string;
@@ -97,6 +98,7 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
       body: JSON.stringify({ is_starred: newVal }),
     });
     mutate();
+    await invalidateDocumentLists();
     toast(newVal ? "Starred" : "Unstarred");
   };
 
@@ -108,6 +110,7 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
       body: JSON.stringify({ is_read: newVal }),
     });
     mutate();
+    await invalidateDocumentLists();
   };
 
   const moveToLocation = async (location: string) => {
@@ -116,11 +119,13 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
       body: JSON.stringify({ location }),
     });
     mutate();
+    await invalidateDocumentLists();
     toast(`Moved to ${location}`);
   };
 
   const deleteDocument = async () => {
     await apiFetch(`/api/documents/${documentId}`, { method: "DELETE" });
+    await invalidateDocumentLists();
     toast("Document deleted");
     goBack();
   };

@@ -46,6 +46,7 @@ export function useDocuments(query: ListDocumentsQuery) {
   const { data, error, size, setSize, isValidating, mutate } =
     useSWRInfinite(getKey, fetcher, {
       revalidateFirstPage: false,
+      revalidateOnMount: true,
     });
 
   const documents = useMemo(() => data ? data.flatMap((page) => page.items) : [], [data]);

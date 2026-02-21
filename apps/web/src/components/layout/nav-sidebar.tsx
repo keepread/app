@@ -59,7 +59,7 @@ const NAV_ITEMS = [
 
 export function NavSidebar() {
   const pathname = usePathname();
-  const { sidebarCollapsed, toggleSidebar } = useApp();
+  const { sidebarCollapsed, toggleSidebar, mutateDocumentList } = useApp();
   const { subscriptions } = useSubscriptions();
   const { mutate: mutateFeeds } = useFeeds();
   const { views } = useSavedViews();
@@ -83,6 +83,7 @@ export function NavSidebar() {
         body: JSON.stringify({ url }),
       });
       await mutateFeeds();
+      mutateDocumentList();
       setAddFeedUrl("");
       setAddFeedOpen(false);
       toast("Feed added");
