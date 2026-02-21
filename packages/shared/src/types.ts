@@ -565,3 +565,17 @@ export interface UpdateTagInput {
   color?: string | null;
   description?: string | null;
 }
+
+// --- Enrichment types ---
+
+export type EnrichmentSource = "manual_url" | "rss_full_content";
+
+export interface ExtractionEnrichmentJob {
+  job_id: string;
+  user_id: string;
+  document_id: string;
+  url: string;
+  source: EnrichmentSource;
+  attempt: number;
+  enqueued_at: string;
+}

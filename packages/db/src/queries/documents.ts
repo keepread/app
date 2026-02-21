@@ -119,6 +119,69 @@ export async function updateDocument(
     .run();
 }
 
+export interface EnrichDocumentInput {
+  title?: string;
+  html_content?: string | null;
+  markdown_content?: string | null;
+  plain_text_content?: string | null;
+  excerpt?: string | null;
+  author?: string | null;
+  site_name?: string | null;
+  cover_image_url?: string | null;
+  word_count?: number;
+  reading_time_minutes?: number;
+  lang?: string | null;
+}
+
+export async function enrichDocument(
+  ctx: UserScopedDb,
+  id: string,
+  updates: EnrichDocumentInput
+): Promise<void> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined) {
+      fields.push(`${key} = ?${paramIndex}`);
+      values.push(value);
+      paramIndex++;
+    }
+  }
+
+  if (fields.length === 0) return;
+
+  fields.push(`updated_at = ?${paramIndex}`);
+  values.push(nowISO());
+  paramIndex++;
+
+  values.push(id, ctx.userId);
+
+  await ctx.db
+    .prepare(
+      `UPDATE document SET ${fields.join(", ")} WHERE id = ?${paramIndex} AND user_id = ?${paramIndex + 1}`
+    )
+    .bind(...values)
+    .run();
+
+  // Reindex FTS if text fields changed
+  if (updates.title !== undefined || updates.author !== undefined || updates.plain_text_content !== undefined) {
+    try {
+      await deindexDocument(ctx.db, id);
+      const doc = await ctx.db
+        .prepare("SELECT id, title, author, plain_text_content FROM document WHERE id = ?1 AND user_id = ?2")
+        .bind(id, ctx.userId)
+        .first<{ id: string; title: string; author: string | null; plain_text_content: string | null }>();
+      if (doc) {
+        await indexDocument(ctx.db, doc);
+      }
+    } catch {
+      // FTS reindex failure is non-fatal
+    }
+  }
+}
+
 export async function getDocumentByUrl(
   ctx: UserScopedDb,
   url: string

@@ -132,6 +132,36 @@ function extractFeedUrl(doc: Document, baseUrl: string): string | null {
   return resolveUrl(href, baseUrl);
 }
 
+const SKIP_CLASS_PATTERN = /avatar|logo|icon|profile|badge|emoji|gravatar/i;
+const LAZY_SRC_ATTRS = ["data-src", "data-lazy-src", "data-original"];
+
+function findHeroImage(doc: Document, baseUrl: string): string | null {
+  const images = Array.from(
+    doc.querySelectorAll("article img, main img, .post img, .content img, body img")
+  );
+  for (const img of images) {
+    const widthAttr = img.getAttribute("width");
+    if (widthAttr && parseInt(widthAttr, 10) < 100) continue;
+    const heightAttr = img.getAttribute("height");
+    if (heightAttr && parseInt(heightAttr, 10) < 100) continue;
+
+    const className = img.getAttribute("class") || "";
+    if (SKIP_CLASS_PATTERN.test(className)) continue;
+
+    let src: string | null = null;
+    for (const attr of LAZY_SRC_ATTRS) {
+      const val = img.getAttribute(attr);
+      if (val) { src = val; break; }
+    }
+    if (!src) src = img.getAttribute("src");
+    if (!src || src.startsWith("data:")) continue;
+
+    const resolved = resolveUrl(src, baseUrl);
+    if (resolved) return resolved;
+  }
+  return null;
+}
+
 // --- Main extraction ---
 
 export function extractMetadata(html: string, url: string): PageMetadata {
@@ -195,7 +225,7 @@ export function extractMetadata(html: string, url: string): PageMetadata {
     document.querySelector('[itemprop="image"]')?.getAttribute("content") ||
     document.querySelector('[itemprop="image"]')?.getAttribute("src") ||
     null;
-  const ogImage = resolveUrl(rawImage, url);
+  const ogImage = resolveUrl(rawImage, url) || findHeroImage(document, url);
 
   // Favicon: apple-touch-icon → icon → shortcut icon
   const favicon =

@@ -396,4 +396,49 @@ describe("extractMetadata", () => {
     );
     expect(result.title).toBe("Page Title");
   });
+
+  // Hero image heuristic tests
+
+  it("finds hero image from article img when no meta image exists", () => {
+    const result = extractMetadata(
+      html("", `<article><img src="/images/hero.jpg" width="800" height="400"></article>`),
+      BASE_URL
+    );
+    expect(result.ogImage).toBe("https://example.com/images/hero.jpg");
+  });
+
+  it("prefers lazy-load data-src over src for hero image", () => {
+    const result = extractMetadata(
+      html("", `<main><img data-src="/images/lazy-hero.jpg" src="/placeholder.gif" width="600"></main>`),
+      BASE_URL
+    );
+    expect(result.ogImage).toBe("https://example.com/images/lazy-hero.jpg");
+  });
+
+  it("skips tracking pixels and avatar images in hero image scan", () => {
+    const result = extractMetadata(
+      html("", `
+        <article>
+          <img src="/pixel.gif" width="1" height="1">
+          <img src="/avatar.jpg" class="author-avatar" width="48">
+          <img src="/real-hero.jpg" width="800">
+        </article>
+      `),
+      BASE_URL
+    );
+    expect(result.ogImage).toBe("https://example.com/real-hero.jpg");
+  });
+
+  it("skips data URI images in hero image scan", () => {
+    const result = extractMetadata(
+      html("", `
+        <article>
+          <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="800">
+          <img src="/actual-image.jpg" width="600">
+        </article>
+      `),
+      BASE_URL
+    );
+    expect(result.ogImage).toBe("https://example.com/actual-image.jpg");
+  });
 });

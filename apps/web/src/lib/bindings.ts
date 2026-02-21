@@ -1,4 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import type { ExtractionEnrichmentJob } from "@focus-reader/shared";
 
 interface Env {
   FOCUS_DB: D1Database;
@@ -12,6 +13,7 @@ interface Env {
   BETTER_AUTH_URL?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
+  EXTRACTION_QUEUE?: Queue<ExtractionEnrichmentJob>;
 }
 
 export async function getEnv(): Promise<Env> {
@@ -27,4 +29,13 @@ export async function getDb(): Promise<D1Database> {
 export async function getR2(): Promise<R2Bucket> {
   const env = await getEnv();
   return env.FOCUS_STORAGE;
+}
+
+export async function getExtractionQueue(): Promise<Queue<ExtractionEnrichmentJob> | null> {
+  try {
+    const env = await getEnv();
+    return env.EXTRACTION_QUEUE ?? null;
+  } catch {
+    return null;
+  }
 }

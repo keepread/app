@@ -18,6 +18,8 @@ import {
 } from "@focus-reader/db";
 import { extractArticle, extractMetadata, extractPdfMetadata } from "@focus-reader/parser";
 import { tagDocument } from "./tags.js";
+import { scoreExtraction, shouldEnrich } from "./extraction-quality.js";
+import type { EnrichmentIntent } from "./extraction-quality.js";
 
 export async function getDocuments(
   ctx: UserScopedDb,
@@ -64,7 +66,12 @@ export async function removeDocument(
 export async function createBookmark(
   ctx: UserScopedDb,
   url: string,
-  options?: { type?: "article" | "bookmark"; html?: string | null; tagIds?: string[] }
+  options?: {
+    type?: "article" | "bookmark";
+    html?: string | null;
+    tagIds?: string[];
+    onLowQuality?: (intent: EnrichmentIntent) => void | Promise<void>;
+  }
 ): Promise<Document> {
   // Normalize URL for deduplication
   const normalized = normalizeUrl(url);
@@ -94,6 +101,31 @@ export async function createBookmark(
   const type = options?.type ?? "bookmark";
   const tagIds = options?.tagIds ?? [];
 
+  const emitQuality = (doc: Document) => {
+    if (!options?.onLowQuality || !doc.url) return;
+    const score = scoreExtraction({
+      title: doc.title,
+      url: doc.url,
+      htmlContent: doc.html_content,
+      plainTextContent: doc.plain_text_content,
+      author: doc.author,
+      siteName: doc.site_name,
+      publishedDate: doc.published_at,
+      coverImageUrl: doc.cover_image_url,
+      excerpt: doc.excerpt,
+      wordCount: doc.word_count,
+    });
+    if (shouldEnrich(score, { hasUrl: true })) {
+      options.onLowQuality({
+        documentId: doc.id,
+        userId: ctx.userId,
+        url: normalized,
+        source: "manual_url",
+        score,
+      });
+    }
+  };
+
   if (html) {
     // Try full article extraction first
     const article = extractArticle(html, url);
@@ -118,6 +150,7 @@ export async function createBookmark(
         origin_type: "manual",
       });
       for (const tagId of tagIds) await tagDocument(ctx, doc.id, tagId);
+      emitQuality(doc);
       return doc;
     }
 
@@ -136,6 +169,7 @@ export async function createBookmark(
       origin_type: "manual",
     });
     for (const tagId of tagIds) await tagDocument(ctx, doc.id, tagId);
+    emitQuality(doc);
     return doc;
   }
 
@@ -147,6 +181,7 @@ export async function createBookmark(
     origin_type: "manual",
   });
   for (const tagId of tagIds) await tagDocument(ctx, doc.id, tagId);
+  emitQuality(doc);
   return doc;
 }
 
