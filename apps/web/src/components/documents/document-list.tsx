@@ -16,6 +16,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch } from "@/lib/api-client";
 import { toast } from "sonner";
 import { invalidateDocumentLists } from "@/lib/documents-cache";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_SORT_BY: NonNullable<ListDocumentsQuery["sortBy"]> = "saved_at";
 const DEFAULT_SORT_DIR: NonNullable<ListDocumentsQuery["sortDir"]> = "desc";
@@ -73,6 +75,7 @@ export function DocumentList({
   sortBy: sortByProp,
   sortDir: sortDirProp,
 }: DocumentListProps) {
+  const isMobile = useIsMobile();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -446,7 +449,7 @@ export function DocumentList({
     sortLocked,
     isBulkMode,
     selectedCount: bulkSelectedCount,
-    selectedLabel: isSelectAllMatching ? "matching" : "selected",
+    selectedLabel: "selected",
     allVisibleSelected,
     allMatchingSelected: isSelectAllMatching,
     matchingCount: !isSearchActive ? displayTotal : 0,
@@ -497,7 +500,7 @@ export function DocumentList({
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <DocumentListToolbar {...toolbarProps} />
-      <div className="flex-1 overflow-y-auto">
+      <div className={cn("flex-1 overflow-y-auto", isMobile && isBulkMode && "pb-16")}>
         {viewMode === "grid" ? (
           <DocumentGrid
             documents={displayDocuments}
