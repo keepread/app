@@ -122,17 +122,6 @@ export function NavSidebar({ forceVisible = false }: NavSidebarProps) {
         <div className="flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
-                <PanelLeftClose className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <span>Toggle sidebar</span>
-              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">[</kbd>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="size-7" onClick={() => setAddDialogOpen(true)}>
                 <Plus className="size-4" />
               </Button>
@@ -140,6 +129,17 @@ export function NavSidebar({ forceVisible = false }: NavSidebarProps) {
             <TooltipContent side="bottom">
               <span>Add document</span>
               <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">A</kbd>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
+                <PanelLeftClose className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <span>Toggle sidebar</span>
+              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">[</kbd>
             </TooltipContent>
           </Tooltip>
         </div>
