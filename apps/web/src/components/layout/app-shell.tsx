@@ -20,7 +20,7 @@ import { CommandPalette } from "@/components/dialogs/command-palette";
 import { CollectionDialog } from "@/components/dialogs/collection-dialog";
 import { useCollections } from "@/hooks/use-collections";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -315,6 +315,10 @@ export function AppShell({ children }: AppShellProps) {
           {isMobile ? (
             <Sheet open={!sidebarCollapsed} onOpenChange={(open) => setSidebarCollapsed(!open)}>
               <SheetContent side="left" className="p-0 w-[86vw] max-w-[320px]">
+                <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+                <SheetDescription className="sr-only">
+                  Browse sections, subscriptions, and collections.
+                </SheetDescription>
                 <NavSidebar forceVisible />
               </SheetContent>
             </Sheet>
