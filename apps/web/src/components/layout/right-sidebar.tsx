@@ -59,7 +59,11 @@ function scrollToHighlight(highlightId: string) {
   setTimeout(() => mark.classList.remove("highlight-pulse"), 1600);
 }
 
-export function RightSidebar() {
+interface RightSidebarProps {
+  forceVisible?: boolean;
+}
+
+export function RightSidebar({ forceVisible = false }: RightSidebarProps) {
   const { rightPanelVisible, toggleRightPanel, selectedDocumentId, hoveredDocumentId } = useApp();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -75,7 +79,7 @@ export function RightSidebar() {
   const isFeedsPage = pathname === "/feeds";
   const { feeds, mutate: mutateFeeds } = useFeeds();
 
-  if (!rightPanelVisible) return null;
+  if (!rightPanelVisible && !forceVisible) return null;
 
   // On tags page, show tag info instead of document info
   if (isTagsPage) {

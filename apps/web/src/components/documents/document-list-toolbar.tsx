@@ -490,7 +490,7 @@ export function DocumentListToolbar({
                 </Button>
               </div>
             )}
-            {!isMobile && !rightPanelVisible && (
+            {!rightPanelVisible && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="size-7" onClick={toggleRightPanel}>
@@ -499,7 +499,7 @@ export function DocumentListToolbar({
                 </TooltipTrigger>
                 <TooltipContent>
                   <span>Show right panel</span>
-                  <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>
+                  {!isMobile && <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>}
                 </TooltipContent>
               </Tooltip>
             )}

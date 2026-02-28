@@ -70,10 +70,18 @@ export function AppShell({ children }: AppShellProps) {
     null
   );
 
+  const rightPanelVisibleRef = useRef(rightPanelVisible);
+  rightPanelVisibleRef.current = rightPanelVisible;
+  const tocVisibleRef = useRef(tocVisible);
+  tocVisibleRef.current = tocVisible;
+
   useEffect(() => {
     if (isMobile) {
       if (desktopPanelStateRef.current === null) {
-        desktopPanelStateRef.current = { rightPanelVisible, tocVisible };
+        desktopPanelStateRef.current = {
+          rightPanelVisible: rightPanelVisibleRef.current,
+          tocVisible: tocVisibleRef.current,
+        };
       }
       setSidebarCollapsed(true);
       setRightPanelVisible(false);
@@ -86,14 +94,7 @@ export function AppShell({ children }: AppShellProps) {
       setTocVisible(desktopPanelStateRef.current.tocVisible);
       desktopPanelStateRef.current = null;
     }
-  }, [
-    isMobile,
-    rightPanelVisible,
-    setRightPanelVisible,
-    setSidebarCollapsed,
-    setTocVisible,
-    tocVisible,
-  ]);
+  }, [isMobile, setRightPanelVisible, setSidebarCollapsed, setTocVisible]);
 
   useEffect(() => {
     if (isMobile && !isReadingView) {
@@ -341,7 +342,19 @@ export function AppShell({ children }: AppShellProps) {
       )}
 
       {/* Right sidebar — hidden in focus mode */}
-      {!focusMode && !isMobile && <RightSidebar />}
+      {!focusMode && (
+        isMobile ? (
+          <Sheet open={rightPanelVisible} onOpenChange={setRightPanelVisible}>
+            <SheetContent side="right" className="p-0 w-[296px] flex flex-col">
+              <SheetTitle className="sr-only">Document info</SheetTitle>
+              <SheetDescription className="sr-only">Document details and highlights.</SheetDescription>
+              <RightSidebar forceVisible />
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <RightSidebar />
+        )
+      )}
 
       {/* Dialogs */}
       <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />

@@ -1,9 +1,9 @@
 # Mobile Toolbar Redesign — Spec
 
-**Version:** 1.2
+**Version:** 1.3
 **Date:** February 27, 2026
 **Status:** Implemented
-**Scope:** `DocumentListToolbar` + `SearchBar` + `DocumentList` + `BulkActionBar` (new)
+**Scope:** `DocumentListToolbar` + `SearchBar` + `DocumentList` + `BulkActionBar` (new) + mobile right panel
 
 ---
 
@@ -23,10 +23,11 @@ The `DocumentListToolbar` had two usability failures on mobile:
 
 ## Solution Overview
 
-Two independent improvements:
+Three independent improvements:
 
 - **A. Toolbar compaction** — collapse search and filter controls to icons on mobile
 - **B. Bulk selection redesign** — Gmail-style scope dropdown + actions adjacent to selection controls
+- **C. Mobile right panel** — right panel button shown on mobile, opens as a Sheet
 
 ---
 
@@ -74,7 +75,7 @@ mode is handled entirely by the `[☐▾]` dropdown — no secondary entry point
 
 **Normal mode, mobile:**
 ```
-[☰?]  [icon Title]  [☐▾]              [view toggle]  [🔍]  [⚙]
+[☰?]  [icon Title]  [☐▾]              [view toggle]  [🔍]  [⚙]  [▷ panel]
 ```
 
 **Normal mode, desktop:**
@@ -158,6 +159,37 @@ automation). Out of scope for this spec — leave as-is for now.
 
 ---
 
+## C. Mobile Right Panel
+
+### C.1 Behaviour
+
+The right panel button (`PanelRightOpen`) was previously hidden on mobile. It is now shown
+on all toolbars (document list, reader, feeds, tags, collections, highlights).
+
+On mobile, tapping it opens the `RightSidebar` content inside a `Sheet` (`side="right"`,
+296px wide) rather than rendering it inline. The sheet is controlled by the existing
+`rightPanelVisible` context state; closing the sheet resets the state.
+
+`RightSidebar` accepts a `forceVisible` prop so it renders its content even when
+`rightPanelVisible` is false — necessary because visibility inside the sheet is controlled
+by the sheet's `open` state, not the sidebar's own guard.
+
+### C.2 Bug fix: panel immediately closing on mobile
+
+The `AppShell` useEffect that collapses panels when switching to mobile had
+`rightPanelVisible` and `tocVisible` in its dependency array. This caused the effect to
+re-run every time the panel was toggled, immediately resetting it to closed. Fixed by
+reading those values via refs at snapshot time so the effect only runs when `isMobile`
+changes.
+
+### C.3 Icon
+
+`PanelRightOpen` is used on both mobile and desktop — same as `PanelLeftOpen` on the left.
+Focus mode button is hidden on mobile (reader toolbar only) since it is a desktop-only
+concept.
+
+---
+
 ## Component Changes Summary
 
 | Component | Changes |
@@ -166,6 +198,9 @@ automation). Out of scope for this spec — leave as-is for now.
 | `DocumentListToolbar` | Gmail-style `[☐▾]` scope dropdown with "Exit selection mode" at bottom; bulk mode left cluster (no Done button) with adjacent action buttons (desktop); right cluster hidden in bulk mode; two filter dropdowns merged into one `SlidersHorizontal` button; title is plain span with optional icon (chevron removed) |
 | `DocumentList` | Bug fix: "Visible Only" now restores visible selection instead of clearing to 0; renders `BulkActionBar` at bottom |
 | `BulkActionBar` (new) | Mobile-only sticky bottom bar with Archive / Later / Delete |
+| `AppShell` | Mobile right panel opens as a right-side Sheet; fixed useEffect bug that immediately closed the panel; focus mode button hidden on mobile |
+| `RightSidebar` | Added `forceVisible` prop to bypass internal visibility guard when rendered inside a Sheet |
+| All toolbars | `PanelRightOpen` button shown on mobile (was hidden); `PanelRightOpen` used on both mobile and desktop for consistency |
 
 ---
 
@@ -181,3 +216,6 @@ automation). Out of scope for this spec — leave as-is for now.
 | 6 | Scope dropdown uses explicit items (no toggles) to avoid "Clear All" vs "None" ambiguity |
 | 7 | Action buttons (Archive/Later/Delete) placed adjacent to scope controls on desktop, not at the far right |
 | 8 | "Done X" button removed from bulk mode; `[☐▾]` dropdown is the single control for entering and exiting bulk mode |
+| 9 | Right panel button shown on mobile; opens as a Sheet rather than inline sidebar |
+| 10 | `PanelRightOpen` used on mobile instead of `Info` — consistent with `PanelLeftOpen` on the left |
+| 11 | Focus mode button hidden on mobile (reader toolbar) — desktop-only concept |

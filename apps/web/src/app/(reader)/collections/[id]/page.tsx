@@ -26,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useApp } from "@/contexts/app-context";
 import { Pencil, Trash2, FolderOpen, PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CollectionPage({
@@ -37,6 +38,7 @@ export default function CollectionPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { sidebarCollapsed, toggleSidebar, rightPanelVisible, toggleRightPanel } = useApp();
+  const isMobile = useIsMobile();
   const { collection, isLoading, mutate } = useCollection(id);
   const { mutate: mutateList } = useCollections();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -185,7 +187,7 @@ export default function CollectionPage({
             </TooltipTrigger>
             <TooltipContent>
               <span>Show right panel</span>
-              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>
+              {!isMobile && <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>}
             </TooltipContent>
           </Tooltip>
         )}

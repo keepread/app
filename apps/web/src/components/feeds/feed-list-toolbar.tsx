@@ -5,6 +5,7 @@ import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { SearchBar } from "@/components/search/search-bar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApp } from "@/contexts/app-context";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FeedListToolbarProps {
   title: string;
@@ -14,6 +15,7 @@ interface FeedListToolbarProps {
 
 export function FeedListToolbar({ title, total, onSearch }: FeedListToolbarProps) {
   const { sidebarCollapsed, toggleSidebar, rightPanelVisible, toggleRightPanel } = useApp();
+  const isMobile = useIsMobile();
 
   return (
     <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
@@ -47,7 +49,7 @@ export function FeedListToolbar({ title, total, onSearch }: FeedListToolbarProps
             </TooltipTrigger>
             <TooltipContent>
               <span>Show right panel</span>
-              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>
+              {!isMobile && <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>}
             </TooltipContent>
           </Tooltip>
         )}

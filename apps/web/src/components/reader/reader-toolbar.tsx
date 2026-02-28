@@ -196,14 +196,16 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
             <TooltipContent>Table of contents</TooltipContent>
           </Tooltip>
         )}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8" onClick={toggleFocusMode}>
-              {focusMode ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Focus mode</TooltipContent>
-        </Tooltip>
+        {!isMobile && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-8" onClick={toggleFocusMode}>
+                {focusMode ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Focus mode</TooltipContent>
+          </Tooltip>
+        )}
 
         <ReaderPreferencesPopover />
 
@@ -299,7 +301,7 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {!isMobile && !rightPanelVisible && !focusMode && (
+        {!rightPanelVisible && !focusMode && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="size-8" onClick={toggleRightPanel}>
@@ -308,7 +310,7 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
             </TooltipTrigger>
             <TooltipContent>
               <span>Show right panel</span>
-              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>
+              {!isMobile && <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>}
             </TooltipContent>
           </Tooltip>
         )}

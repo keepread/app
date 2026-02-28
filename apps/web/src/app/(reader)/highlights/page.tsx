@@ -64,7 +64,7 @@ export default function HighlightsPage() {
           <h1 className="text-lg font-semibold">Highlights</h1>
           <span className="text-sm text-muted-foreground">({total})</span>
         </div>
-        {!isMobile && !rightPanelVisible && (
+        {!rightPanelVisible && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="size-7" onClick={toggleRightPanel}>
@@ -73,7 +73,7 @@ export default function HighlightsPage() {
             </TooltipTrigger>
             <TooltipContent>
               <span>Show right panel</span>
-              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>
+              {!isMobile && <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>}
             </TooltipContent>
           </Tooltip>
         )}
