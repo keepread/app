@@ -1,6 +1,6 @@
 # Mobile Toolbar Redesign — Spec
 
-**Version:** 1.1
+**Version:** 1.2
 **Date:** February 27, 2026
 **Status:** Implemented
 **Scope:** `DocumentListToolbar` + `SearchBar` + `DocumentList` + `BulkActionBar` (new)
@@ -67,19 +67,19 @@ List/grid toggle stays in the toolbar on both desktop and mobile — no change.
 
 ### A.4 Title chevron
 
-Kept as-is for now (contains "Select documents" as a secondary entry point). To be
-re-evaluated once the new layout is stable.
+Removed. The title is now a plain `<span>` with an optional icon. Entry and exit of bulk
+mode is handled entirely by the `[☐▾]` dropdown — no secondary entry point needed.
 
 ### Resulting toolbar layout
 
 **Normal mode, mobile:**
 ```
-[☰?]  [Title ▾]  [☐▾]              [view toggle]  [🔍]  [⚙]
+[☰?]  [icon Title]  [☐▾]              [view toggle]  [🔍]  [⚙]
 ```
 
 **Normal mode, desktop:**
 ```
-[☰?]  [Title ▾]  [☐▾]    [___ search input ___]  [⚙]  [view toggle]  [▷ panel]
+[☰?]  [icon Title]  [☐▾]    [___ search input ___]  [⚙]  [view toggle]  [▷ panel]
 ```
 
 **Search active (mobile — expanded):**
@@ -108,33 +108,33 @@ and apply the chosen scope in a single click:
 - "Select All Matching (N)" — enters bulk mode + selects all matching (only when
   `matchingCount > 0`)
 
-**In bulk mode**, the dropdown changes scope without exiting bulk mode:
+**In bulk mode**, the dropdown changes scope and also provides the exit point:
 
 | Current state | Items shown |
 |---|---|
-| Nothing selected | "Select All", "All Matching (N)" |
-| Some selected | "Select All", "All Matching (N)", — "None" |
-| All visible selected | "All Matching (N)", — "None" |
-| All matching selected | "Visible Only", — "None" |
+| Nothing selected | "Select All", "All Matching (N)", — "Exit selection mode" |
+| Some selected | "Select All", "All Matching (N)", — "None", — "Exit selection mode" |
+| All visible selected | "All Matching (N)", — "None", — "Exit selection mode" |
+| All matching selected | "Visible Only", — "None", — "Exit selection mode" |
 
 - **"Select All"** — only shown when not all visible are selected; always selects the
   currently loaded/visible items
 - **"All Matching (N)"** / **"Visible Only"** — scope toggle for paginated lists; only
   shown when `matchingCount > 0`
-- **"None"** — always clears selection to 0 without exiting bulk mode (shown only when
-  something is selected)
+- **"None"** — clears selection to 0 without exiting bulk mode (shown only when something
+  is selected)
+- **"Exit selection mode"** — always shown at the bottom (with separator); exits bulk mode
 
 These are explicit, non-toggling items. There is no ambiguous "Clear All" toggle.
 
 ### B.2 Bulk mode — toolbar
 
 ```
-[✕ Done]  [N selected]  [☐▾]  |  [Archive]  [Later]  [Delete]
+[N selected]  [☐▾]  |  [Archive]  [Later]  [Delete]
 ```
 
-- `✕ Done` exits bulk mode
 - "N selected" / "N matching" — count label (label changes via `selectedLabel` prop)
-- `[☐▾]` — scope dropdown (see B.1)
+- `[☐▾]` — scope dropdown; use "Exit selection mode" at the bottom to leave bulk mode
 - Separator + action buttons — **desktop only** (mobile uses `BulkActionBar` at bottom)
 - Action button labels show no count — the count is already visible in "N selected"
 - The entire right cluster (search, filter, view toggle) is hidden in bulk mode
@@ -163,7 +163,7 @@ automation). Out of scope for this spec — leave as-is for now.
 | Component | Changes |
 |---|---|
 | `SearchBar` | Added `compact`, `expanded`, `onExpandedChange` props for icon-first mobile behaviour |
-| `DocumentListToolbar` | Gmail-style `[☐▾]` scope dropdown; bulk mode left cluster with adjacent action buttons (desktop); right cluster hidden in bulk mode; two filter dropdowns merged into one `SlidersHorizontal` button |
+| `DocumentListToolbar` | Gmail-style `[☐▾]` scope dropdown with "Exit selection mode" at bottom; bulk mode left cluster (no Done button) with adjacent action buttons (desktop); right cluster hidden in bulk mode; two filter dropdowns merged into one `SlidersHorizontal` button; title is plain span with optional icon (chevron removed) |
 | `DocumentList` | Bug fix: "Visible Only" now restores visible selection instead of clearing to 0; renders `BulkActionBar` at bottom |
 | `BulkActionBar` (new) | Mobile-only sticky bottom bar with Archive / Later / Delete |
 
@@ -175,8 +175,9 @@ automation). Out of scope for this spec — leave as-is for now.
 |---|---|
 | 1 | Desktop search keeps the full visible text input; icon-only is mobile-only |
 | 2 | Merged filter panel opens as a bottom Sheet on mobile, DropdownMenu on desktop |
-| 3 | Title chevron kept as-is for now, to be revisited once new layout is stable |
+| 3 | Title chevron removed; title is a plain span with an optional page icon passed via prop |
 | 4 | View mode toggle (list/grid) stays in the toolbar on both desktop and mobile |
 | 5 | Action buttons show no count — count is already shown in "N selected" label |
 | 6 | Scope dropdown uses explicit items (no toggles) to avoid "Clear All" vs "None" ambiguity |
 | 7 | Action buttons (Archive/Later/Delete) placed adjacent to scope controls on desktop, not at the far right |
+| 8 | "Done X" button removed from bulk mode; `[☐▾]` dropdown is the single control for entering and exiting bulk mode |

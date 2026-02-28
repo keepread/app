@@ -29,7 +29,6 @@ import {
   SquareMinus,
   Square,
   Search,
-  X,
 } from "lucide-react";
 import { SearchBar } from "@/components/search/search-bar";
 import { useApp } from "@/contexts/app-context";
@@ -211,6 +210,13 @@ export function DocumentListToolbar({
                 </DropdownMenuItem>
               </>
             )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={onToggleBulkMode}
+              disabled={isBulkDeleting || isBulkUpdating}
+            >
+              Exit selection mode
+            </DropdownMenuItem>
           </>
         )}
       </DropdownMenuContent>
@@ -222,18 +228,8 @@ export function DocumentListToolbar({
 
       {/* ── Left cluster ── */}
       {isBulkMode ? (
-        // Bulk mode: Done | count | [☐▾] | separator | Archive Later Delete (desktop)
+        // Bulk mode: count | [☐▾] | separator | Archive Later Delete (desktop)
         <div className="flex items-center gap-1 min-w-0 overflow-hidden">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 gap-1 px-2 text-xs shrink-0"
-            onClick={onToggleBulkMode}
-            disabled={isBulkDeleting || isBulkUpdating}
-          >
-            <X className="size-3" />
-            Done
-          </Button>
           <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
             {selectedCount} {selectedLabel}
           </span>
