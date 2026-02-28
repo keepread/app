@@ -118,10 +118,18 @@ export function RightSidebar({ forceVisible = false }: RightSidebarProps) {
   return (
     <aside className="flex h-full w-[296px] flex-shrink-0 flex-col border-l bg-background">
       <Tabs defaultValue="info" className="flex-1 flex flex-col">
-        <div className="flex items-center gap-2 px-4 pt-3 pb-1">
-          <TabsList className="flex-1 grid grid-cols-2">
-            <TabsTrigger value="info">Info</TabsTrigger>
-            <TabsTrigger value="notebook">
+        <div className="flex items-center border-b">
+          <TabsList className="flex-1 flex h-auto rounded-none bg-transparent p-0 px-4">
+            <TabsTrigger
+              value="info"
+              className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-3 mr-5 text-sm font-medium text-muted-foreground shadow-none data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none bg-transparent"
+            >
+              Info
+            </TabsTrigger>
+            <TabsTrigger
+              value="notebook"
+              className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-3 text-sm font-medium text-muted-foreground shadow-none data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none bg-transparent"
+            >
               Notebook
               {highlights.length > 0 && (
                 <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">
@@ -130,7 +138,9 @@ export function RightSidebar({ forceVisible = false }: RightSidebarProps) {
               )}
             </TabsTrigger>
           </TabsList>
-          <CloseButton onClick={toggleRightPanel} />
+          <div className="px-4 pb-1 pt-2">
+            <CloseButton onClick={toggleRightPanel} />
+          </div>
         </div>
         <TabsContent value="info" className="flex-1 overflow-y-auto">
           {doc ? (
