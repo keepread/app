@@ -31,6 +31,7 @@ import {
   Search,
 } from "lucide-react";
 import { SearchBar } from "@/components/search/search-bar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApp } from "@/contexts/app-context";
 import { cn } from "@/lib/utils";
 import type { DocumentType, ListDocumentsQuery } from "@focus-reader/shared";
@@ -276,9 +277,17 @@ export function DocumentListToolbar({
         // Normal mode: sidebar toggle + title + [☐▾]
         <div className="flex items-center gap-1 min-w-0">
           {sidebarCollapsed && (
-            <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
-              <PanelLeftOpen className="size-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
+                  <PanelLeftOpen className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <span>Show left panel</span>
+                <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">[</kbd>
+              </TooltipContent>
+            </Tooltip>
           )}
           <span className="flex items-center gap-1.5 px-2 text-sm font-semibold">
             {Icon && <Icon className="size-4 text-muted-foreground" />}
@@ -482,9 +491,17 @@ export function DocumentListToolbar({
               </div>
             )}
             {!isMobile && !rightPanelVisible && (
-              <Button variant="ghost" size="icon" className="size-7" onClick={toggleRightPanel}>
-                <PanelRightOpen className="size-4" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="size-7" onClick={toggleRightPanel}>
+                    <PanelRightOpen className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <span>Show right panel</span>
+                  <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
         )

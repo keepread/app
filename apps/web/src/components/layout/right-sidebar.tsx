@@ -10,7 +10,9 @@ import { extractDomain } from "@focus-reader/shared";
 import { NotebookHighlightCard } from "@/components/reader/notebook-highlight-card";
 import { useCollectionsForDocument } from "@/hooks/use-collections";
 import Link from "next/link";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, PanelRightClose } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TagInfoPanel } from "@/components/tags/tag-info-panel";
 import { useTags } from "@/hooks/use-tags";
 import { FeedInfoPanel } from "@/components/feeds/feed-info-panel";
@@ -33,6 +35,22 @@ function MetadataRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function CloseButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={onClick}>
+          <PanelRightClose className="size-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="left">
+        <span>Hide right panel</span>
+        <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function scrollToHighlight(highlightId: string) {
   const mark = document.querySelector(`mark[data-highlight-id="${highlightId}"]`);
   if (!mark) return;
@@ -42,7 +60,7 @@ function scrollToHighlight(highlightId: string) {
 }
 
 export function RightSidebar() {
-  const { rightPanelVisible, selectedDocumentId, hoveredDocumentId } = useApp();
+  const { rightPanelVisible, toggleRightPanel, selectedDocumentId, hoveredDocumentId } = useApp();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const urlDocId = searchParams.get("doc");
@@ -65,8 +83,9 @@ export function RightSidebar() {
     const selectedTag = tags.find((t) => t.id === selectedTagId) || null;
     return (
       <aside className="flex h-full w-[296px] flex-shrink-0 flex-col border-l bg-background">
-        <div className="p-4 border-b">
+        <div className="flex items-center justify-between px-4 py-2 border-b">
           <h3 className="text-sm font-semibold">Tag Details</h3>
+          <CloseButton onClick={toggleRightPanel} />
         </div>
         <div className="flex-1 overflow-y-auto">
           <TagInfoPanel tag={selectedTag} onMutate={mutateTags} />
@@ -81,8 +100,9 @@ export function RightSidebar() {
     const selectedFeed = feeds.find((f) => f.id === selectedFeedId) || null;
     return (
       <aside className="flex h-full w-[296px] flex-shrink-0 flex-col border-l bg-background">
-        <div className="p-4 border-b">
+        <div className="flex items-center justify-between px-4 py-2 border-b">
           <h3 className="text-sm font-semibold">Feed Details</h3>
+          <CloseButton onClick={toggleRightPanel} />
         </div>
         <div className="flex-1 overflow-y-auto">
           <FeedInfoPanel feed={selectedFeed} onMutate={mutateFeeds} />
@@ -94,17 +114,20 @@ export function RightSidebar() {
   return (
     <aside className="flex h-full w-[296px] flex-shrink-0 flex-col border-l bg-background">
       <Tabs defaultValue="info" className="flex-1 flex flex-col">
-        <TabsList className="mx-4 mt-3 grid w-auto grid-cols-2">
-          <TabsTrigger value="info">Info</TabsTrigger>
-          <TabsTrigger value="notebook">
-            Notebook
-            {highlights.length > 0 && (
-              <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">
-                {highlights.length}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+          <TabsList className="flex-1 grid grid-cols-2">
+            <TabsTrigger value="info">Info</TabsTrigger>
+            <TabsTrigger value="notebook">
+              Notebook
+              {highlights.length > 0 && (
+                <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">
+                  {highlights.length}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+          <CloseButton onClick={toggleRightPanel} />
+        </div>
         <TabsContent value="info" className="flex-1 overflow-y-auto">
           {doc ? (
             <div className="space-y-0">

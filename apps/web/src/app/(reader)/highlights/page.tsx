@@ -7,6 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { HIGHLIGHT_COLORS } from "@focus-reader/shared";
 import { Highlighter, PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApp } from "@/contexts/app-context";
 import { timeAgo } from "@/lib/format";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -47,18 +48,34 @@ export default function HighlightsPage() {
       <div className="flex items-center justify-between px-4 py-3 border-b">
         <div className="flex items-center gap-2">
           {sidebarCollapsed && (
-            <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
-              <PanelLeftOpen className="size-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
+                  <PanelLeftOpen className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <span>Show left panel</span>
+                <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">[</kbd>
+              </TooltipContent>
+            </Tooltip>
           )}
           <Highlighter className="size-4 text-muted-foreground" />
           <h1 className="text-lg font-semibold">Highlights</h1>
           <span className="text-sm text-muted-foreground">({total})</span>
         </div>
         {!isMobile && !rightPanelVisible && (
-          <Button variant="ghost" size="icon" className="size-7" onClick={toggleRightPanel}>
-            <PanelRightOpen className="size-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" onClick={toggleRightPanel}>
+                <PanelRightOpen className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <span>Show right panel</span>
+              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
 

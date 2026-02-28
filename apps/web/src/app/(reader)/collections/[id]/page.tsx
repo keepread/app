@@ -22,6 +22,7 @@ import { SortableDocumentRow } from "@/components/collections/sortable-document-
 import { CollectionDialog } from "@/components/dialogs/collection-dialog";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApp } from "@/contexts/app-context";
 import { Pencil, Trash2, FolderOpen, PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { toast } from "sonner";
@@ -135,9 +136,17 @@ export default function CollectionPage({
       {/* Header */}
       <div className="flex items-center gap-3 border-b px-6 py-4">
         {sidebarCollapsed && (
-          <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
-            <PanelLeftOpen className="size-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
+                <PanelLeftOpen className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <span>Show left panel</span>
+              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">[</kbd>
+            </TooltipContent>
+          </Tooltip>
         )}
         <FolderOpen className="size-5 text-muted-foreground" />
         <div className="flex-1 min-w-0">
@@ -168,9 +177,17 @@ export default function CollectionPage({
           <Trash2 className="size-4" />
         </Button>
         {!rightPanelVisible && (
-          <Button variant="ghost" size="icon" className="size-7" onClick={toggleRightPanel}>
-            <PanelRightOpen className="size-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" onClick={toggleRightPanel}>
+                <PanelRightOpen className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <span>Show right panel</span>
+              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
 

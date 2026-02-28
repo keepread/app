@@ -336,7 +336,10 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
                 <PanelRightOpen className="size-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Show side panel</TooltipContent>
+            <TooltipContent>
+              <span>Show right panel</span>
+              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">]</kbd>
+            </TooltipContent>
           </Tooltip>
         )}
       </div>

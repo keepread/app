@@ -138,7 +138,7 @@ export function NavSidebar({ forceVisible = false }: NavSidebarProps) {
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <span>Toggle sidebar</span>
+              <span>Hide left panel</span>
               <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">[</kbd>
             </TooltipContent>
           </Tooltip>
