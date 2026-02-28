@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 interface BulkActionBarProps {
   isBulkMode: boolean;
-  selectedCount: number;
+  selectedCount?: number;
   isBulkDeleting?: boolean;
   isBulkUpdating?: boolean;
   onMoveSelectedToArchive?: () => void;
@@ -27,7 +27,7 @@ export function BulkActionBar({
 }: BulkActionBarProps) {
   if (!isBulkMode) return null;
 
-  const disabled = selectedCount === 0 || isBulkDeleting || isBulkUpdating;
+  const disabled = (selectedCount ?? 0) === 0 || isBulkDeleting || isBulkUpdating;
 
   return (
     <div className="sm:hidden sticky bottom-0 border-t bg-background shadow-md">
@@ -40,7 +40,7 @@ export function BulkActionBar({
             onClick={onMoveSelectedToArchive}
             disabled={disabled}
           >
-            Archive ({selectedCount})
+            Archive
           </Button>
         )}
         {onMoveSelectedToLater && (
@@ -51,7 +51,7 @@ export function BulkActionBar({
             onClick={onMoveSelectedToLater}
             disabled={disabled}
           >
-            Later ({selectedCount})
+            Later
           </Button>
         )}
         {onDeleteSelected && (
@@ -62,7 +62,7 @@ export function BulkActionBar({
             onClick={onDeleteSelected}
             disabled={disabled}
           >
-            Delete ({selectedCount})
+            Delete
           </Button>
         )}
       </div>

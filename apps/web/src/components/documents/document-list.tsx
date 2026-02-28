@@ -341,12 +341,12 @@ export function DocumentList({
   const toggleSelectAllMatching = useCallback(() => {
     if (isSelectAllMatching) {
       setIsSelectAllMatching(false);
-      setSelectedBulkIds(new Set());
+      setSelectedBulkIds(new Set(displayDocIds));
       return;
     }
     setIsSelectAllMatching(true);
     setSelectedBulkIds(new Set());
-  }, [isSelectAllMatching]);
+  }, [isSelectAllMatching, displayDocIds]);
 
   const toggleBulkMode = useCallback(() => {
     setIsBulkMode((prev) => !prev);

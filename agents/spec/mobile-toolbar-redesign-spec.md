@@ -1,22 +1,23 @@
 # Mobile Toolbar Redesign — Spec
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** February 27, 2026
-**Status:** Approved for implementation
-**Scope:** `DocumentListToolbar` + `SearchBar` + `DocumentList` (floating bulk bar)
+**Status:** Implemented
+**Scope:** `DocumentListToolbar` + `SearchBar` + `DocumentList` + `BulkActionBar` (new)
 
 ---
 
 ## Problem Statement
 
-The `DocumentListToolbar` has two usability failures on mobile:
+The `DocumentListToolbar` had two usability failures on mobile:
 
-1. **Overflow:** Search input + type filter + sort dropdown + view toggle don't fit on one
+1. **Overflow:** Search input + type filter + sort dropdown + view toggle didn't fit on one
    line at mobile widths, causing awkward two-line wrapping.
-2. **Bulk selection UX is buried and cluttered:** Entering selection mode requires finding
-   it inside the title's chevron dropdown. Once in bulk mode, action buttons wrap into a
-   second line on mobile. The title chevron mixes navigation concerns with mode-switch
-   concerns.
+2. **Bulk selection UX was buried and cluttered:** Entering selection mode required finding
+   it inside the title chevron dropdown. In bulk mode, action buttons wrapped into a second
+   line. Scope controls ("Select all", "Select all matching") and action buttons ("Archive",
+   "Delete") were spread across both ends of the toolbar with no clear grouping. "Select all
+   matching" was hidden on mobile entirely.
 
 ---
 
@@ -25,7 +26,7 @@ The `DocumentListToolbar` has two usability failures on mobile:
 Two independent improvements:
 
 - **A. Toolbar compaction** — collapse search and filter controls to icons on mobile
-- **B. Bulk selection redesign** — dedicated entry point + floating bottom action bar
+- **B. Bulk selection redesign** — Gmail-style scope dropdown + actions adjacent to selection controls
 
 ---
 
@@ -34,57 +35,52 @@ Two independent improvements:
 ### A.1 Search: expandable icon (mobile only)
 
 **Mobile (`sm` breakpoint and below):**
-- Show a `Search` icon button in place of the full input
-- Tapping it expands the search inline, replacing the filter/sort/view-toggle row with a
-  full-width search input + X dismiss button
+- Shows a `Search` icon button in place of the full input
+- Tapping expands inline, the full-width input + X dismiss button replaces the right cluster
 - Dismissing collapses back to icon state and clears the query
-- While expanded, no other right-side toolbar controls are shown
+- While expanded, all other right-side controls are hidden
 
 **Desktop (`sm` and above):**
-- Keep the current always-visible text input — no change
-- The `SearchBar` component gains a `compact` prop to switch between the two behaviors
+- Always-visible text input — no change
+- `SearchBar` has a `compact` prop (`compact`, `expanded`, `onExpandedChange`) to support
+  both behaviours from the same component
 
 ### A.2 Filters: merged icon button
 
-Collapse "All Types" dropdown + "Date saved / Sort" dropdown into a single icon button
-using `SlidersHorizontal` from lucide-react.
+The two separate dropdowns ("All Types" + "Date saved / Sort") are collapsed into a single
+`SlidersHorizontal` icon button.
 
-**Mobile:** The merged button opens a **bottom Sheet** (`shadcn/ui Sheet` with
-`side="bottom"`) containing:
-- Type filter section (radio-style list: All Types / Articles / Emails / RSS / Bookmarks / PDFs)
-- Sort by section (radio-style list: Date saved / Date published / Title / Reading time)
-- Sort direction section (radio-style: Recent → Old / Old → Recent, etc.)
-- A "Done" close button at the bottom
+**Mobile:** Opens a **bottom Sheet** (`shadcn/ui Sheet`, `side="bottom"`) containing:
+- Type filter section
+- Sort by section
+- Sort direction section
+- "Done" close button
 
-**Desktop:** The merged button opens a regular `DropdownMenu` with the same sections,
-using `DropdownMenuLabel` separators. Functionally identical to today, just behind one
-trigger instead of two.
+**Desktop:** Opens a `DropdownMenu` with the same sections using `DropdownMenuLabel`
+separators.
 
-If any non-default filter or sort is active, the button shows a small blue dot indicator
-to signal that active filters exist.
+A small blue dot on the button signals when a non-default filter or sort is active.
 
 ### A.3 View mode toggle
 
-The list/grid toggle stays in the toolbar on both desktop and mobile — no change.
+List/grid toggle stays in the toolbar on both desktop and mobile — no change.
 
 ### A.4 Title chevron
 
-The title's `DropdownMenu` currently contains selection-related items. Leave it as-is
-for now; it will be re-evaluated once the new layout is stable.
+Kept as-is for now (contains "Select documents" as a secondary entry point). To be
+re-evaluated once the new layout is stable.
 
 ### Resulting toolbar layout
 
 **Normal mode, mobile:**
 ```
-[☰?]  [Title ▾]                    [view toggle]  [🔍]  [⚙]
+[☰?]  [Title ▾]  [☐▾]              [view toggle]  [🔍]  [⚙]
 ```
-_(☰ only shown when sidebar is collapsed)_
 
 **Normal mode, desktop:**
 ```
-[☰?]  [Title ▾]         [___ search input ___]  [All Types ▾]  [Date saved ▾]  [view toggle]  [▷ panel]
+[☰?]  [Title ▾]  [☐▾]    [___ search input ___]  [⚙]  [view toggle]  [▷ panel]
 ```
-_(desktop is unchanged from today)_
 
 **Search active (mobile — expanded):**
 ```
@@ -96,65 +92,66 @@ _(all other right-side controls hidden while search is open)_
 
 ## B. Bulk Selection Redesign
 
-### B.1 Entry point: dedicated Select button
+### B.1 Entry point: Gmail-style `[☐▾]` scope dropdown
 
-Add a `CheckSquare` icon button directly in the toolbar, on the **left cluster** after the
-title, always visible when `onToggleBulkMode` is provided.
+A compact `[checkbox-icon ▾]` button replaces the hidden-in-chevron entry point. It is
+always visible next to the title when `onToggleBulkMode` is provided.
 
-- Normal state: ghost icon button, neutral color
-- This replaces the hidden-in-chevron entry point (the chevron dropdown keeps "Exit
-  selection mode" as a fallback but the primary entry is the visible button)
+The checkbox icon reflects selection state:
+- `Square` — nothing selected
+- `SquareMinus` — partial selection
+- `SquareCheck` — all visible or all matching selected
 
-```
-[Title ▾]  [☐]                    [view toggle]  [🔍]  [⚙]
-```
+**In normal mode**, the dropdown opens with scope-entry options that both enter bulk mode
+and apply the chosen scope in a single click:
+- "Select All" — enters bulk mode + selects all visible
+- "Select All Matching (N)" — enters bulk mode + selects all matching (only when
+  `matchingCount > 0`)
+
+**In bulk mode**, the dropdown changes scope without exiting bulk mode:
+
+| Current state | Items shown |
+|---|---|
+| Nothing selected | "Select All", "All Matching (N)" |
+| Some selected | "Select All", "All Matching (N)", — "None" |
+| All visible selected | "All Matching (N)", — "None" |
+| All matching selected | "Visible Only", — "None" |
+
+- **"Select All"** — only shown when not all visible are selected; always selects the
+  currently loaded/visible items
+- **"All Matching (N)"** / **"Visible Only"** — scope toggle for paginated lists; only
+  shown when `matchingCount > 0`
+- **"None"** — always clears selection to 0 without exiting bulk mode (shown only when
+  something is selected)
+
+These are explicit, non-toggling items. There is no ambiguous "Clear All" toggle.
 
 ### B.2 Bulk mode — toolbar
 
-When bulk mode is active, the toolbar left side transforms to:
-
 ```
-[✕ Done]  [N selected]  [Select all / Clear all]  [Select all matching (N)?]
+[✕ Done]  [N selected]  [☐▾]  |  [Archive]  [Later]  [Delete]
 ```
 
-- `✕ Done` button exits bulk mode (replaces the `CheckSquare` button while active)
-- "N selected" is a plain text label
-- "Select all" / "Clear all" toggles select-all-visible
-- "Select all matching (N)" — only shown when `onToggleSelectAllMatching` is provided
-  (i.e. not in search mode) — small text button
-
-The right side (search icon, filter icon, view toggle) is **hidden** while bulk mode is
-active; it is not needed and the space is better used for selection controls.
+- `✕ Done` exits bulk mode
+- "N selected" / "N matching" — count label (label changes via `selectedLabel` prop)
+- `[☐▾]` — scope dropdown (see B.1)
+- Separator + action buttons — **desktop only** (mobile uses `BulkActionBar` at bottom)
+- Action button labels show no count — the count is already visible in "N selected"
+- The entire right cluster (search, filter, view toggle) is hidden in bulk mode
 
 ### B.3 Bulk mode — floating action bar (mobile)
 
-On mobile, bulk actions are shown in a **floating bar pinned to the bottom** of the
-document list container:
-
 ```
-┌──────────────────────────────────────────┐
-│  [Archive (2)]  [Later (2)]  [Delete (2)] │
-└──────────────────────────────────────────┘
+┌─────────────────────────────────┐
+│  [Archive]  [Later]  [Delete]   │
+└─────────────────────────────────┘
 ```
 
-- `sticky bottom-0` on the list wrapper div, full width
-- Appears when `isBulkMode` is true; hidden otherwise
-- `bg-background border-t shadow-md py-2 px-3`
-- Three buttons as a flex row, `flex-1` each for equal widths
-- "Delete" uses `text-destructive` / `variant="ghost"` with destructive color
-- All buttons disabled when 0 items selected or when `isBulkDeleting`/`isBulkUpdating`
+- `sm:hidden sticky bottom-0`, full width, `border-t bg-background shadow-md`
+- `flex-1` buttons for equal widths; "Delete" uses `text-destructive`
+- Disabled when 0 items selected or during an in-flight bulk operation
 
-### B.4 Bulk mode — inline actions (desktop)
-
-On desktop (`sm` and above), bulk actions remain **inline in the toolbar** right cluster:
-
-```
-[✕ Done]  [N selected]  [Select all]      [Archive (2)]  [Later (2)]  [Delete (2)]
-```
-
-Same disabled states as B.3.
-
-### B.5 Confirmation for delete
+### B.4 Confirmation for delete
 
 The existing `window.confirm` for delete is a known issue (blocks browser events in
 automation). Out of scope for this spec — leave as-is for now.
@@ -165,10 +162,10 @@ automation). Out of scope for this spec — leave as-is for now.
 
 | Component | Changes |
 |---|---|
-| `SearchBar` | Add `compact` prop: icon-only trigger that expands on tap (mobile only) |
-| `DocumentListToolbar` | Add `CheckSquare` select button; restructure bulk-mode left cluster (B.2); hide right controls in bulk mode; replace two filter dropdowns with single merged `SlidersHorizontal` button; no changes to title chevron or view mode toggle |
-| `DocumentList` | Render `BulkActionBar` at bottom of list container on mobile |
-| `BulkActionBar` (new) | Mobile-only sticky bottom bar with Archive / Later / Delete actions; hidden on desktop |
+| `SearchBar` | Added `compact`, `expanded`, `onExpandedChange` props for icon-first mobile behaviour |
+| `DocumentListToolbar` | Gmail-style `[☐▾]` scope dropdown; bulk mode left cluster with adjacent action buttons (desktop); right cluster hidden in bulk mode; two filter dropdowns merged into one `SlidersHorizontal` button |
+| `DocumentList` | Bug fix: "Visible Only" now restores visible selection instead of clearing to 0; renders `BulkActionBar` at bottom |
+| `BulkActionBar` (new) | Mobile-only sticky bottom bar with Archive / Later / Delete |
 
 ---
 
@@ -180,3 +177,6 @@ automation). Out of scope for this spec — leave as-is for now.
 | 2 | Merged filter panel opens as a bottom Sheet on mobile, DropdownMenu on desktop |
 | 3 | Title chevron kept as-is for now, to be revisited once new layout is stable |
 | 4 | View mode toggle (list/grid) stays in the toolbar on both desktop and mobile |
+| 5 | Action buttons show no count — count is already shown in "N selected" label |
+| 6 | Scope dropdown uses explicit items (no toggles) to avoid "Clear All" vs "None" ambiguity |
+| 7 | Action buttons (Archive/Later/Delete) placed adjacent to scope controls on desktop, not at the far right |
