@@ -160,7 +160,7 @@ export function NavSidebar({ forceVisible = false }: NavSidebarProps) {
                   className={cn(
                     "flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-sidebar-accent text-sidebar-primary font-semibold"
+                      ? "text-sidebar-primary"
                       : "text-sidebar-foreground hover:bg-sidebar-accent"
                   )}
                 >
@@ -208,7 +208,7 @@ export function NavSidebar({ forceVisible = false }: NavSidebarProps) {
                   className={cn(
                     "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-sidebar-accent",
                     pathname === `/subscriptions/${sub.id}` &&
-                      "bg-sidebar-accent font-medium"
+                      "text-sidebar-primary"
                   )}
                 >
                   <span className="flex size-5 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
@@ -258,7 +258,7 @@ export function NavSidebar({ forceVisible = false }: NavSidebarProps) {
                   className={cn(
                     "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-sidebar-accent",
                     pathname === `/collections/${col.id}` &&
-                      "bg-sidebar-accent font-medium"
+                      "text-sidebar-primary"
                   )}
                 >
                   <FolderOpen className="size-4 flex-shrink-0 text-muted-foreground" />
@@ -296,7 +296,7 @@ export function NavSidebar({ forceVisible = false }: NavSidebarProps) {
                     className={cn(
                       "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-sidebar-accent",
                       pathname === `/views/${view.id}` &&
-                        "bg-sidebar-accent font-medium"
+                        "text-sidebar-primary"
                     )}
                   >
                     <Filter className="size-4 flex-shrink-0 text-muted-foreground" />
