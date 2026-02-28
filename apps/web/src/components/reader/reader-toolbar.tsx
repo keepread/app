@@ -24,8 +24,6 @@ import {
   ExternalLink,
   Copy,
   Trash2,
-  BookOpen,
-  BookX,
   PanelLeft,
   Maximize2,
   Minimize2,
@@ -102,17 +100,6 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
     mutate();
     await invalidateDocumentLists();
     toast(newVal ? "Starred" : "Unstarred");
-  };
-
-  const toggleRead = async () => {
-    if (!doc) return;
-    const newVal = doc.is_read === 1 ? 0 : 1;
-    await apiFetch(`/api/documents/${documentId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ is_read: newVal }),
-    });
-    mutate();
-    await invalidateDocumentLists();
   };
 
   const moveToLocation = async (location: string) => {
@@ -242,23 +229,6 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
             </Button>
           </TooltipTrigger>
           <TooltipContent>{doc?.is_starred === 1 ? "Unstar" : "Star"}</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              onClick={toggleRead}
-            >
-              {doc?.is_read === 1 ? (
-                <BookX className="size-4" />
-              ) : (
-                <BookOpen className="size-4" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{doc?.is_read === 1 ? "Mark as unread" : "Mark as read"}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
