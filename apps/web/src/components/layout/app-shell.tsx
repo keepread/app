@@ -11,7 +11,7 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useDocument } from "@/hooks/use-documents";
 import { apiFetch } from "@/lib/api-client";
 import { useRouter, usePathname } from "next/navigation";
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { KeyboardShortcutsDialog } from "@/components/dialogs/keyboard-shortcuts-dialog";
 import { AddBookmarkDialog } from "@/components/dialogs/add-bookmark-dialog";
@@ -19,6 +19,8 @@ import { TagManagerDialog } from "@/components/dialogs/tag-manager-dialog";
 import { CommandPalette } from "@/components/dialogs/command-palette";
 import { CollectionDialog } from "@/components/dialogs/collection-dialog";
 import { useCollections } from "@/hooks/use-collections";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -34,12 +36,17 @@ export function AppShell({ children }: AppShellProps) {
   const isFeedsPage = pathname === "/feeds";
   const {
     sidebarCollapsed,
+    setSidebarCollapsed,
     toggleSidebar,
+    rightPanelVisible,
     toggleRightPanel,
+    tocVisible,
     toggleToc,
     toggleContentMode,
     focusMode,
     toggleFocusMode,
+    setRightPanelVisible,
+    setTocVisible,
     documentIds,
     currentDocumentIndex,
     setCurrentDocumentIndex,
@@ -47,6 +54,7 @@ export function AppShell({ children }: AppShellProps) {
     setSelectedDocumentId,
     mutateDocumentList,
   } = useApp();
+  const isMobile = useIsMobile();
 
   const activeDocId = selectedDocId || selectedDocumentId;
   const { document: currentDoc, mutate: mutateDoc } = useDocument(activeDocId);
@@ -58,6 +66,40 @@ export function AppShell({ children }: AppShellProps) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
   const { mutate: mutateCollections } = useCollections();
+  const desktopPanelStateRef = useRef<{ rightPanelVisible: boolean; tocVisible: boolean } | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (isMobile) {
+      if (desktopPanelStateRef.current === null) {
+        desktopPanelStateRef.current = { rightPanelVisible, tocVisible };
+      }
+      setSidebarCollapsed(true);
+      setRightPanelVisible(false);
+      setTocVisible(false);
+      return;
+    }
+
+    if (desktopPanelStateRef.current) {
+      setRightPanelVisible(desktopPanelStateRef.current.rightPanelVisible);
+      setTocVisible(desktopPanelStateRef.current.tocVisible);
+      desktopPanelStateRef.current = null;
+    }
+  }, [
+    isMobile,
+    rightPanelVisible,
+    setRightPanelVisible,
+    setSidebarCollapsed,
+    setTocVisible,
+    tocVisible,
+  ]);
+
+  useEffect(() => {
+    if (isMobile && !isReadingView) {
+      setSidebarCollapsed(true);
+    }
+  }, [isMobile, isReadingView, pathname, setSidebarCollapsed]);
 
   const patchDoc = useCallback(
     async (updates: Record<string, unknown>) => {
@@ -270,7 +312,19 @@ export function AppShell({ children }: AppShellProps) {
       {/* Library View */}
       {!isReadingView && (
         <>
-          <NavSidebar />
+          {isMobile ? (
+            <Sheet open={!sidebarCollapsed} onOpenChange={(open) => setSidebarCollapsed(!open)}>
+              <SheetContent side="left" className="p-0 w-[86vw] max-w-[320px]">
+                <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+                <SheetDescription className="sr-only">
+                  Browse sections, subscriptions, and collections.
+                </SheetDescription>
+                <NavSidebar forceVisible />
+              </SheetContent>
+            </Sheet>
+          ) : (
+            <NavSidebar />
+          )}
           {children}
         </>
       )}
@@ -278,7 +332,7 @@ export function AppShell({ children }: AppShellProps) {
       {/* Reading View */}
       {isReadingView && (
         <>
-          {!focusMode && <ReaderToc documentId={selectedDocId} />}
+          {!focusMode && !isMobile && <ReaderToc documentId={selectedDocId} />}
           <div className="flex flex-1 flex-col min-w-0">
             <ReaderToolbar documentId={selectedDocId} />
             <ReaderContent documentId={selectedDocId} />
@@ -287,7 +341,7 @@ export function AppShell({ children }: AppShellProps) {
       )}
 
       {/* Right sidebar — hidden in focus mode */}
-      {!focusMode && <RightSidebar />}
+      {!focusMode && !isMobile && <RightSidebar />}
 
       {/* Dialogs */}
       <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />

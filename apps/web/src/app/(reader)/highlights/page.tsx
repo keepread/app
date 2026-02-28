@@ -9,10 +9,12 @@ import { Highlighter, PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/contexts/app-context";
 import { timeAgo } from "@/lib/format";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function HighlightsPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const isMobile = useIsMobile();
   const { sidebarCollapsed, toggleSidebar, rightPanelVisible, toggleRightPanel } = useApp();
   const { tags } = useTags();
   const [colorFilter, setColorFilter] = useState<string | undefined>();
@@ -53,7 +55,7 @@ export default function HighlightsPage() {
           <h1 className="text-lg font-semibold">Highlights</h1>
           <span className="text-sm text-muted-foreground">({total})</span>
         </div>
-        {!rightPanelVisible && (
+        {!isMobile && !rightPanelVisible && (
           <Button variant="ghost" size="icon" className="size-7" onClick={toggleRightPanel}>
             <PanelRightOpen className="size-4" />
           </Button>
@@ -61,7 +63,7 @@ export default function HighlightsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 px-4 py-2 border-b">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b">
         <div className="flex items-center gap-1">
           <span className="text-xs text-muted-foreground">Color:</span>
           <button

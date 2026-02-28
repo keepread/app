@@ -119,7 +119,7 @@ export default function SubscriptionsSettingsPage() {
       <div className="divide-y rounded-lg border">
         {subscriptions.map((sub) => (
           <div key={sub.id} className="px-4 py-3 space-y-2">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary flex-shrink-0">
                 {sub.display_name.charAt(0).toUpperCase()}
               </span>
@@ -171,7 +171,7 @@ export default function SubscriptionsSettingsPage() {
                     </Button>
                   </div>
                 )}
-                <div className="flex items-center gap-2 mt-0.5">
+                <div className="flex flex-wrap items-center gap-2 mt-0.5">
                   <button
                     onClick={() => copyEmail(sub.id, sub.pseudo_email)}
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -195,7 +195,7 @@ export default function SubscriptionsSettingsPage() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 self-end sm:self-auto">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button

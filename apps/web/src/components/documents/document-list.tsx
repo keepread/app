@@ -11,6 +11,7 @@ import { DocumentListToolbar } from "./document-list-toolbar";
 import type { ViewMode } from "./document-list-toolbar";
 import { DocumentGrid } from "./document-grid";
 import { EmptyState } from "./empty-state";
+import { BulkActionBar } from "./bulk-action-bar";
 import { Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch } from "@/lib/api-client";
@@ -340,12 +341,12 @@ export function DocumentList({
   const toggleSelectAllMatching = useCallback(() => {
     if (isSelectAllMatching) {
       setIsSelectAllMatching(false);
-      setSelectedBulkIds(new Set());
+      setSelectedBulkIds(new Set(displayDocIds));
       return;
     }
     setIsSelectAllMatching(true);
     setSelectedBulkIds(new Set());
-  }, [isSelectAllMatching]);
+  }, [isSelectAllMatching, displayDocIds]);
 
   const toggleBulkMode = useCallback(() => {
     setIsBulkMode((prev) => !prev);
@@ -547,6 +548,15 @@ export function DocumentList({
       <div className="border-t px-4 py-1.5 text-xs text-muted-foreground text-right">
         Count: {displayTotal}
       </div>
+      <BulkActionBar
+        isBulkMode={isBulkMode}
+        selectedCount={bulkSelectedCount}
+        isBulkDeleting={isBulkDeleting}
+        isBulkUpdating={isBulkUpdating}
+        onMoveSelectedToArchive={() => moveSelected("archive")}
+        onMoveSelectedToLater={() => moveSelected("later")}
+        onDeleteSelected={deleteSelected}
+      />
     </div>
   );
 }

@@ -25,9 +25,9 @@ export default function SettingsLayout({
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen flex-col md:flex-row bg-background">
       {/* Settings sidebar */}
-      <aside className="w-60 border-r flex flex-col">
+      <aside className="w-full md:w-60 border-b md:border-b-0 md:border-r flex flex-col">
         <div className="flex items-center gap-2 px-4 py-3 border-b">
           <Link href="/inbox">
             <Button variant="ghost" size="icon" className="size-8">
@@ -36,7 +36,7 @@ export default function SettingsLayout({
           </Link>
           <span className="text-sm font-semibold">Settings</span>
         </div>
-        <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
+        <nav className="flex gap-1 overflow-x-auto md:flex-col md:overflow-y-auto px-2 py-2 md:space-y-0.5">
           {SETTINGS_NAV.map((item) => {
             const isActive = pathname === item.path;
             return (
@@ -44,7 +44,7 @@ export default function SettingsLayout({
                 key={item.path}
                 href={item.path}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                  "inline-flex md:flex items-center gap-3 rounded-md px-3 py-2 text-sm whitespace-nowrap transition-colors",
                   isActive
                     ? "bg-accent font-medium"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -60,7 +60,7 @@ export default function SettingsLayout({
 
       {/* Settings content */}
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-8 py-8">{children}</div>
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-8">{children}</div>
       </main>
     </div>
   );

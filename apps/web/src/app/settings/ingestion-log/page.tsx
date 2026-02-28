@@ -40,7 +40,8 @@ export default function IngestionLogPage() {
 
       {logs && logs.length > 0 && (
         <div className="rounded-lg border overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="px-4 py-2 text-left font-medium">Time</th>
@@ -73,6 +74,7 @@ export default function IngestionLogPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

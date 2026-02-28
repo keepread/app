@@ -57,7 +57,11 @@ const NAV_ITEMS = [
   { label: "Feeds", icon: Rss, path: "/feeds" },
 ] as const;
 
-export function NavSidebar() {
+interface NavSidebarProps {
+  forceVisible?: boolean;
+}
+
+export function NavSidebar({ forceVisible = false }: NavSidebarProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar, mutateDocumentList } = useApp();
   const { subscriptions } = useSubscriptions();
@@ -98,10 +102,10 @@ export function NavSidebar() {
     }
   };
 
-  if (sidebarCollapsed) return null;
+  if (sidebarCollapsed && !forceVisible) return null;
 
   return (
-    <aside className="flex h-full w-60 flex-shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
+    <aside className="flex h-full w-full md:w-60 flex-shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
       {/* Brand bar */}
       <div className="flex items-center justify-between px-3 py-3">
         <div className="flex items-center gap-2">
@@ -118,17 +122,6 @@ export function NavSidebar() {
         <div className="flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
-                <PanelLeftClose className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <span>Toggle sidebar</span>
-              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">[</kbd>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="size-7" onClick={() => setAddDialogOpen(true)}>
                 <Plus className="size-4" />
               </Button>
@@ -136,6 +129,17 @@ export function NavSidebar() {
             <TooltipContent side="bottom">
               <span>Add document</span>
               <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">A</kbd>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" onClick={toggleSidebar}>
+                <PanelLeftClose className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <span>Toggle sidebar</span>
+              <kbd className="ml-2 rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">[</kbd>
             </TooltipContent>
           </Tooltip>
         </div>

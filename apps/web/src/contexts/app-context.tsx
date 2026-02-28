@@ -13,10 +13,13 @@ interface AppState {
   currentDocumentIndex: number;
   setCurrentDocumentIndex: (index: number) => void;
   sidebarCollapsed: boolean;
+  setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   rightPanelVisible: boolean;
+  setRightPanelVisible: (visible: boolean) => void;
   toggleRightPanel: () => void;
   tocVisible: boolean;
+  setTocVisible: (visible: boolean) => void;
   toggleToc: () => void;
   contentMode: "html" | "markdown";
   toggleContentMode: () => void;
@@ -33,15 +36,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [hoveredDocumentId, setHoveredDocumentId] = useState<string | null>(null);
   const [documentIds, setDocumentIds] = useState<string[]>([]);
   const [currentDocumentIndex, setCurrentDocumentIndex] = useState(-1);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [rightPanelVisible, setRightPanelVisible] = useState(true);
-  const [tocVisible, setTocVisible] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  const [rightPanelVisible, setRightPanelVisibleState] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth >= 768 : true
+  );
+  const [tocVisible, setTocVisibleState] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth >= 768 : true
+  );
   const [contentMode, setContentMode] = useState<"html" | "markdown">("html");
   const [focusMode, setFocusMode] = useState(false);
 
-  const toggleSidebar = useCallback(() => setSidebarCollapsed((v) => !v), []);
-  const toggleRightPanel = useCallback(() => setRightPanelVisible((v) => !v), []);
-  const toggleToc = useCallback(() => setTocVisible((v) => !v), []);
+  const setSidebarCollapsed = useCallback((collapsed: boolean) => {
+    setSidebarCollapsedState(collapsed);
+  }, []);
+  const setRightPanelVisible = useCallback((visible: boolean) => {
+    setRightPanelVisibleState(visible);
+  }, []);
+  const setTocVisible = useCallback((visible: boolean) => {
+    setTocVisibleState(visible);
+  }, []);
+  const toggleSidebar = useCallback(() => setSidebarCollapsedState((v) => !v), []);
+  const toggleRightPanel = useCallback(() => setRightPanelVisibleState((v) => !v), []);
+  const toggleToc = useCallback(() => setTocVisibleState((v) => !v), []);
   const toggleContentMode = useCallback(
     () => setContentMode((v) => (v === "html" ? "markdown" : "html")),
     []
@@ -68,10 +86,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         currentDocumentIndex,
         setCurrentDocumentIndex,
         sidebarCollapsed,
+        setSidebarCollapsed,
         toggleSidebar,
         rightPanelVisible,
+        setRightPanelVisible,
         toggleRightPanel,
         tocVisible,
+        setTocVisible,
         toggleToc,
         contentMode,
         toggleContentMode,

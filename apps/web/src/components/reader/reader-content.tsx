@@ -190,7 +190,7 @@ export function ReaderContent({ documentId }: ReaderContentProps) {
   if (!doc || contentLoading) {
     return (
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[680px] mx-auto px-6 py-8 space-y-4">
+        <div className="max-w-[680px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-4">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-8 w-full" />
           <Skeleton className="h-8 w-3/4" />
@@ -217,7 +217,7 @@ export function ReaderContent({ documentId }: ReaderContentProps) {
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto relative">
       <article
-        className="mx-auto px-6 pt-10 pb-16"
+        className="mx-auto px-4 sm:px-6 pt-8 sm:pt-10 pb-12 sm:pb-16"
         style={{
           maxWidth: `${contentWidth}px`,
           fontFamily,

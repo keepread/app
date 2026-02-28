@@ -44,6 +44,7 @@ import { useApp } from "@/contexts/app-context";
 import { AddToCollectionDialog } from "@/components/dialogs/add-to-collection-dialog";
 import { ReaderPreferencesPopover } from "./reader-preferences-popover";
 import { invalidateDocumentLists } from "@/lib/documents-cache";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ReaderToolbarProps {
   documentId: string;
@@ -53,6 +54,7 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const isMobile = useIsMobile();
   const { document: doc, mutate } = useDocument(documentId);
   const {
     toggleToc,
@@ -159,7 +161,7 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
           />
         </div>
       )}
-      <div className="flex items-center h-12 px-3 border-b bg-background gap-1">
+      <div className="flex items-center h-12 px-2 sm:px-3 border-b bg-background gap-1 overflow-x-auto">
         {/* Left group */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -197,14 +199,16 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
           </TooltipTrigger>
           <TooltipContent>Next document</TooltipContent>
         </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8" onClick={toggleToc}>
-              <PanelLeft className="size-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Table of contents</TooltipContent>
-        </Tooltip>
+        {!isMobile && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-8" onClick={toggleToc}>
+                <PanelLeft className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Table of contents</TooltipContent>
+          </Tooltip>
+        )}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" className="size-8" onClick={toggleFocusMode}>
@@ -325,7 +329,7 @@ export function ReaderToolbar({ documentId }: ReaderToolbarProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {!rightPanelVisible && !focusMode && (
+        {!isMobile && !rightPanelVisible && !focusMode && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="size-8" onClick={toggleRightPanel}>

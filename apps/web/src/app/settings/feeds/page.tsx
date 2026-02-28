@@ -186,7 +186,7 @@ export default function FeedsSettingsPage() {
       </div>
 
       {/* OPML import/export */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input
           ref={fileInputRef}
           type="file"
@@ -218,7 +218,7 @@ export default function FeedsSettingsPage() {
       </div>
 
       {/* Add feed */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
         <Input
           placeholder="Feed URL (e.g. https://example.com/feed.xml)"
           value={addUrl}
@@ -250,7 +250,7 @@ export default function FeedsSettingsPage() {
       <div className="divide-y rounded-lg border">
         {feeds.map((feed) => (
           <div key={feed.id} className="px-4 py-3 space-y-2">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary flex-shrink-0">
                 {feed.title.charAt(0).toUpperCase()}
               </span>
@@ -311,7 +311,7 @@ export default function FeedsSettingsPage() {
                     )}
                   </div>
                 )}
-                <div className="flex items-center gap-2 mt-0.5">
+                <div className="flex flex-wrap items-center gap-2 mt-0.5">
                   <span className="text-xs text-muted-foreground font-mono truncate max-w-[200px]">
                     {feed.feed_url}
                   </span>
@@ -325,7 +325,7 @@ export default function FeedsSettingsPage() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 self-end sm:self-auto">
                 <Button
                   variant="ghost"
                   size="icon"
