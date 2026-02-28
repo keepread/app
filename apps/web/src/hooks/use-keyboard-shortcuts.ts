@@ -51,8 +51,11 @@ export function useKeyboardShortcuts(shortcuts: ShortcutMap) {
 
       const key = getShortcutKey(e);
 
-      // Check the full combo first, then just the key
-      const fn = shortcuts[key] || shortcuts[e.key];
+      // Check the full combo first, then fall back to bare key only when no
+      // system modifier (Meta/Ctrl/Alt) is held — prevents browser shortcuts
+      // like Cmd+L, Cmd+D, Cmd+S from accidentally triggering app shortcuts.
+      const noSystemModifier = !e.metaKey && !e.ctrlKey && !e.altKey;
+      const fn = shortcuts[key] || (noSystemModifier ? shortcuts[e.key] : undefined);
       if (fn) {
         e.preventDefault();
         fn();
