@@ -1,5 +1,8 @@
 # Focus Reader — UI Specification
 
+> Historical design document: this spec contains original phase-era UI planning and can diverge from implementation.
+> For implementation-accurate behavior, use `docs/product/ui-spec-current.md`.
+
 **Version:** 1.1
 **Date:** February 15, 2026
 **Status:** Implemented (Phases 0–3 complete)
@@ -1224,7 +1227,7 @@ All components use the "new-york" style variant for a clean, minimal look matchi
 
 ## 18. Relationship to Other Specifications
 
-- **[Focus Reader PRD](./focus-reader-prd.md):** Product requirements and data model
-- **[Email Newsletter PRD](./email-newsletter-prd.md):** Email ingestion details, subscription model
+- **[Focus Reader PRD](./focus-reader-prd-v1.md):** Product requirements and data model
+- **[Email Newsletter PRD](./email-newsletter-prd-v1.md):** Email ingestion details, subscription model
 - **[Implementation Plans](../plans/):** Phase 0–3 implementation plans
-- **[Repo Structure](./repo-structure.md):** File organization for `apps/web`
+- **[Repo Structure](../../reference/repo-structure.md):** File organization for `apps/web`

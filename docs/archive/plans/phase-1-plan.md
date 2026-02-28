@@ -435,8 +435,8 @@ The following Phase 1 items are tracked in `phase-1-implementation-gaps.md` and 
 
 ## 7. Relationship to Other Specifications
 
-- **[Focus Reader PRD](../spec/focus-reader-prd.md):** Phase 1 deliverables (Section 7, Phase 1)
-- **[Email Newsletter PRD](../spec/email-newsletter-prd.md):** Subscription management (Section 5.2), reader interface (Section 5.3)
-- **[Repo Structure Spec](../spec/repo-structure.md):** Monorepo layout, package organization, apps/web structure
+- **[Focus Reader PRD](../specs/focus-reader-prd-v1.md):** Phase 1 deliverables (Section 7, Phase 1)
+- **[Email Newsletter PRD](../specs/email-newsletter-prd-v1.md):** Subscription management (Section 5.2), reader interface (Section 5.3)
+- **[Repo Structure Spec](../../reference/repo-structure.md):** Monorepo layout, package organization, apps/web structure
 - **[Phase 0 Plan](./phase-0-plan.md):** Prerequisites — all Phase 0 deliverables must be complete
-- **[Improvements](../spec/improvements.md):** S7 (Administrative Bootstrap via OWNER_EMAIL), S9 (API Key Schema) are addressed in Step 6c
+- **[Improvements](../specs/focus-reader-prd-v1.md):** S7 (Administrative Bootstrap via OWNER_EMAIL), S9 (API Key Schema) are addressed in Step 6c

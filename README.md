@@ -6,6 +6,7 @@ An open-source read-it-later application that unifies web articles, email newsle
 
 - **Email newsletter ingestion** — Subscribe to newsletters with per-subscription pseudo email addresses (`techweekly@read.yourdomain.com`). Emails are parsed, sanitized, and stored automatically.
 - **RSS feed aggregation** — Add RSS/Atom feeds and automatically ingest new articles on a schedule.
+- **Asynchronous enrichment queue** — Low-quality extractions and cover image caching are processed via Cloudflare Queues.
 - **Browser extension** — Save bookmarks and full-page content from Chrome with one click.
 - **PDF upload** — Upload PDFs (up to 50 MB) stored in R2 with inline viewing.
 - **Full-text search** — Search across all documents via D1 FTS5.
@@ -20,6 +21,7 @@ An open-source read-it-later application that unifies web articles, email newsle
 - **Sender denylist** — Block unwanted senders by email pattern.
 - **Ingestion log** — Track email processing results and errors.
 - **Multi-tenancy** — Row-level user isolation via `user_id` on all primary tables. Supports single-user self-hosted mode (auto-authenticates as sole user) and multi-user SaaS mode with independent, isolated data per user.
+- **Hybrid auth modes** — Single-user mode supports CF Access/API key/auto-auth; multi-user mode supports Better Auth magic-link sessions + API keys.
 
 ## Architecture
 
@@ -41,6 +43,9 @@ scripts/
   deploy.sh         — Build, migrate, and deploy to Cloudflare
   ingest-local.ts   — Local email ingestion for testing (Miniflare)
   sync-secrets.sh   — Propagate env vars to .dev.vars files
+docs/
+  architecture/overview.md   — Current system architecture and runtime flow
+  product/ui-spec-current.md — Current implemented UI behavior and route/panel model
 ```
 
 All data lives in your Cloudflare account:

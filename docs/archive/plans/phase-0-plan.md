@@ -60,7 +60,7 @@ The plan is organized into 5 sequential steps. Each step builds on the previous 
    - `.gitignore` — `node_modules/`, `dist/`, `.next/`, `.wrangler/`, `.dev.vars`, `*.local`
 
 2. **Root scripts:**
-   - `scripts/sync-secrets.sh` — Propagates shared configuration variables (`EMAIL_DOMAIN`, `COLLAPSE_PLUS_ALIAS`, etc.) across the multiple `.dev.vars` files in each app workspace, ensuring consistency for local development. Referenced in [Repo Structure Spec](../spec/repo-structure.md), Section 8.
+   - `scripts/sync-secrets.sh` — Propagates shared configuration variables (`EMAIL_DOMAIN`, `COLLAPSE_PLUS_ALIAS`, etc.) across the multiple `.dev.vars` files in each app workspace, ensuring consistency for local development. Referenced in [Repo Structure Spec](../../reference/repo-structure.md), Section 8.
    - `scripts/ingest-local.ts` — Reads a `.eml` file from disk and replays it against the local email worker's `email()` handler. Accepts a file path argument and optionally a recipient address override. Used for iterative debugging of newsletter parsing/sanitization without requiring actual email delivery. Runs via `npx tsx scripts/ingest-local.ts ./fixtures/substack-example.eml`.
 
 3. **Package workspaces (empty shells with `package.json`, `tsconfig.json`, `src/index.ts`):**
@@ -465,6 +465,6 @@ See [Phase 1 Plan](./phase-1-plan.md) for full details.
 
 ## 8. Relationship to Other Specifications
 
-- **[Focus Reader PRD](../spec/focus-reader-prd.md):** Phase 0 deliverables (Section 7, Phase 0)
-- **[Email Newsletter PRD](../spec/email-newsletter-prd.md):** Email ingestion pipeline (Section 5.1), email addressing strategy (Section 3.3), deduplication (Section 5.1), validation (Section 5.1)
-- **[Repo Structure Spec](../spec/repo-structure.md):** Monorepo layout, PNPM workspaces, Turborepo config, package organization
+- **[Focus Reader PRD](../specs/focus-reader-prd-v1.md):** Phase 0 deliverables (Section 7, Phase 0)
+- **[Email Newsletter PRD](../specs/email-newsletter-prd-v1.md):** Email ingestion pipeline (Section 5.1), email addressing strategy (Section 3.3), deduplication (Section 5.1), validation (Section 5.1)
+- **[Repo Structure Spec](../../reference/repo-structure.md):** Monorepo layout, PNPM workspaces, Turborepo config, package organization

@@ -98,11 +98,11 @@ Use a **catch-all configuration on a dedicated subdomain** (e.g., `*@read.yourdo
 
 ## 4. Data Model
 
-> **Canonical schema:** The authoritative database schema for Focus Reader is defined in the [Focus Reader PRD](./focus-reader-prd.md), Section 5. Email newsletter items are stored using the unified `Document` + `Document_Email_Meta` tables defined there. This section describes how email-specific concepts map to that unified model and documents the email-specific behavioral details that the main PRD references.
+> **Canonical schema:** The authoritative database schema for Focus Reader is defined in the [Focus Reader PRD](./focus-reader-prd-v1.md), Section 5. Email newsletter items are stored using the unified `Document` + `Document_Email_Meta` tables defined there. This section describes how email-specific concepts map to that unified model and documents the email-specific behavioral details that the main PRD references.
 
 ### 4.0 Terminology Glossary
 
-- **Document:** The universal content entity in Focus Reader. Each ingested newsletter email is stored as a `Document` row with `type = 'email'` and `origin_type = 'subscription'`. See [Focus Reader PRD](./focus-reader-prd.md), Section 5.1.
+- **Document:** The universal content entity in Focus Reader. Each ingested newsletter email is stored as a `Document` row with `type = 'email'` and `origin_type = 'subscription'`. See [Focus Reader PRD](./focus-reader-prd-v1.md), Section 5.1.
 - **Document_Email_Meta:** A companion table storing email-specific metadata (deduplication keys, sender details, rejection/confirmation flags) for documents with `type = 'email'`. One-to-one with `Document`.
 - **Subscription:** A newsletter source mapped to one pseudo email address (e.g., `techweekly@read.yourdomain.com`). Documents reference their subscription via `Document.source_id`.
 - **Tag:** A user-defined label used to organize subscriptions and documents.
@@ -111,7 +111,7 @@ Use a **catch-all configuration on a dedicated subdomain** (e.g., `*@read.yourdo
 
 ### 4.1 Schema Mapping
 
-> **Note:** The full table definitions for all entities below live in the [Focus Reader PRD](./focus-reader-prd.md), Section 5. This section explains how email-specific concepts from this spec map to that unified schema.
+> **Note:** The full table definitions for all entities below live in the [Focus Reader PRD](./focus-reader-prd-v1.md), Section 5. This section explains how email-specific concepts from this spec map to that unified schema.
 
 #### How Newsletter Items Map to the Unified Model
 
@@ -149,17 +149,17 @@ Each ingested newsletter email creates one `Document` row (with `type = 'email'`
 
 #### Other Entity Mappings
 
-- **Subscription:** Defined in [Focus Reader PRD](./focus-reader-prd.md), Section 5.1. Schema is unchanged from this spec. Documents reference their subscription via `Document.source_id` (instead of the original `subscription_id` FK).
-- **Tag:** Defined in [Focus Reader PRD](./focus-reader-prd.md), Section 5.1. Schema is unchanged.
-- **Attachment:** Defined in [Focus Reader PRD](./focus-reader-prd.md), Section 5.1. The FK is now `document_id` (was `newsletter_item_id`).
-- **Denylist:** Defined in [Focus Reader PRD](./focus-reader-prd.md), Section 5.1. Schema is unchanged.
-- **Feed_Token:** Defined in [Focus Reader PRD](./focus-reader-prd.md), Section 5.1. Schema is unchanged.
-- **Ingestion_Log:** Defined in [Focus Reader PRD](./focus-reader-prd.md), Section 5.1. The FK is now `document_id` (was `newsletter_item_id`) and a `channel_type` field has been added to distinguish email ingestion events from RSS, API, and extension events.
+- **Subscription:** Defined in [Focus Reader PRD](./focus-reader-prd-v1.md), Section 5.1. Schema is unchanged from this spec. Documents reference their subscription via `Document.source_id` (instead of the original `subscription_id` FK).
+- **Tag:** Defined in [Focus Reader PRD](./focus-reader-prd-v1.md), Section 5.1. Schema is unchanged.
+- **Attachment:** Defined in [Focus Reader PRD](./focus-reader-prd-v1.md), Section 5.1. The FK is now `document_id` (was `newsletter_item_id`).
+- **Denylist:** Defined in [Focus Reader PRD](./focus-reader-prd-v1.md), Section 5.1. Schema is unchanged.
+- **Feed_Token:** Defined in [Focus Reader PRD](./focus-reader-prd-v1.md), Section 5.1. Schema is unchanged.
+- **Ingestion_Log:** Defined in [Focus Reader PRD](./focus-reader-prd-v1.md), Section 5.1. The FK is now `document_id` (was `newsletter_item_id`) and a `channel_type` field has been added to distinguish email ingestion events from RSS, API, and extension events.
 
 #### Join Tables
 
-- **Subscription_Tags:** Unchanged. Defined in [Focus Reader PRD](./focus-reader-prd.md), Section 5.2.
-- **Newsletter_Item_Tags → Document_Tags:** The original `Newsletter_Item_Tags` join table has been replaced by `Document_Tags` in the unified model, which associates tags with any document type. See [Focus Reader PRD](./focus-reader-prd.md), Section 5.2.
+- **Subscription_Tags:** Unchanged. Defined in [Focus Reader PRD](./focus-reader-prd-v1.md), Section 5.2.
+- **Newsletter_Item_Tags → Document_Tags:** The original `Newsletter_Item_Tags` join table has been replaced by `Document_Tags` in the unified model, which associates tags with any document type. See [Focus Reader PRD](./focus-reader-prd-v1.md), Section 5.2.
 
 ---
 
@@ -369,7 +369,7 @@ Each ingested newsletter email creates one `Document` row (with `type = 'email'`
 
 **Success Criteria:** User has fully replaced Readwise Reader with Focus Reader for daily use.
 
-> **Note:** See [focus-reader-prd.md](./focus-reader-prd.md) for the canonical phase definitions. Phase 4 (Intelligence Layer) covers AI-assisted features: LLM auto-tagging, summaries, digest generation.
+> **Note:** See [focus-reader-prd.md](./focus-reader-prd-v1.md) for the canonical phase definitions. Phase 4 (Intelligence Layer) covers AI-assisted features: LLM auto-tagging, summaries, digest generation.
 
 ---
 

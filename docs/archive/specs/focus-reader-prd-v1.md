@@ -137,7 +137,7 @@ Focus Reader treats all saved content as **Documents**. Each document has a `typ
 
 ### 4.3 Email Addressing Strategy
 
-> This section is carried forward from the [Email Newsletter PRD](./email-newsletter-prd.md), Section 3.3. The email ingestion subsystem is specified in full detail in that document.
+> This section is carried forward from the [Email Newsletter PRD](./email-newsletter-prd-v1.md), Section 3.3. The email ingestion subsystem is specified in full detail in that document.
 
 Use a **catch-all configuration on a dedicated subdomain** (e.g., `*@read.yourdomain.com`).
 
@@ -192,7 +192,7 @@ The universal content entity. Every piece of saved content — regardless of for
 >
 > These are orthogonal. An `article` (type) could arrive from an RSS feed (origin_type = `feed`) or be manually saved (origin_type = `manual`). An `email` (type) always comes from a `subscription` (origin_type). A `pdf` (type) is always `manual` (origin_type).
 >
-> **Note:** The `Ingestion_Log` table uses a separate field `channel_type` (`email`, `rss`, `api`, `extension`) to describe the technical channel through which the event was received. This is distinct from `origin_type` — see the [Specification Improvements](./improvements.md), Section 16, for the rationale behind this naming separation.
+> **Note:** The `Ingestion_Log` table uses a separate field `channel_type` (`email`, `rss`, `api`, `extension`) to describe the technical channel through which the event was received. This is distinct from `origin_type` — see the [Specification Improvements](./focus-reader-prd-v1.md), Section 16, for the rationale behind this naming separation.
 
 | Field                  | Type            | Description                                                      |
 |------------------------|-----------------|------------------------------------------------------------------|
@@ -255,7 +255,7 @@ PDF-specific metadata that only applies to documents with `type = 'pdf'`. Tracks
 
 An email newsletter source mapped to a pseudo email address. Each subscription represents one newsletter the user has signed up for. Documents with `type = 'email'` reference a subscription via `source_id`.
 
-> Carried forward from the [Email Newsletter PRD](./email-newsletter-prd.md), Section 4.1, with minor field additions to link into the unified document model.
+> Carried forward from the [Email Newsletter PRD](./email-newsletter-prd-v1.md), Section 4.1, with minor field additions to link into the unified document model.
 
 | Field            | Type            | Description                          |
 |------------------|-----------------|--------------------------------------|
@@ -333,7 +333,7 @@ A curated, ordered group of documents — like a reading list or playlist. Colle
 | `created_at`  | TEXT (ISO 8601) | Creation time        |
 | `updated_at`  | TEXT (ISO 8601) | Last update time     |
 
-> **Design decision:** `is_public` has been removed from v1. The security model requires all endpoints to be authenticated (Section 8.5), and public/anonymous collection sharing would conflict with this constraint. Public collections may be revisited in a future phase with an explicit token-based sharing model similar to Feed_Token. See [Specification Improvements](./improvements.md), Section 14.
+> **Design decision:** `is_public` has been removed from v1. The security model requires all endpoints to be authenticated (Section 8.5), and public/anonymous collection sharing would conflict with this constraint. Public collections may be revisited in a future phase with an explicit token-based sharing model similar to Feed_Token. See [Specification Improvements](./focus-reader-prd-v1.md), Section 14.
 
 #### Attachment
 
@@ -518,7 +518,7 @@ Primary key: (`collection_id`, `document_id`)
 
 **Priority:** P0 (Critical)
 
-> The email ingestion pipeline is specified in full detail in the [Email Newsletter PRD](./email-newsletter-prd.md), Sections 5.1–5.2. This section summarizes the integration into the unified document model.
+> The email ingestion pipeline is specified in full detail in the [Email Newsletter PRD](./email-newsletter-prd-v1.md), Sections 5.1–5.2. This section summarizes the integration into the unified document model.
 
 - Receive inbound emails at pseudo addresses on a catch-all subdomain.
 - Parse MIME content using `postal-mime`: extract subject, sender, date, HTML body, plain text, headers, attachments.
@@ -819,7 +819,7 @@ Keyboard shortcuts are disabled while focus is inside editable inputs (search ba
 
 **Email Subscriptions:**
 
-> Detailed in the [Email Newsletter PRD](./email-newsletter-prd.md), Section 5.2.
+> Detailed in the [Email Newsletter PRD](./email-newsletter-prd-v1.md), Section 5.2.
 
 - List all subscriptions with: display name, pseudo email, sender, tags, last received date, unread count.
 - Create new subscriptions (generate a pseudo email address).
@@ -839,7 +839,7 @@ Keyboard shortcuts are disabled while focus is inside editable inputs (search ba
 
 **Priority:** P3 (Low)
 
-> Carried forward from the [Email Newsletter PRD](./email-newsletter-prd.md), Section 5.7, expanded to cover all document types.
+> Carried forward from the [Email Newsletter PRD](./email-newsletter-prd-v1.md), Section 5.7, expanded to cover all document types.
 
 **Description:** Expose saved documents as standard Atom feeds for consumption in external readers.
 
@@ -1053,7 +1053,7 @@ Every API request must be authenticated. There are no unauthenticated endpoints 
 
 ### 8.2 Email Deliverability and Reliability
 
-> Detailed in the [Email Newsletter PRD](./email-newsletter-prd.md), Section 7.1.
+> Detailed in the [Email Newsletter PRD](./email-newsletter-prd-v1.md), Section 7.1.
 
 - Ensure MX, SPF, DKIM, and DMARC records are correctly configured.
 - Handle confirmation emails with `needs_confirmation` flag.
@@ -1062,7 +1062,7 @@ Every API request must be authenticated. There are no unauthenticated endpoints 
 
 ### 8.3 Email HTML Challenges
 
-> Detailed in the [Email Newsletter PRD](./email-newsletter-prd.md), Section 7.2.
+> Detailed in the [Email Newsletter PRD](./email-newsletter-prd-v1.md), Section 7.2.
 
 - Strip tracking pixels and external scripts while preserving layout and legitimate images.
 - Markdown conversion is lossy for complex layouts — HTML view is primary.
@@ -1110,7 +1110,7 @@ Every API request must be authenticated. There are no unauthenticated endpoints 
 
 ## 10. Relationship to Email Newsletter PRD
 
-The [Email Newsletter PRD](./email-newsletter-prd.md) is a detailed specification for the email ingestion subsystem. It remains the authoritative reference for:
+The [Email Newsletter PRD](./email-newsletter-prd-v1.md) is a detailed specification for the email ingestion subsystem. It remains the authoritative reference for:
 
 - Email addressing strategy (Section 3.3)
 - Email-specific data model fields (Section 4.1: `Subscription`, `Newsletter_Item` → mapped to `Document` + `Document_Email_Meta` in this spec)
