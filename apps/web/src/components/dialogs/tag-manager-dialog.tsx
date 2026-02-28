@@ -90,7 +90,7 @@ export function TagManagerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle>
             {documentId ? "Edit Tags" : "Manage Tags"}
