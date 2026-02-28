@@ -2,6 +2,7 @@
 
 import { use, useMemo } from "react";
 import useSWR from "swr";
+import { Filter } from "lucide-react";
 import type { SavedView, ViewQueryAst, ViewSortConfig } from "@focus-reader/shared";
 import { queryAstToDocumentQuery, applySortConfig } from "@focus-reader/api";
 import { apiFetch } from "@/lib/api-client";
@@ -58,6 +59,7 @@ export default function SavedViewPage({
   return (
     <DocumentList
       title={view.name}
+      icon={Filter}
       location={queryProps.location}
       tagId={queryProps.tagId}
       subscriptionId={queryProps.subscriptionId}

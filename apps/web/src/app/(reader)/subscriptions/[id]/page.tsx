@@ -1,6 +1,7 @@
 "use client";
 
 import { use } from "react";
+import { Mail } from "lucide-react";
 import { DocumentList } from "@/components/documents/document-list";
 import { useSubscriptions } from "@/hooks/use-subscriptions";
 
@@ -17,6 +18,7 @@ export default function SubscriptionPage({
     <DocumentList
       subscriptionId={id}
       title={sub?.display_name || sub?.sender_name || "Subscription"}
+      icon={Mail}
     />
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { use } from "react";
+import { Tag } from "lucide-react";
 import { DocumentList } from "@/components/documents/document-list";
 import { useTags } from "@/hooks/use-tags";
 
@@ -13,5 +14,5 @@ export default function TagPage({
   const { tags } = useTags();
   const tag = tags?.find((t) => t.id === id);
 
-  return <DocumentList tagId={id} title={tag?.name || "Tag"} />;
+  return <DocumentList tagId={id} title={tag?.name || "Tag"} icon={Tag} />;
 }

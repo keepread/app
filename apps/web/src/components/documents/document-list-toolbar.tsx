@@ -70,6 +70,7 @@ export type ViewMode = "list" | "grid";
 
 interface DocumentListToolbarProps {
   title: string;
+  icon?: React.ComponentType<{ className?: string }>;
   total: number;
   onSearch?: (query: string) => void;
   isSearchActive?: boolean;
@@ -101,6 +102,7 @@ interface DocumentListToolbarProps {
 
 export function DocumentListToolbar({
   title,
+  icon: Icon,
   total,
   onSearch,
   isSearchActive,
@@ -282,7 +284,10 @@ export function DocumentListToolbar({
               <PanelLeftOpen className="size-4" />
             </Button>
           )}
-          <span className="px-2 text-sm font-semibold">{title}</span>
+          <span className="flex items-center gap-1.5 px-2 text-sm font-semibold">
+            {Icon && <Icon className="size-4 text-muted-foreground" />}
+            {title}
+          </span>
           {scopeDropdown}
         </div>
       )}

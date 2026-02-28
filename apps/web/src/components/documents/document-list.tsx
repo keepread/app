@@ -52,6 +52,7 @@ interface DocumentListProps {
   feedId?: string;
   isStarred?: boolean;
   title: string;
+  icon?: React.ComponentType<{ className?: string }>;
   type?: DocumentType;
   status?: "read" | "unread";
   savedAfter?: string;
@@ -67,6 +68,7 @@ export function DocumentList({
   feedId,
   isStarred,
   title,
+  icon,
   type: typeProp,
   status,
   savedAfter,
@@ -433,6 +435,7 @@ export function DocumentList({
 
   const toolbarProps = {
     title,
+    icon,
     total: displayTotal,
     onSearch: handleSearch,
     isSearchActive,
