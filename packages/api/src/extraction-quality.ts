@@ -56,7 +56,13 @@ export function scoreExtraction(input: ExtractionScoreInput): number {
   if (input.excerpt && input.excerpt.length > 50) score += 5;
   if (input.plainTextContent && input.plainTextContent.length > 500) score += 5;
 
-  return Math.min(100, score);
+  // Guard against deceptively "valid-looking" partial extractions:
+  // some pages return only intro/summary blocks with good metadata.
+  if (input.readabilitySucceeded === true && input.wordCount > 0 && input.wordCount < 120) {
+    score -= 15;
+  }
+
+  return Math.max(0, Math.min(100, score));
 }
 
 const DEFAULT_THRESHOLD = 55;

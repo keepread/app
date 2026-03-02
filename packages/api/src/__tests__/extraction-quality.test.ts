@@ -62,6 +62,30 @@ describe("scoreExtraction", () => {
     const score = scoreExtraction(fullArticle);
     expect(score).toBeLessThanOrEqual(100);
   });
+
+  it("scores partial extractions low enough to trigger enrichment", () => {
+    // Real-world shape from partially extracted long-form posts:
+    // non-URL title + some metadata + short body that looks "valid" but incomplete.
+    const partialExtraction: ExtractionScoreInput = {
+      title: "Week in Review - Week #3",
+      url: "https://annjose.com/post/week-in-review-week3/",
+      htmlContent: "<p>Intro paragraph.</p>".repeat(20),
+      plainTextContent:
+        "This post has been sitting in my draft for two weeks... ".repeat(20),
+      author: null,
+      siteName: "annjose.com",
+      publishedDate: "2023-11-03",
+      coverImageUrl: null,
+      excerpt:
+        "This post has been sitting in my draft for two weeks, waiting for my time to polish and post.",
+      wordCount: 77,
+      readabilitySucceeded: true,
+    };
+
+    const score = scoreExtraction(partialExtraction);
+    expect(score).toBeLessThan(55);
+    expect(shouldEnrich(score, { hasUrl: true })).toBe(true);
+  });
 });
 
 describe("shouldEnrich", () => {

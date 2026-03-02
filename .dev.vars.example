@@ -28,3 +28,9 @@ OWNER_EMAIL=you@example.com
 # Cloudflare Access (omit both to disable auth in local dev)
 # CF_ACCESS_TEAM_DOMAIN=your-team
 # CF_ACCESS_AUD=your-audience-tag
+
+# Browser Rendering — used by pnpm test:reading-mode-pipeline
+# BROWSER_RENDERING_ENABLED=true
+# BROWSER_RENDERING_ACCOUNT_ID=your-account-id
+# BROWSER_RENDERING_API_TOKEN=your-api-token
+# BROWSER_RENDERING_TIMEOUT_MS=12000
