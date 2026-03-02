@@ -16,3 +16,4 @@ dist/
 .output/
 .tmp-localstorage
 /apps/extension/.wxt/
+.claude/settings.local.json
