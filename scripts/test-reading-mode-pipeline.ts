@@ -41,14 +41,16 @@ const a = {
 // ── Types ───────────────────────────────────────────────────────────
 interface UrlCheck {
   url: string;
-  minWords?: number;
-  expectTitleNotUrl?: boolean;
+  expectMinWords?: number;
+  expectMinImages?: number;
+  expectExtractedTitle?: boolean;
 }
 
 interface ExtractionResult {
   title: string;
   score: number;
   wordCount: number;
+  imageCount: number;
   htmlLength: number;
   readabilitySucceeded: boolean;
 }
@@ -132,10 +134,13 @@ function runExtraction(html: string, url: string): ExtractionResult {
   };
   const score = scoreExtraction(input);
 
+  const imageCount = (article.htmlContent.match(/<img[\s>]/gi) ?? []).length;
+
   return {
     title,
     score,
     wordCount: article.wordCount,
+    imageCount,
     htmlLength: article.htmlContent.length,
     readabilitySucceeded: article.readabilitySucceeded,
   };
@@ -152,13 +157,17 @@ function evaluate(
     return { pass: false, reasons };
   }
 
-  const minWords = check.minWords ?? 80;
-  if (chosen.wordCount < minWords) {
-    reasons.push(`word count ${chosen.wordCount} < min ${minWords}`);
+  const expectMinWords = check.expectMinWords ?? 80;
+  if (chosen.wordCount < expectMinWords) {
+    reasons.push(`words: actual ${chosen.wordCount}, expected ≥ ${expectMinWords}`);
   }
 
-  if (check.expectTitleNotUrl !== false && chosen.title.trim() === check.url.trim()) {
-    reasons.push("title fell back to raw URL");
+  if (check.expectExtractedTitle !== false && chosen.title.trim() === check.url.trim()) {
+    reasons.push("title: actual value is the raw URL, expected an extracted title");
+  }
+
+  if (check.expectMinImages !== undefined && chosen.imageCount < check.expectMinImages) {
+    reasons.push(`images: actual ${chosen.imageCount}, expected ≥ ${check.expectMinImages}`);
   }
 
   return { pass: reasons.length === 0, reasons };
@@ -181,7 +190,7 @@ function cleanUrl(url: string): string {
 }
 
 function fmtScore(result: ExtractionResult): string {
-  return `score ${scoreColor(result.score)}${result.score}${a.reset} ${a.dim}\u00b7 ${result.wordCount} words${a.reset}`;
+  return `score ${scoreColor(result.score)}${result.score}${a.reset} ${a.dim}\u00b7 ${result.wordCount} words \u00b7 ${result.imageCount} images${a.reset}`;
 }
 
 function printReport(report: Report, canRender: boolean): void {
@@ -191,27 +200,30 @@ function printReport(report: Report, canRender: boolean): void {
 
   console.log(`  ${icon}  ${cleanUrl(report.url)}`);
 
-  const hasRendered = report.rendered !== null;
-  if (hasRendered && report.static) {
-    console.log(`     ${a.dim}plain-fetch:${a.reset} ${fmtScore(report.static)} ${a.dim}\u2192${a.reset} ${a.dim}browser-rendered:${a.reset} ${fmtScore(report.rendered!)}`);
-  } else if (report.static) {
-    console.log(`     ${a.dim}plain-fetch:${a.reset} ${fmtScore(report.static)}`);
+  // Each extraction method gets its own line; labels are padded to align the metrics.
+  const labelWidth = report.rendered ? "browser-rendered:".length : "plain-fetch:".length;
+  if (report.static) {
+    const label = "plain-fetch:".padEnd(labelWidth);
+    console.log(`     ${a.dim}${label}${a.reset} ${fmtScore(report.static)}`);
+  }
+  if (report.rendered) {
+    console.log(`     ${a.dim}browser-rendered:${a.reset} ${fmtScore(report.rendered)}`);
   }
 
   for (const reason of report.reasons) {
-    console.log(`     ${a.dim}\u21b3 ${reason}${a.reset}`);
+    console.log(`     ${a.red}\u21b3 ${reason}${a.reset}`);
   }
   if (report.error) {
-    console.log(`     ${a.dim}\u21b3 ${report.error}${a.reset}`);
+    console.log(`     ${a.red}\u21b3 ${report.error}${a.reset}`);
   }
   if (!report.pass && report.shouldEnrichFromStatic && !canRender) {
     console.log(`     ${a.yellow}\u21b3 needs browser rendering (configure BROWSER_RENDERING_* in .env)${a.reset}`);
   }
-  if (hasRendered && !report.usedRendered) {
+  if (report.rendered && !report.usedRendered) {
     console.log(`     ${a.yellow}\u21b3 browser rendering didn't improve extraction${a.reset}`);
   }
-  if (hasRendered && report.usedRendered && report.static) {
-    console.log(`     ${a.green}\u21b3 browser rendering improved extraction (${report.static.score} \u2192 ${report.rendered!.score})${a.reset}`);
+  if (report.rendered && report.usedRendered && report.static) {
+    console.log(`     ${a.green}\u21b3 browser rendering improved extraction (${report.static.score} \u2192 ${report.rendered.score})${a.reset}`);
   }
   console.log();
 }

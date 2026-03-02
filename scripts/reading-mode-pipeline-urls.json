@@ -2,43 +2,49 @@
   "urls": [
     {
       "url": "https://annjose.com/post/week-in-review-week3/",
-      "minWords": 200,
-      "expectTitleNotUrl": true
+      "expectMinWords": 200,
+      "expectExtractedTitle": true
+    },
+    {
+      "url": "https://getbruin.com/blog/go-is-the-best-language-for-agents/",
+      "expectMinWords": 200,
+      "expectMinImages": 1,
+      "expectExtractedTitle": true
     },
     {
       "url": "https://x.com/sawyerhood/status/2027409021914026093",
-      "minWords": 20,
-      "expectTitleNotUrl": true
+      "expectMinWords": 20,
+      "expectExtractedTitle": true
     },
     {
       "url": "https://x.com/bcherny/status/2027534984534544489",
-      "minWords": 20,
-      "expectTitleNotUrl": true
+      "expectMinWords": 20,
+      "expectExtractedTitle": true
     },
     {
       "url": "https://overreacted.io/a-complete-guide-to-useeffect/",
-      "minWords": 800,
-      "expectTitleNotUrl": true
+      "expectMinWords": 800,
+      "expectExtractedTitle": true
     },
     {
       "url": "https://pilk.website/3/facebook-is-absolutely-cooked",
-      "minWords": 250,
-      "expectTitleNotUrl": true
+      "expectMinWords": 250,
+      "expectExtractedTitle": true
     },
     {
       "url": "https://www.mariannefeng.com/portfolio/kindle",
-      "minWords": 60,
-      "expectTitleNotUrl": true
+      "expectMinWords": 60,
+      "expectExtractedTitle": true
     },
     {
       "url": "https://george.chiramattel.com/blog/mental-models-for-working-with-coding-agents",
-      "minWords": 250,
-      "expectTitleNotUrl": true
+      "expectMinWords": 250,
+      "expectExtractedTitle": true
     },
     {
       "url": "https://annjose.com/post/agent-coding-in-practice/",
-      "minWords": 150,
-      "expectTitleNotUrl": true
+      "expectMinWords": 150,
+      "expectExtractedTitle": true
     }
   ]
 }

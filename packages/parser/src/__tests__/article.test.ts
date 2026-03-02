@@ -77,6 +77,98 @@ describe("extractArticle", () => {
     expect(result.markdownContent).toContain("first paragraph");
   });
 
+  it("prepends hero image when it is in a sibling div outside the article prose", () => {
+    // Mirrors the common Nuxt/Next.js/Ghost pattern where the hero image lives
+    // in its own wrapper div adjacent to—but not inside—the prose container.
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><title>Article with Hero</title></head>
+      <body>
+        <nav><img src="/logo.svg" alt="Site Logo"></nav>
+        <div class="author-section">
+          <img src="/author/burak.jpeg" alt="Burak" width="40" height="40">
+          <span>Burak Karakan · Co-founder</span>
+        </div>
+        <div class="hero-wrapper">
+          <img src="/blog/go-agents/cover.jpeg" alt="" class="aspect-video w-full object-cover">
+        </div>
+        <div class="prose">
+          <p>Article body first paragraph. It has enough text for Readability to extract it as the main article content worth processing.</p>
+          <p>Second paragraph adds more substance. This content discusses Go as a programming language for building AI agents and distributed systems.</p>
+          <p>Third paragraph continues the discussion with technical details about concurrency, goroutines, and performance characteristics of Go.</p>
+          <p>Fourth paragraph explores the ecosystem around Go including its standard library, tooling, and community support for modern development.</p>
+          <p>Fifth paragraph wraps up the argument for Go as the best language for agent-based systems and distributed computing workloads.</p>
+        </div>
+      </body>
+      </html>
+    `;
+    const result = extractArticle(html, "https://example.com/blog/go-agents");
+
+    expect(result.htmlContent).toContain("cover.jpeg");
+    expect(result.htmlContent).toContain("Article body first paragraph");
+    // Hero image should appear before the article text
+    const heroIdx = result.htmlContent.indexOf("cover.jpeg");
+    const textIdx = result.htmlContent.indexOf("Article body first paragraph");
+    expect(heroIdx).toBeLessThan(textIdx);
+  });
+
+  it("does not prepend hero when article already starts with an image", () => {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><title>Article with Inline Hero</title></head>
+      <body>
+        <div class="hero-wrapper">
+          <img src="/blog/outside-cover.jpeg" alt="">
+        </div>
+        <article>
+          <img src="/blog/inline-hero.jpeg" alt="Hero" class="w-full">
+          <p>Article body first paragraph. It has enough text for Readability to extract it as the main article content worth processing.</p>
+          <p>Second paragraph adds more substance about the topic being discussed in this piece of content.</p>
+          <p>Third paragraph provides additional context and supporting evidence for the main argument being made.</p>
+          <p>Fourth paragraph explores related concepts and offers deeper analysis of the subject matter.</p>
+          <p>Fifth paragraph concludes the article with a summary and key takeaways for the reader.</p>
+        </article>
+      </body>
+      </html>
+    `;
+    const result = extractArticle(html, "https://example.com/blog/inline");
+
+    expect(result.htmlContent).toContain("inline-hero.jpeg");
+    expect(result.htmlContent).not.toContain("outside-cover.jpeg");
+  });
+
+  it("filters out logos and tiny images when looking for the hero", () => {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head><title>Article with Logo Before Content</title></head>
+      <body>
+        <header>
+          <img src="/brand-logo.svg" alt="Brand Logo">
+          <img src="/small-icon.png" width="16" height="16" alt="">
+        </header>
+        <div class="hero-wrapper">
+          <img src="/blog/real-hero.jpeg" alt="" class="w-full">
+        </div>
+        <div class="prose">
+          <p>Article body first paragraph. It has enough text for Readability to extract it as the main article content worth processing.</p>
+          <p>Second paragraph adds more substance about the topic being discussed in this piece of content here.</p>
+          <p>Third paragraph provides additional context and supporting evidence for the main argument made.</p>
+          <p>Fourth paragraph explores related concepts and offers deeper analysis of the subject matter.</p>
+          <p>Fifth paragraph concludes the article with a summary and key takeaways for the reader.</p>
+        </div>
+      </body>
+      </html>
+    `;
+    const result = extractArticle(html, "https://example.com/blog/logos");
+
+    expect(result.htmlContent).toContain("real-hero.jpeg");
+    expect(result.htmlContent).not.toContain("brand-logo.svg");
+    expect(result.htmlContent).not.toContain("small-icon.png");
+  });
+
   it("extracts site name when available", () => {
     const htmlWithMeta = `
       <!DOCTYPE html>
