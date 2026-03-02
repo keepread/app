@@ -1,15 +1,6 @@
 import { NextRequest } from "next/server";
 import { jsonError } from "@/lib/api-helpers";
 
-const ALLOWED_CONTENT_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/svg+xml",
-  "image/avif",
-];
-
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get("url");
   if (!url) {
@@ -29,7 +20,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const response = await fetch(url, {
-      headers: { Accept: "image/*" },
+      headers: {
+        Accept: "image/*",
+        Referer: `${parsed.origin}/`,
+      },
       redirect: "follow",
     });
 
@@ -38,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() || "";
-    if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
+    if (!contentType.startsWith("image/")) {
       return jsonError("Not an image", "INVALID_CONTENT_TYPE", 400);
     }
 

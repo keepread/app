@@ -39,6 +39,34 @@ describe("sanitizeHtml", () => {
     expect(result).toContain('alt="Hero"');
   });
 
+  it("promotes lazy image data-src to src", () => {
+    const html =
+      '<img data-src="https://example.com/lazy.jpg" alt="Lazy image" loading="lazy" />';
+    const result = sanitizeHtml(html);
+    expect(result).toContain('src="https://example.com/lazy.jpg"');
+    expect(result).toContain('alt="Lazy image"');
+  });
+
+  it("promotes image srcset to src when src is missing", () => {
+    const html =
+      '<img srcset="https://example.com/a.webp 1x, https://example.com/b.webp 2x" alt="Responsive image" />';
+    const result = sanitizeHtml(html);
+    expect(result).toContain('src="https://example.com/a.webp"');
+  });
+
+  it("promotes picture source srcset to img src", () => {
+    const html = `
+      <picture>
+        <source srcset="https://example.com/pic.webp 1x, https://example.com/pic@2x.webp 2x" type="image/webp" />
+        <img alt="Picture image" />
+      </picture>
+    `;
+    const result = sanitizeHtml(html);
+    expect(result).toContain("<picture");
+    expect(result).toContain('src="https://example.com/pic.webp"');
+    expect(result).toContain('alt="Picture image"');
+  });
+
   it("preserves basic formatting tags", () => {
     const html =
       "<h1>Title</h1><p><strong>Bold</strong> and <em>italic</em></p>";

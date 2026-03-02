@@ -169,19 +169,52 @@ export function ReaderContent({ documentId }: ReaderContentProps) {
   const resolvedHtmlContent = useMemo(() => {
     if (!htmlContent || !doc?.url) return htmlContent;
     try {
-      const origin = new URL(doc.url).origin;
-      return htmlContent
-        // Proxy image/video sources through our API
-        .replace(
-          /(src|poster)=(["'])(\/[^"']*)\2/g,
-          (_, attr, quote, path) =>
-            `${attr}=${quote}/api/image-proxy?url=${encodeURIComponent(origin + path)}${quote}`
-        )
-        // Resolve link hrefs to absolute URLs (no proxy needed)
-        .replace(
-          /href=(["'])(\/[^"']*)\1/g,
-          (_, quote, path) => `href=${quote}${origin}${path}${quote}`
-        );
+      const parsed = new DOMParser().parseFromString(htmlContent, "text/html");
+      const baseUrl = doc.url;
+
+      const toAbsolute = (raw: string): string => {
+        if (!raw || raw.startsWith("#")) return raw;
+        try {
+          const absolute = new URL(raw, baseUrl);
+          if (absolute.protocol !== "http:" && absolute.protocol !== "https:") {
+            return raw;
+          }
+          return absolute.href;
+        } catch {
+          return raw;
+        }
+      };
+
+      for (const el of Array.from(parsed.querySelectorAll<HTMLElement>("[src]"))) {
+        const src = el.getAttribute("src");
+        if (!src) continue;
+        if (src.startsWith("/api/image-proxy?url=")) continue;
+        const absolute = toAbsolute(src);
+        if (absolute.startsWith("http://") || absolute.startsWith("https://")) {
+          el.setAttribute("src", `/api/image-proxy?url=${encodeURIComponent(absolute)}`);
+        }
+      }
+
+      for (const el of Array.from(parsed.querySelectorAll<HTMLElement>("[poster]"))) {
+        const poster = el.getAttribute("poster");
+        if (!poster) continue;
+        if (poster.startsWith("/api/image-proxy?url=")) continue;
+        const absolute = toAbsolute(poster);
+        if (absolute.startsWith("http://") || absolute.startsWith("https://")) {
+          el.setAttribute("poster", `/api/image-proxy?url=${encodeURIComponent(absolute)}`);
+        }
+      }
+
+      for (const anchor of Array.from(parsed.querySelectorAll<HTMLAnchorElement>("a[href]"))) {
+        const href = anchor.getAttribute("href");
+        if (!href) continue;
+        const absolute = toAbsolute(href);
+        if (absolute !== href) {
+          anchor.setAttribute("href", absolute);
+        }
+      }
+
+      return parsed.body.innerHTML;
     } catch {
       return htmlContent;
     }

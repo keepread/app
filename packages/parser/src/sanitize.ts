@@ -6,6 +6,7 @@ const ALLOWED_TAGS = new Set([
   "p", "br", "hr",
   "ul", "ol", "li",
   "a", "img",
+  "picture", "source",
   "strong", "b", "em", "i", "u", "s", "del",
   "blockquote", "pre", "code",
   "thead", "tbody", "tr", "th", "td",
@@ -25,6 +26,7 @@ const ALLOWED_ATTRS = new Set([
   "class", "id", "style",
   "colspan", "rowspan",
   "target", "rel",
+  "srcset", "sizes", "loading", "decoding", "fetchpriority",
 ]);
 
 const FORBIDDEN_ATTR_PREFIXES = ["on"]; // covers onerror, onclick, onload, etc.
@@ -39,6 +41,9 @@ const DANGEROUS_TAGS = new Set([
 export function sanitizeHtml(html: string): string {
   const { document } = parseHTML(`<!DOCTYPE html><html><body>${html}</body></html>`);
 
+  // Promote lazy/source URLs into src before attribute stripping.
+  normalizeImageSources(document.body);
+
   // Unwrap layout tables before general sanitization (so their content is preserved)
   unwrapLayoutTables(document.body);
 
@@ -52,6 +57,66 @@ export function sanitizeHtml(html: string): string {
   stripInvisibleChars(document.body);
 
   return document.body.innerHTML;
+}
+
+function normalizeImageSources(root: any): void {
+  const pickFirstSrcsetUrl = (value: string | null): string | null => {
+    if (!value) return null;
+    const first = value
+      .split(",")[0]
+      ?.trim()
+      .split(/\s+/)[0]
+      ?.trim();
+    return first || null;
+  };
+
+  const pickLazySrc = (img: any): string | null => {
+    const attrs = ["data-src", "data-lazy-src", "data-original", "data-url"];
+    for (const attr of attrs) {
+      const value = img.getAttribute(attr);
+      if (value && value.trim()) return value.trim();
+    }
+    return null;
+  };
+
+  const images = Array.from(root.querySelectorAll("img")) as any[];
+  for (const img of images) {
+    const currentSrc = img.getAttribute("src")?.trim();
+    if (currentSrc) continue;
+
+    const lazySrc = pickLazySrc(img);
+    if (lazySrc) {
+      img.setAttribute("src", lazySrc);
+      continue;
+    }
+
+    const srcsetSrc = pickFirstSrcsetUrl(img.getAttribute("srcset"));
+    if (srcsetSrc) {
+      img.setAttribute("src", srcsetSrc);
+    }
+  }
+
+  const pictures = Array.from(root.querySelectorAll("picture")) as any[];
+  for (const picture of pictures) {
+    const img = picture.querySelector("img");
+    if (!img) continue;
+    const currentSrc = img.getAttribute("src")?.trim();
+    if (currentSrc) continue;
+
+    const sources = Array.from(picture.querySelectorAll("source")) as any[];
+    for (const source of sources) {
+      const fromSrcset = pickFirstSrcsetUrl(source.getAttribute("srcset"));
+      if (fromSrcset) {
+        img.setAttribute("src", fromSrcset);
+        break;
+      }
+      const fromLazy = pickFirstSrcsetUrl(source.getAttribute("data-srcset"));
+      if (fromLazy) {
+        img.setAttribute("src", fromLazy);
+        break;
+      }
+    }
+  }
 }
 
 function sanitizeNode(node: any): void {
